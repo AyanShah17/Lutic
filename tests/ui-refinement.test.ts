@@ -345,6 +345,14 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     const { AppShell } = await import("../apps/web/src/components/app-shell");
     const { CommandSearch } = await import("../apps/web/src/components/command-search");
 
+    mockedSessionUser = null;
+    mockedPathname = "/";
+    const landingShellHtml = renderToStaticMarkup(
+      React.createElement(AppShell, null, React.createElement("div", null, "LandingBody"))
+    );
+    expect(landingShellHtml).toContain("LandingBody");
+    expect(landingShellHtml).not.toContain("Search workspace...");
+
     mockedPathname = "/chat";
     mockedSessionUser = makeUser("engineer", ["plant-detroit"]);
     const engHtml = renderToStaticMarkup(
@@ -379,13 +387,17 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
 
     mockedSessionUser = null;
     const unauthHtml = renderToStaticMarkup(await HomePage());
-    expect(unauthHtml).toContain("Lutic Industrial Operations PaaS");
-    expect(unauthHtml).toContain("Sign in with Demo Role");
+    expect(unauthHtml).toContain("Turn Every Plant Issue Into a Fast, Safe, Verified Fix.");
+    expect(unauthHtml).toContain("lutic.app");
+    expect(unauthHtml).toContain("Interactive Plant Anatomy");
+    expect(unauthHtml).toContain("Explore Interactive Demo");
     expect(unauthHtml).not.toContain('href="/activate"');
     expect(unauthHtml).not.toContain('href="/admin"');
+    expect(unauthHtml).not.toContain("mach-l3-filler-01");
 
     mockedSessionUser = makeUser("engineer", ["plant-detroit"]);
     const engHtml = renderToStaticMarkup(await HomePage());
+    expect(engHtml).toContain("Lutic Industrial Operations PaaS");
     expect(engHtml).toContain("Fleet Running");
     expect(engHtml).toContain("mach-l3-filler-01");
     expect(engHtml).not.toContain('href="/admin"');
@@ -401,13 +413,13 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     expect(admHtml).toContain('href="/admin"');
     expect(admHtml).toContain('href="/activate"');
 
-    // In production / non-demo mode, HomePage drops demo role CTA & demo Detroit fallback
+    // In production / non-demo mode, HomePage drops demo CTA
     const prevDemo = process.env.LUTIC_DEMO_MODE;
     try {
       process.env.LUTIC_DEMO_MODE = "false";
       mockedSessionUser = null;
       const prodUnauthHtml = renderToStaticMarkup(await HomePage());
-      expect(prodUnauthHtml).not.toContain("Sign in with Demo Role");
+      expect(prodUnauthHtml).not.toContain("Explore Interactive Demo");
       expect(prodUnauthHtml).toContain("Sign in");
       expect(prodUnauthHtml).not.toContain("mach-l3-filler-01");
     } finally {
@@ -1635,6 +1647,38 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
       expect(admContainer.textContent).toContain("No toolkits configured.");
       await act(async () => {
         admRoot.unmount();
+      });
+
+      const { LuticLandingPage } = await import("../apps/web/src/components/landing-page");
+      const landContainer = doc.createElement("div");
+      const landRoot = ReactDOMClient.createRoot(landContainer as unknown as Element);
+      await act(async () => {
+        landRoot.render(React.createElement(LuticLandingPage, { demoMode: false }));
+        await flushEffects();
+      });
+      expect(landContainer.textContent).toContain("4 min 20 sec");
+      const withoutBtn = findAll(
+        landContainer,
+        (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Stoppage Without Lutic"
+      )[0]!;
+      const manualStationBtn = findAll(
+        landContainer,
+        (n) => n.tagName === "BUTTON" && n.textContent.includes("02 Manuals & History")
+      )[0]!;
+      const analystsTab = findAll(
+        landContainer,
+        (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Operations Analysts"
+      )[0]!;
+      await act(async () => {
+        clickNode(withoutBtn);
+        clickNode(manualStationBtn);
+        clickNode(analystsTab);
+      });
+      expect(landContainer.textContent).toContain("52 min stalled");
+      expect(landContainer.textContent).toContain("40+ Min Binder & Spreadsheet Hunt");
+      expect(landContainer.textContent).toContain("Spend less time reconciling spreadsheets");
+      await act(async () => {
+        landRoot.unmount();
       });
     } finally {
       mockedDemoEnabled = true;

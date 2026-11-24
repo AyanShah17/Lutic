@@ -227,6 +227,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAuthPage = pathname === "/login" && !user;
 
+  if (pathname === "/" && !user) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-primary-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          Skip to main content
+        </a>
+        <main id="main-content" tabIndex={-1} className="min-h-screen focus:outline-none">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   const renderSidebarNav = (onNavigate?: () => void, compact = false) => (
     <div className="flex flex-col h-full">
       <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 shrink-0">

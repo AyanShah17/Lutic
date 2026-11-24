@@ -37,6 +37,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GlowBorderCard } from "@/components/vengeance/glow-border-card";
 import { LineHoverLink } from "@/components/vengeance/line-hover-link";
+import { LuticLandingPage } from "@/components/landing-page";
 
 interface ModuleItem {
   id: string;
@@ -56,6 +57,11 @@ interface ModuleGroup {
 
 export default async function HomePage() {
   const user = await getSessionUser();
+  const demoMode = isDemoMode();
+
+  if (!user) {
+    return <LuticLandingPage demoMode={demoMode} />;
+  }
 
   let snapshot: {
     totalMachines: number;
@@ -291,17 +297,12 @@ export default async function HomePage() {
     }))
     .filter((group) => group.items.length > 0);
 
-  const demoMode = isDemoMode();
   const primaryMachineHref = snapshot?.spotlightMachine
     ? `/m/${snapshot.spotlightMachine.id}`
-    : !user && demoMode
-      ? "/m/mach-l3-filler-01"
-      : "/machines";
+    : "/machines";
   const primaryMachineLabel = snapshot?.spotlightMachine
     ? `${snapshot.spotlightMachine.name} (${snapshot.spotlightMachine.code})`
-    : !user && demoMode
-      ? "Line 3 Filler (E42)"
-      : "Browse Machine Fleet";
+    : "Browse Machine Fleet";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 space-y-7">
