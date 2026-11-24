@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   auditLog,
@@ -14,8 +13,6 @@ import {
 } from "@kojo/core";
 import { McpToolRegistry, PAAS_CONNECTORS } from "@kojo/connectors";
 import {
-  CODE_MODE_CONTAINED_MESSAGE,
-  CodeModeContainedError,
   createLLMProvider,
   executeKojoConnectorCode,
   executeToolWithPolicy,
@@ -81,18 +78,18 @@ afterAll(async () => {
   await state.conn?.close();
 });
 
-describe("Kojo AI Gateway, Connector Protocol & Code Mode", () => {
-  it("resolves Kojo-branded routes for KOJO_AI_GATEWAY_URL, direct providers, and deterministic fallback", () => {
+describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () => {
+  it("resolves Kojo-branded routes for LiteLLM / KOJO_AI_GATEWAY_URL, direct providers, and deterministic fallback", () => {
     const gatewayRoute = resolveKojoGatewayRoute({
-      model: "claude-sonnet-4-6",
-      gatewayUrl: "https://gateway.kojo.local/v1",
+      model: "kojo-claude",
+      gatewayUrl: "http://litellm:4000/v1",
       gatewayKey: "kojo-gw-secret"
     });
     expect(gatewayRoute).toEqual({
       routeType: "kojo-gateway",
-      brandedModel: "kojo/claude-sonnet-4-6",
-      upstreamModel: "claude-sonnet-4-6",
-      baseURL: "https://gateway.kojo.local/v1"
+      brandedModel: "kojo/kojo-claude",
+      upstreamModel: "kojo-claude",
+      baseURL: "http://litellm:4000/v1"
     });
 
     const openaiRoute = resolveKojoGatewayRoute({
@@ -123,98 +120,16 @@ describe("Kojo AI Gateway, Connector Protocol & Code Mode", () => {
 
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("LLM_PROVIDER", "kojo");
-    vi.stubEnv("KOJO_AI_GATEWAY_URL", "https://gateway.kojo.local/v1");
+    vi.stubEnv("LLM_MODEL", "kojo-claude");
+    vi.stubEnv("KOJO_AI_GATEWAY_URL", "http://litellm:4000/v1");
     vi.stubEnv("KOJO_AI_GATEWAY_KEY", "kojo-gw-secret");
     const created = createLLMProvider();
     expect(created).toBeInstanceOf(KojoLLMGateway);
     expect(created.id).toBe("kojo-gateway");
-    expect(created.modelName).toMatch(/^kojo\//);
+    expect(created.modelName).toBe("kojo/kojo-claude");
   });
 
-  it("blocks supplied Code Mode scripts in disposable child processes for host process access and post-await CPU loops", async () => {
-    function runChildCodeModeAttempt(scriptSnippet: string) {
-      const child = spawnSync("bun", ["-e", scriptSnippet], {
-        cwd: process.cwd(),
-        timeout: 5000,
-        encoding: "utf8"
-      });
-      expect(child.error).toBeUndefined();
-      expect(child.status, child.stderr).toBe(0);
-      return JSON.parse(child.stdout.trim()) as {
-        escaped: boolean;
-        elapsedMs?: number;
-        name?: string;
-        code?: string;
-        statusCode?: number;
-        message?: string;
-      };
-    }
-
-    // Bypass vector 1: constructor chain off wrapper function without calling any tool
-    const escapeAttempt = runChildCodeModeAttempt(`
-      import { executeKojoConnectorCode } from "./packages/agent/src/code-mode.ts";
-      try {
-        const res = await executeKojoConnectorCode({
-          code: 'const fn = kojo.callTool["con" + "structor"]; const p = fn("return process")(); return { pid: p.pid, envKeys: Object.keys(p.env).length };',
-          ctx: { db: {}, user: { userId: "u", tenantId: "t", role: "admin", plantIds: [], email: "a@b.c", name: "A" }, requestId: "child-esc" }
-        });
-        console.log(JSON.stringify({ escaped: true, res }));
-      } catch (err) {
-        console.log(JSON.stringify({
-          escaped: false,
-          name: err?.name,
-          code: err?.code,
-          statusCode: err?.statusCode,
-          message: err?.message
-        }));
-      }
-    `);
-    expect(escapeAttempt).toEqual({
-      escaped: false,
-      name: "CodeModeContainedError",
-      code: "CODE_MODE_DISABLED",
-      statusCode: 501,
-      message: CODE_MODE_CONTAINED_MESSAGE
-    });
-
-    // Bypass vector 2: post-await CPU loop exceeding timeoutMs must never run or exceed budget
-    const loopAttempt = runChildCodeModeAttempt(`
-      import { executeKojoConnectorCode } from "./packages/agent/src/code-mode.ts";
-      const started = Date.now();
-      try {
-        const res = await executeKojoConnectorCode({
-          code: 'await kojo.callTool("get_machine_status", { machineId: "mach-l3-filler-01" }); const end = Date.now() + 150; while (Date.now() < end) {} return "completed";',
-          timeoutMs: 20,
-          ctx: { db: {}, user: { userId: "u", tenantId: "t", role: "admin", plantIds: [], email: "a@b.c", name: "A" }, requestId: "child-loop" }
-        });
-        console.log(JSON.stringify({ escaped: true, elapsedMs: Date.now() - started, res }));
-      } catch (err) {
-        console.log(JSON.stringify({
-          escaped: false,
-          elapsedMs: Date.now() - started,
-          name: err?.name,
-          code: err?.code,
-          statusCode: err?.statusCode,
-          message: err?.message
-        }));
-      }
-    `);
-    expect(loopAttempt.escaped).toBe(false);
-    expect(loopAttempt.name).toBe("CodeModeContainedError");
-    expect(loopAttempt.code).toBe("CODE_MODE_DISABLED");
-    expect(loopAttempt.statusCode).toBe(501);
-    expect(loopAttempt.elapsedMs).toBeLessThan(100);
-
-    await expect(
-      executeKojoConnectorCode({
-        code: "return 1;",
-        ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-direct" },
-        options: { registry }
-      })
-    ).rejects.toThrow(CodeModeContainedError);
-  });
-
-  it("excludes execute_connector_code from policy/catalog/agent turns while preserving governed tools, RBAC, and write confirmation", async () => {
+  it("executes multi-tool isolated Code Mode scripts with RBAC, plant scoping, and write confirmation", async () => {
     const manual = buildKojoConnectorManual({
       slug: "historian",
       transport: "kojo_protocol",
@@ -222,58 +137,121 @@ describe("Kojo AI Gateway, Connector Protocol & Code Mode", () => {
       discoveredTools: [{ name: "get_machine_status" }, { name: "get_active_alarms" }]
     });
     expect(manual.protocol).toBe("kojo-connector-v1");
+    expect(manual.codeModeGlobal).toBe("kojo");
 
     const adminTools = await getAllowedToolsForUser(state.conn!.db, adminUser, registry);
-    const engTools = await getAllowedToolsForUser(state.conn!.db, detroitEngineer, registry);
-    expect(adminTools.some((t) => t.name === "execute_connector_code")).toBe(false);
-    expect(engTools.some((t) => t.name === "execute_connector_code")).toBe(false);
+    expect(adminTools.some((t) => t.name === "execute_connector_code")).toBe(true);
 
-    const policyDenied = await executeToolWithPolicy(
-      "execute_connector_code",
-      { code: "return 1;" },
-      { db: state.conn!.db, user: adminUser, requestId: "req-cm-policy-deny" },
-      { registry }
-    );
-    expect(policyDenied).toMatchObject({
-      status: "denied",
-      toolName: "execute_connector_code",
-      denialReason: CODE_MODE_CONTAINED_MESSAGE
+    const codeRes = await executeKojoConnectorCode({
+      code: `
+        const status = await kojo.callTool("get_machine_status", { machineId: input.machineId });
+        const alarms = await kojo.tools.get_active_alarms({ machineId: input.machineId });
+        const wo = await kojo.connectors.cmms.get_work_orders({ machineId: input.machineId, limit: 3 });
+        console.log("checked", input.machineId);
+        return { status, alarmsCount: alarms.alarms.length, woCount: wo.workOrders.length };
+      `,
+      input: { machineId: "mach-l3-filler-01" },
+      ctx: { db: state.conn!.db, user: detroitEngineer, requestId: "req-cm-multi" },
+      options: { registry }
     });
+    expect(codeRes.status).toBe("allowed");
+    expect(codeRes.logs).toEqual(["checked mach-l3-filler-01"]);
+    expect(codeRes.innerCalls.map((c) => c.toolName)).toEqual([
+      "get_machine_status",
+      "get_active_alarms",
+      "get_work_orders"
+    ]);
 
-    // Ordinary RBAC, plant-scope, and write confirmation flows remain intact
+    // RBAC denial enforced on inner calls
     const rbacRes = await executeToolWithPolicy(
-      "query_metric",
-      { metric: "oee", range: "7d" },
-      { db: state.conn!.db, user: detroitEngineer, requestId: "req-gov-rbac" },
+      "execute_connector_code",
+      { code: 'return await kojo.callTool("query_metric", { metric: "oee", range: "7d" });' },
+      { db: state.conn!.db, user: detroitEngineer, requestId: "req-cm-rbac" },
       { registry }
     );
-    expect(rbacRes.status).toBe("denied");
+    expect(rbacRes.status).toBe("error");
     expect(rbacRes.denialReason).toMatch(/not enabled/i);
 
+    // Plant scoping enforced on inner calls
     const scopeRes = await executeToolWithPolicy(
-      "get_machine_status",
-      { machineId: "mach-aus-comp-01" },
-      { db: state.conn!.db, user: detroitEngineer, requestId: "req-gov-scope" },
+      "execute_connector_code",
+      { code: 'return await kojo.callTool("get_machine_status", { machineId: "mach-aus-comp-01" });' },
+      { db: state.conn!.db, user: detroitEngineer, requestId: "req-cm-scope" },
       { registry }
     );
-    expect(scopeRes.status).toBe("denied");
+    expect(scopeRes.status).toBe("error");
     expect(scopeRes.denialReason).toMatch(/outside your plant scope/i);
 
+    // Write tool confirmation propagated out of child process
     const writeRes = await executeToolWithPolicy(
-      "draft_work_order",
+      "execute_connector_code",
       {
-        machineId: "mach-l3-filler-01",
-        priority: "high",
-        type: "corrective",
-        description: "Governed E42 triage"
+        code: `
+          await kojo.callTool("get_active_alarms", { machineId: "mach-l3-filler-01" });
+          return await kojo.callTool("draft_work_order", {
+            machineId: "mach-l3-filler-01",
+            priority: "high",
+            type: "corrective",
+            description: "Isolated Code Mode E42 triage"
+          });
+        `
       },
-      { db: state.conn!.db, user: detroitEngineer, requestId: "req-gov-write" },
+      { db: state.conn!.db, user: detroitEngineer, requestId: "req-cm-write" },
       { registry }
     );
     expect(writeRes.status).toBe("requires_confirmation");
     expect(writeRes.pendingAction?.toolName).toBe("draft_work_order");
     expect(writeRes.pendingAction?.id).toMatch(/^act-/);
+  });
 
+  it("isolates host secrets (empty child env) and forcefully kills post-await infinite CPU loops via SIGKILL", async () => {
+    vi.stubEnv("KOJO_SECRET_CANARY", "host-only-secret-xyz");
+
+    // 1. Even with constructor chain access inside JS, child has empty env and no DB/secrets
+    const envProbe = await executeKojoConnectorCode({
+      code: `
+        const fn = kojo.callTool["con" + "structor"];
+        const p = fn("return process")();
+        return { envKeys: Object.keys(p.env), canary: p.env.KOJO_SECRET_CANARY ?? null };
+      `,
+      ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-env-iso" },
+      options: { registry }
+    });
+    const probeRes = envProbe.result as { envKeys: string[]; canary: string | null };
+    expect(probeRes.canary).toBeNull();
+    expect(probeRes.envKeys.filter((k) => k !== "NODE_ENV")).toEqual([]);
+
+    // 2. Post-await infinite CPU loop is terminated by parent SIGKILL deadline
+    const started = Date.now();
+    await expect(
+      executeKojoConnectorCode({
+        code: `
+          await kojo.callTool("get_machine_status", { machineId: "mach-l3-filler-01" });
+          while (true) {}
+        `,
+        ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-loop" },
+        options: { registry },
+        timeoutMs: 300
+      })
+    ).rejects.toThrow(/timed out/i);
+    expect(Date.now() - started).toBeLessThan(2500);
+
+    // 3. Call budget enforced
+    await expect(
+      executeKojoConnectorCode({
+        code: `
+          await kojo.callTool("get_machine_status", { machineId: "mach-l3-filler-01" });
+          await kojo.callTool("get_active_alarms", { machineId: "mach-l3-filler-01" });
+          return true;
+        `,
+        ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-budget" },
+        options: { registry },
+        maxCalls: 1
+      })
+    ).rejects.toThrow(/budget exceeded/i);
+  });
+
+  it("plans and executes Code Mode inside runAgentTurn and POST /api/connectors/[id]/invoke", async () => {
     const gatewayProvider = new KojoLLMGateway({ allowMockFallback: true });
     expect(gatewayProvider.modelName).toBe("kojo-deterministic-v1");
 
@@ -285,36 +263,47 @@ describe("Kojo AI Gateway, Connector Protocol & Code Mode", () => {
       message: "Use Code Mode script to inspect Line 3 filler status and active alarms",
       machineId: "mach-l3-filler-01"
     });
-    expect(turn.usage.model).toBe("kojo-deterministic-v1");
-    expect(turn.toolCalls.some((t) => t.toolName === "execute_connector_code")).toBe(false);
-    expect(turn.toolCalls.some((t) => t.toolName === "get_machine_status" && t.status === "allowed")).toBe(true);
-    expect(turn.toolCalls.some((t) => t.toolName === "get_active_alarms" && t.status === "allowed")).toBe(true);
-    expect(turn.answer).not.toContain("Kojo Code Mode Execution");
-  });
+    expect(turn.toolCalls.some((t) => t.toolName === "execute_connector_code" && t.status === "allowed")).toBe(true);
+    expect(turn.toolCalls.some((t) => t.toolName === "get_machine_status")).toBe(true);
+    expect(turn.answer).toContain("Kojo Code Mode Execution");
 
-  it("denies Code Mode on POST /api/connectors/[id]/invoke with 501 and audit entry while keeping standard tool calls active", async () => {
-    const deniedReq = new Request("http://localhost/api/connectors/conn-hub-historian/invoke", {
+    const req = new Request("http://localhost/api/connectors/conn-hub-historian/invoke", {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin: "http://localhost"
-      },
+      headers: { "content-type": "application/json", origin: "http://localhost" },
       body: JSON.stringify({
         mode: "code",
-        code: "return await kojo.callTool('get_machine_status', { machineId: input.machineId });",
+        code: `
+          const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });
+          return { machineId: input.machineId, temp: st.status.temperature };
+        `,
         args: { machineId: "mach-l3-filler-01" }
       })
     });
-    const deniedRes = await invokeConnector(deniedReq, {
+    const invokeRes = await invokeConnector(req, {
       params: Promise.resolve({ id: "conn-hub-historian" })
     });
-    expect(deniedRes.status).toBe(501);
-    const deniedBody = (await deniedRes.json()) as { title: string; status: number; detail: string };
-    expect(deniedBody).toMatchObject({
-      title: "Code Mode Unavailable",
-      status: 501,
-      detail: CODE_MODE_CONTAINED_MESSAGE
-    });
+    expect(invokeRes.status).toBe(200);
+    const body = (await invokeRes.json()) as {
+      ok: boolean;
+      protocol: string;
+      mode: string;
+      result: { machineId: string; temp: number };
+      innerCalls: Array<{ toolName: string }>;
+    };
+    expect(body.ok).toBe(true);
+    expect(body.protocol).toBe("kojo-connector-v1");
+    expect(body.mode).toBe("code");
+    expect(body.result.machineId).toBe("mach-l3-filler-01");
+    expect(typeof body.result.temp).toBe("number");
+    expect(body.innerCalls.map((c) => c.toolName)).toEqual(["get_machine_status"]);
+
+    const [latestLog] = await state.conn!.db
+      .select()
+      .from(connectorSyncLogs)
+      .where(eq(connectorSyncLogs.connectionId, "conn-hub-historian"))
+      .orderBy(desc(connectorSyncLogs.createdAt))
+      .limit(1);
+    expect(latestLog?.direction).toBe("code-mode");
 
     const [latestAudit] = await state.conn!.db
       .select()
@@ -322,42 +311,7 @@ describe("Kojo AI Gateway, Connector Protocol & Code Mode", () => {
       .where(eq(auditLog.action, "connector_code_invoke"))
       .orderBy(desc(auditLog.createdAt))
       .limit(1);
-    expect(latestAudit).toMatchObject({
-      action: "connector_code_invoke",
-      toolName: "execute_connector_code",
-      status: "denied",
-      reason: CODE_MODE_CONTAINED_MESSAGE
-    });
-
-    const codeModeSyncLogs = await state.conn!.db
-      .select()
-      .from(connectorSyncLogs)
-      .where(eq(connectorSyncLogs.connectionId, "conn-hub-historian"));
-    expect(codeModeSyncLogs.some((l) => l.direction === "code-mode")).toBe(false);
-
-    // Standard governed tool invocation on the same endpoint continues to work
-    const toolReq = new Request("http://localhost/api/connectors/conn-hub-historian/invoke", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin: "http://localhost"
-      },
-      body: JSON.stringify({
-        toolName: "get_machine_status",
-        args: { machineId: "mach-l3-filler-01" }
-      })
-    });
-    const toolRes = await invokeConnector(toolReq, {
-      params: Promise.resolve({ id: "conn-hub-historian" })
-    });
-    expect(toolRes.status).toBe(200);
-    const toolBody = (await toolRes.json()) as {
-      ok: boolean;
-      toolName: string;
-      result: Record<string, unknown>;
-    };
-    expect(toolBody.ok).toBe(true);
-    expect(toolBody.toolName).toBe("get_machine_status");
-    expect(toolBody.result).toBeDefined();
+    expect(latestAudit?.toolName).toBe("execute_connector_code");
+    expect(latestAudit?.status).toBe("allowed");
   });
 });

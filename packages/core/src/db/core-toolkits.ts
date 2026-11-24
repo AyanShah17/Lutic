@@ -12,10 +12,11 @@ interface ToolkitDefinition {
 const paasToolkit: ToolkitDefinition = {
   id: "tk-paas",
   name: "paas",
-  description: "Workflows, monitoring alerts, notification topics, and queues",
+  description: "Workflows, monitoring alerts, notification topics, queues, and isolated Kojo Code Mode",
   tools: [
     "paas.list_workflows", "paas.trigger_workflow", "paas.list_alerts",
-    "paas.acknowledge_alert", "paas.publish_notification", "paas.inspect_queues"
+    "paas.acknowledge_alert", "paas.publish_notification", "paas.inspect_queues",
+    "execute_connector_code"
   ],
   roles: ["engineer", "analyst", "manager", "admin"]
 };

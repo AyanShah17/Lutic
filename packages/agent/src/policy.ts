@@ -23,7 +23,7 @@ import {
   type ToolExecutionContext
 } from "@kojo/connectors";
 import crypto from "node:crypto";
-import { CODE_MODE_CONTAINED_MESSAGE } from "./code-mode";
+import { executeKojoConnectorCode } from "./code-mode";
 
 export interface PolicyEvaluationResult {
   status: "allowed" | "denied" | "requires_confirmation" | "confirmed" | "error";
@@ -91,9 +91,7 @@ export async function getAllowedToolsForUser(
 
   return registry
     .listToolDefinitions()
-    .filter(
-      (def) => def.name !== "execute_connector_code" && enabledNames.has(def.name)
-    );
+    .filter((def) => enabledNames.has(def.name));
 }
 
 async function writeAuditEntry(
@@ -192,10 +190,6 @@ export async function executeToolWithPolicy(
       latencyMs
     };
   };
-
-  if (toolName === "execute_connector_code") {
-    return deny(CODE_MODE_CONTAINED_MESSAGE);
-  }
 
   if (!def) {
     return deny(`Unknown tool '${toolName}'.`);
@@ -374,8 +368,56 @@ export async function executeToolWithPolicy(
     return deny("Tenant tool execution rate limit exceeded.");
   }
 
-  // Execute tool through MCP Client -> MCP Server
+  // Execute tool through isolated Code Mode subprocess OR MCP Client -> MCP Server
   try {
+    if (toolName === "execute_connector_code") {
+      const argsObj = parsed.data as {
+        code: string;
+        input?: Record<string, unknown>;
+        maxCalls?: number;
+        timeoutMs?: number;
+      };
+      const codeRes = await executeKojoConnectorCode({
+        code: argsObj.code,
+        input: argsObj.input,
+        maxCalls: argsObj.maxCalls,
+        timeoutMs: argsObj.timeoutMs,
+        ctx,
+        options
+      });
+      if (codeRes.status === "requires_confirmation" && codeRes.pendingAction) {
+        return {
+          status: "requires_confirmation",
+          toolName,
+          pendingAction: codeRes.pendingAction,
+          data: codeRes as unknown as Record<string, unknown>,
+          latencyMs: codeRes.latencyMs
+        };
+      }
+      const data = codeRes as unknown as Record<string, unknown>;
+      const resultHash = sha256Hex(JSON.stringify(data));
+      await writeAuditEntry(ctx.db, {
+        tenantId: ctx.user.tenantId,
+        userId: ctx.user.userId,
+        role: ctx.user.role,
+        conversationId: ctx.conversationId,
+        action: "tool_call",
+        toolName,
+        args: { codeLength: argsObj.code.length, innerCallCount: codeRes.innerCalls.length },
+        resultHash,
+        status: "allowed",
+        reason: "Code Mode OK",
+        latencyMs: codeRes.latencyMs
+      });
+      return {
+        status: "allowed",
+        toolName,
+        data,
+        untrustedWrappedText: wrapUntrustedToolResult(toolName, data),
+        latencyMs: codeRes.latencyMs
+      };
+    }
+
     const result = await registry.callToolOverMcp(
       toolName,
       parsed.data as Record<string, unknown>,

@@ -91,7 +91,11 @@ export function ConnectorsConsole() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [toolName, setToolName] = useState("");
-  const [toolArgs, setToolArgs] = useState('{"limit": 5}');
+  const [toolArgs, setToolArgs] = useState('{"machineId": "mach-l3-filler-01", "limit": 5}');
+  const [playgroundMode, setPlaygroundMode] = useState<"tool" | "code">("tool");
+  const [codeScript, setCodeScript] = useState(
+    'const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });\nreturn { machineId: input.machineId, status: st.status };'
+  );
   const [invokeOutput, setInvokeOutput] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -528,35 +532,57 @@ export function ConnectorsConsole() {
                       <div className="inline-flex rounded-md border border-border p-0.5 text-[11px]">
                         <button
                           type="button"
-                          className="px-2 py-0.5 rounded bg-primary text-primary-foreground font-medium"
+                          onClick={() => setPlaygroundMode("tool")}
+                          className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                            playgroundMode === "tool"
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
                         >
                           Standard Tool
                         </button>
                         <button
                           type="button"
-                          disabled
-                          title="Code Mode script execution is disabled pending isolated worker containment (P0-07)."
-                          className="px-2 py-0.5 rounded text-muted-foreground/60 cursor-not-allowed"
+                          onClick={() => setPlaygroundMode("code")}
+                          className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                            playgroundMode === "code"
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
                         >
-                          Kojo Code Mode (Unavailable)
+                          Kojo Code Mode
                         </button>
                       </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Code Mode script execution is disabled pending isolated worker containment (P0-07). Standard governed tool invocation remains active.
-                    </p>
+                    {playgroundMode === "tool" ? (
+                      <div className="space-y-1">
+                        <Label htmlFor="connector-tool-name">Tool Name</Label>
+                        <Input
+                          id="connector-tool-name"
+                          value={toolName}
+                          onChange={(e) => setToolName(e.target.value)}
+                          placeholder="e.g. get_work_orders"
+                          className="font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <Label htmlFor="connector-code-script">
+                          Isolated Code Mode Script (<code className="font-mono">kojo.callTool / kojo.connectors</code>)
+                        </Label>
+                        <Textarea
+                          id="connector-code-script"
+                          rows={4}
+                          value={codeScript}
+                          onChange={(e) => setCodeScript(e.target.value)}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-1">
-                      <Label htmlFor="connector-tool-name">Tool Name</Label>
-                      <Input
-                        id="connector-tool-name"
-                        value={toolName}
-                        onChange={(e) => setToolName(e.target.value)}
-                        placeholder="e.g. get_work_orders"
-                        className="font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="connector-tool-args">Arguments (JSON)</Label>
+                      <Label htmlFor="connector-tool-args">
+                        {playgroundMode === "code" ? "Script Input (JSON)" : "Arguments (JSON)"}
+                      </Label>
                       <Textarea
                         id="connector-tool-args"
                         rows={3}
@@ -565,14 +591,14 @@ export function ConnectorsConsole() {
                         className="font-mono"
                       />
                     </div>
-                    {!isConnectorSupportedInRuntime(selected, demoEnabled) && (
+                    {playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled) && (
                       <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
                         External runtime unavailable in production mode. Use <code className="font-mono">remote_mcp</code>, <code className="font-mono">utcp_http</code> (HTTPS), or local <code className="font-mono">kojo://</code>/<code className="font-mono">mcp://</code> connectors.
                       </div>
                     )}
                     <Button
                       size="sm"
-                      disabled={!isConnectorSupportedInRuntime(selected, demoEnabled)}
+                      disabled={playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled)}
                       onClick={async () => {
                         let parsed: Record<string, unknown>;
                         try {
@@ -582,10 +608,14 @@ export function ConnectorsConsole() {
                           return;
                         }
                         try {
+                          const payload =
+                            playgroundMode === "code"
+                              ? { mode: "code", code: codeScript, args: parsed }
+                              : { toolName, args: parsed };
                           const res = await fetch(`/api/connectors/${selected.id}/invoke`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ toolName, args: parsed })
+                            body: JSON.stringify(payload)
                           });
                           const data = await res.json().catch(() => ({
                             detail: `Invocation failed (${res.status})`
@@ -598,7 +628,7 @@ export function ConnectorsConsole() {
                       }}
                     >
                       <Play className="h-3.5 w-3.5" />
-                      <span>Invoke Tool</span>
+                      <span>{playgroundMode === "code" ? "Run Code Mode" : "Invoke Tool"}</span>
                     </Button>
                     {invokeOutput && (
                       <pre className="max-h-48 overflow-auto rounded-md border border-border bg-muted/50 p-2.5 text-[11px] font-mono">

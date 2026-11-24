@@ -15,7 +15,7 @@ import {
   sha256Hex
 } from "@kojo/core";
 import { defaultMcpRegistry } from "@kojo/connectors";
-import { CODE_MODE_CONTAINED_MESSAGE } from "@kojo/agent";
+import { executeKojoConnectorCode } from "@kojo/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,
@@ -68,21 +68,74 @@ export async function POST(
       const started = Date.now();
 
       if (body.mode === "code" || typeof body.code === "string") {
-        await db.insert(auditLog).values({
-          id: `aud-${crypto.randomUUID().slice(0, 12)}`,
-          tenantId: user.tenantId,
-          userId: user.userId,
-          role: user.role,
-          conversationId: null,
-          action: "connector_code_invoke",
-          toolName: "execute_connector_code",
-          args: { connectorId: conn.id, mode: "code" },
-          resultHash: "",
-          status: "denied",
-          reason: CODE_MODE_CONTAINED_MESSAGE,
-          latencyMs: Math.max(1, Date.now() - started)
-        });
-        return problemResponse(501, "Code Mode Unavailable", CODE_MODE_CONTAINED_MESSAGE);
+        if (!body.code || !body.code.trim()) {
+          return problemResponse(400, "Validation Error", "code script is required when mode is 'code'.");
+        }
+        try {
+          const codeRes = await executeKojoConnectorCode({
+            code: body.code,
+            input: args,
+            ctx: {
+              db,
+              user,
+              requestId: `play-cm-${crypto.randomUUID().slice(0, 8)}`
+            },
+            options: { registry: defaultMcpRegistry }
+          });
+          const latencyMs = Math.max(1, Date.now() - started);
+          await db.insert(auditLog).values({
+            id: `aud-${crypto.randomUUID().slice(0, 12)}`,
+            tenantId: user.tenantId,
+            userId: user.userId,
+            role: user.role,
+            conversationId: null,
+            action: "connector_code_invoke",
+            toolName: "execute_connector_code",
+            args: { connectorId: conn.id, mode: "code", innerCallCount: codeRes.innerCalls.length },
+            resultHash: sha256Hex(JSON.stringify(codeRes.result ?? {})),
+            status: codeRes.status === "error" ? "error" : "allowed",
+            reason: `Connector ${conn.slug} Code Mode`,
+            latencyMs
+          });
+          await db.insert(connectorSyncLogs).values({
+            id: `csl-${crypto.randomUUID().slice(0, 12)}`,
+            tenantId: user.tenantId,
+            connectionId: conn.id,
+            direction: "code-mode",
+            status: codeRes.status === "error" ? "failed" : "success",
+            recordsSynced: codeRes.innerCalls.length,
+            latencyMs,
+            message: `Code Mode executed ${codeRes.innerCalls.length} tool call(s)`,
+            payload: { innerCalls: codeRes.innerCalls.map((c) => c.toolName) }
+          });
+
+          if (codeRes.status === "requires_confirmation" && codeRes.pendingAction) {
+            return NextResponse.json({
+              ok: true,
+              protocol: codeRes.protocol,
+              mode: "code",
+              status: "requires_confirmation",
+              pendingAction: codeRes.pendingAction,
+              innerCalls: codeRes.innerCalls,
+              latencyMs
+            });
+          }
+
+          return NextResponse.json({
+            ok: true,
+            protocol: codeRes.protocol,
+            mode: "code",
+            status: codeRes.status,
+            result: codeRes.result,
+            logs: codeRes.logs,
+            innerCalls: codeRes.innerCalls,
+            latencyMs
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Code Mode execution failed";
+          const status = /timed out/i.test(msg) ? 408 : /denied|scope|permission/i.test(msg) ? 403 : 400;
+          return problemResponse(status, "Code Mode Execution Error", msg);
+        }
       }
 
       const toolName = body.toolName ?? body.tool;
