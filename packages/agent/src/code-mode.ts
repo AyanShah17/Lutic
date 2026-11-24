@@ -10,6 +10,7 @@ import {
   connectorConnections,
   eq,
   invokeExternalConnectorTool,
+  isCodeModeEnabled,
   sha256Hex
 } from "@kojo/core";
 import { defaultMcpRegistry, type ToolExecutionContext } from "@kojo/connectors";
@@ -93,6 +94,9 @@ export async function executeKojoConnectorCode(params: {
   maxCalls?: number;
   timeoutMs?: number;
 }): Promise<KojoCodeModeResult> {
+  if (!isCodeModeEnabled()) {
+    throw new Error("Kojo Code Mode is available only in trusted development and test runtimes.");
+  }
   const started = Date.now();
   const code = params.code.trim();
   if (!code) {

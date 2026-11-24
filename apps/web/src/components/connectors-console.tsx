@@ -93,6 +93,7 @@ export function ConnectorsConsole() {
   const [toolName, setToolName] = useState("");
   const [toolArgs, setToolArgs] = useState('{"machineId": "mach-l3-filler-01", "limit": 5}');
   const [playgroundMode, setPlaygroundMode] = useState<"tool" | "code">("tool");
+  const [codeModeEnabled, setCodeModeEnabled] = useState(false);
   const [codeScript, setCodeScript] = useState(
     'const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });\nreturn { machineId: input.machineId, status: st.status };'
   );
@@ -118,11 +119,13 @@ export function ConnectorsConsole() {
           connectors: ConnectorHubItem[];
           catalog: CatalogItem[];
           logs: SyncLogItem[];
+          capabilities?: { codeMode?: boolean };
         };
         const list = data.connectors ?? [];
         setConnectors(list);
         setCatalog(data.catalog ?? []);
         setLogs(data.logs ?? []);
+        setCodeModeEnabled(data.capabilities?.codeMode === true);
         setSelectedId((prev) => {
           const stillExists = prev && list.some((c) => c.id === prev);
           if (stillExists) return prev;
@@ -544,11 +547,13 @@ export function ConnectorsConsole() {
                         <button
                           type="button"
                           onClick={() => setPlaygroundMode("code")}
+                          disabled={!codeModeEnabled}
+                          title={codeModeEnabled ? undefined : "Code Mode is available only in trusted development and tests"}
                           className={`px-2 py-0.5 rounded font-medium transition-colors ${
                             playgroundMode === "code"
                               ? "bg-primary text-primary-foreground"
                               : "text-muted-foreground hover:text-foreground"
-                          }`}
+                          } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
                           Kojo Code Mode
                         </button>
@@ -596,9 +601,17 @@ export function ConnectorsConsole() {
                         External runtime unavailable in production mode. Use <code className="font-mono">remote_mcp</code>, <code className="font-mono">utcp_http</code> (HTTPS), or local <code className="font-mono">kojo://</code>/<code className="font-mono">mcp://</code> connectors.
                       </div>
                     )}
+                    {!codeModeEnabled && (
+                      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
+                        Code Mode is available only in trusted development and tests. Use governed standard tool invocation.
+                      </div>
+                    )}
                     <Button
                       size="sm"
-                      disabled={playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled)}
+                      disabled={
+                        (playgroundMode === "code" && !codeModeEnabled) ||
+                        (playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled))
+                      }
                       onClick={async () => {
                         let parsed: Record<string, unknown>;
                         try {

@@ -16,7 +16,9 @@ const ADMIN_EMAIL = "ops-admin@utcp-test.example";
 const ADMIN_PASSWORD = "a7f9c2e14b608d3f9a1c5e7b2d4f6a80";
 
 let server: http.Server;
+let targetServer: http.Server;
 let baseUrl: string;
+let targetBaseUrl: string;
 let authHeader: string;
 
 beforeAll(async () => {
@@ -26,6 +28,26 @@ beforeAll(async () => {
   vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
   vi.stubEnv("LICENSE_ENFORCE", "false");
   vi.stubEnv("KOJO_RUNTIME_DISABLED", "true");
+
+  targetServer = http.createServer((req, res) => {
+    if (req.method === "POST" && req.url === "/api/orders/ORD-X/hold") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          held: true,
+          authSeen: Boolean(req.headers.authorization),
+          apiKeySeen: Boolean(req.headers["x-api-key"]),
+          customCredentialSeen: Boolean(req.headers["x-connector-secret"])
+        })
+      );
+      return;
+    }
+    res.statusCode = 404;
+    res.end("Not Found");
+  });
+  await new Promise<void>((resolve) => targetServer.listen(0, "127.0.0.1", () => resolve()));
+  const targetAddr = targetServer.address() as AddressInfo;
+  targetBaseUrl = `http://127.0.0.1:${targetAddr.port}`;
 
   server = http.createServer((req, res) => {
     const url = req.url ?? "/";
@@ -118,6 +140,24 @@ beforeAll(async () => {
       return;
     }
 
+    if (req.method === "GET" && url === "/cross-origin-utcp.json") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          tools: [
+            {
+              name: "cross_origin_hold",
+              tool_call_template: {
+                url: `${targetBaseUrl}/api/orders/{orderId}/hold`,
+                http_method: "POST"
+              }
+            }
+          ]
+        })
+      );
+      return;
+    }
+
     if (req.method === "POST" && url.startsWith("/api/orders/") && url.endsWith("/hold")) {
       let body = "";
       req.on("data", (chunk) => {
@@ -169,6 +209,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  await new Promise<void>((resolve) => targetServer.close(() => resolve()));
   const conn = await getDbConnection();
   await conn.close();
   vi.unstubAllEnvs();
@@ -296,6 +337,56 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
       orderId: "ORD-904",
       authSeen: true,
       body: { reason: "bearing_vibration" }
+    });
+  });
+
+  it("does not forward connector credentials to a persisted cross-origin UTCP target", async () => {
+    vi.stubEnv("KOJO_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
+    const createRes = await connectorsPost(
+      new Request("https://kojo.example/api/connectors", {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Cross-origin ERP API",
+          kind: "utcp-http",
+          endpointUrl: `${baseUrl}/cross-origin-utcp.json`,
+          credentials: {
+            token: "must-not-leak",
+            apiKey: "must-not-leak",
+            headers: { "x-connector-secret": "must-not-leak" }
+          }
+        })
+      })
+    );
+    expect(createRes.status).toBe(201);
+    const { connector } = await createRes.json();
+
+    const syncRes = await syncPost(
+      new Request(`https://kojo.example/api/connectors/${connector.id}/sync`, {
+        method: "POST",
+        headers: { Authorization: authHeader }
+      }),
+      { params: Promise.resolve({ id: connector.id }) }
+    );
+    expect(syncRes.status).toBe(200);
+    expect((await syncRes.json()).tools[0].callTemplate.url).toBe(
+      `${targetBaseUrl}/api/orders/%7BorderId%7D/hold`
+    );
+
+    const invokeRes = await invokePost(
+      new Request(`https://kojo.example/api/connectors/${connector.id}/invoke`, {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ toolName: "cross_origin_hold", args: { orderId: "ORD-X" } })
+      }),
+      { params: Promise.resolve({ id: connector.id }) }
+    );
+    expect(invokeRes.status).toBe(200);
+    expect((await invokeRes.json()).result).toMatchObject({
+      held: true,
+      authSeen: false,
+      apiKeySeen: false,
+      customCredentialSeen: false
     });
   });
 });

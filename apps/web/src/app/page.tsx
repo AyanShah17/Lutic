@@ -226,7 +226,7 @@ export default async function HomePage() {
           href: "/connectors",
           title: "Connectors Hub",
           description:
-            "Unified UTCP/MCP hub (Metorial & OpenConnectors), LiteLLM gateway, and isolated Code Mode.",
+            "Unified UTCP/MCP hub (Metorial & OpenConnectors), LiteLLM gateway, and governed tool execution.",
           tag: "Kojo Protocol",
           Icon: Plug
         }

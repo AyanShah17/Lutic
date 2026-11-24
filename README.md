@@ -30,7 +30,7 @@ Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web
 
 - `base`: Clean core platform (no Playwright, `e2e-paas`, `packages/evals`, `apps/mobile`, `apps/license-server`, or standalone feature integrations).
 - `feat/bootstrap`, `feat/litellm-gateway`, `feat/utcp-mcp-connectors`, `feat/code-mode`: Standalone upgradeable feature branches rooted on `base`.
-- `prod`: Client-ready product integrating all feature branches with end-to-end Code Mode + Remote MCP/UTCP + LiteLLM wiring. (`main` retains the original pre-cleanup workspace snapshot.)
+- `prod`: Release branch integrating bootstrap, Remote MCP/UTCP and LiteLLM. Code Mode is disabled in production. (`main` retains the original pre-cleanup workspace snapshot.)
 
 ---
 
@@ -57,7 +57,7 @@ Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web
                                      | authorize(user, perm, resource)
 +------------------------------------v------------------------------------+
 | Agent Layer (packages/agent)                                            |
-|  Orchestrator (max 8 steps) + Isolated Code Mode -> 6-Step Policy Engine  |
+|  Orchestrator (max 8 steps) -> 6-Step Policy Engine                      |
 |  Hybrid RAG (pgvector + tsvector + Exact Codes + RRF + Reranker)        |
 |  KojoLLMGateway (LiteLLM kojo-gateway | mock | anthropic | openai)     |
 +------------------------------------+------------------------------------+
@@ -93,4 +93,4 @@ Local verification covers typechecks, lint, PGlite-backed security/connector/Cod
 
 - **LiteLLM Proxy (`KOJO_AI_GATEWAY_URL`)**: Self-hosted in [docker-compose.yml](docker-compose.yml) using [deploy/litellm_config.yaml](deploy/litellm_config.yaml), routing `kojo-claude`, `kojo-gpt4o`, and `kojo-mini` through `KojoLLMGateway` alongside direct Anthropic/OpenAI keys.
 - **UTCP + Remote MCP + 1,000+ Ecosystem Connectors**: Built-in adapters (`kojo://` / `mcp://`), Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, and UTCP-MCP bridges), UTCP 1.0 / OpenAPI 3.x direct HTTP manuals (`utcp_http`), and authenticated UTCP manual export (`GET /api/connectors/utcp`).
-- **Isolated Kojo Code Mode (`execute_connector_code`)**: Executes LLM or playground multi-tool TypeScript scripts in an ephemeral child process (`env: {}`, hard OS `SIGKILL` timeout) with every tool call routed through the 6-step policy engine.
+- **Kojo Code Mode** is available only for trusted development and test scripts. Production users can invoke individual connector tools.

@@ -435,6 +435,7 @@ export async function callUtcpTool(
   args: Record<string, unknown>,
   creds?: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
+  const connectorUrl = await assertSafeExternalUrl(endpointUrl);
   const method = (toolDef.callTemplate?.method ?? "POST").toUpperCase();
   const remaining = { ...args };
   const rawTemplateUrl = toolDef.callTemplate?.url ?? endpointUrl;
@@ -452,7 +453,7 @@ export async function callUtcpTool(
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...(toolDef.callTemplate?.headers ?? {}),
-    ...buildAuthHeaders(creds)
+    ...(targetUrl.origin === connectorUrl.origin ? buildAuthHeaders(creds) : {})
   };
 
   let body: string | undefined;

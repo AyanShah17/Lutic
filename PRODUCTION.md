@@ -104,7 +104,7 @@ Replace the timestamp with the actual measurement time (not a future time). Unit
 
 Users can change their own password from the sidebar security control (`POST /api/auth/change-password`), and admins can reset passwords, revoke active sessions (`token_version` bump), or deactivate accounts in **Admin → Users & Roles** (`PATCH /api/admin/users`).
 
-Local MCP adapters cover stored documents, historian, CMMS, MES, and parts ERP data. Live external integrations run via Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, UTCP-MCP) and UTCP 1.0 / OpenAPI 3.x direct HTTP bridges (`utcp_http`) over SSRF-checked HTTPS URLs; isolated subprocess Code Mode executes multi-tool scripts under parent policy enforcement. Unimplemented raw HTTP/webhook/AI workflow stubs still report unavailable (`HTTP 501` / disabled controls). This release assists operators; validate advice against approved procedures before using it on machinery.
+Local MCP adapters cover stored documents, historian, CMMS, MES, and parts ERP data. Live external integrations run via Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, UTCP-MCP) and UTCP 1.0 / OpenAPI 3.x direct HTTP bridges (`utcp_http`) over HTTPS. UTCP/OpenAPI calls receive stored connector credentials only on the configured origin (scheme, hostname and port). A tool on another origin must accept calls without those credentials. Production disables Code Mode script execution. Unimplemented raw HTTP/webhook/AI workflow stubs still report unavailable (`HTTP 501` / disabled controls). This release assists operators; validate advice against approved procedures before using it on machinery.
 
 ## Backups, key rotation, upgrades, and recovery
 

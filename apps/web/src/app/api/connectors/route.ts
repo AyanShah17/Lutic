@@ -9,6 +9,7 @@ import {
   desc,
   encryptCredentials,
   eq,
+  isCodeModeEnabled,
   isDemoMode,
   listConnectorSyncLogs,
 } from "@kojo/core";
@@ -75,7 +76,8 @@ export async function GET(req: Request) {
       return NextResponse.json({
         connectors: rows.map(sanitizeConnector),
         catalog,
-        logs
+        logs,
+        capabilities: { codeMode: isCodeModeEnabled() }
       });
     });
   } catch (err) {

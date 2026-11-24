@@ -34,11 +34,11 @@ Session lookups verify the signed token and reload the active user, role, and pl
 
 Tenant routes and server pages use a transaction under the restricted application role. `withTenantScope` sets the tenant ID for that transaction. PostgreSQL row-level security hides rows from other tenants and rejects writes outside the scope. An empty tenant context gives the application role access to zero tenant rows. Bootstrap, initial identity lookup, and cross-tenant background jobs use explicit administrative access.
 
-### D. Writes, External Connectors & Isolated Code Mode
+### D. Writes, External Connectors & Code Mode
 
 Agent work-order and part-reservation tools first create a pending action. Confirmation verifies the user and uses an idempotency key. Authorized workflow steps can create local work orders, in-app notifications, and queue messages. Remote MCP (`remote_mcp`) and UTCP/OpenAPI (`utcp_http`) bridges enforce HTTPS-only endpoints (unless `KOJO_ALLOW_PRIVATE_CONNECTOR_URLS=true`), private/loopback/metadata IP blocking (including post-DNS lookup checks), disabled redirects, timeouts, and 1 MiB response limits. Raw HTTP/webhook/AI workflow stubs remain unavailable in production (`HTTP 501`).
 
-Kojo Code Mode (`execute_connector_code` and `POST /api/connectors/[id]/invoke` with `mode: "code"`) executes supplied scripts inside an isolated ephemeral child Bun process spawned with `env: {}` (zero host secrets or DB connections), parent-mediated stdio RPC (`executeToolWithPolicy` RBAC, plant scope, and write confirmations), strict call budgets, stdout byte caps, and OS `SIGKILL` wall-clock termination.
+Production disables Code Mode at the shared executor. The development/test subprocess shares the app's filesystem and network permissions, so only run trusted scripts there. UTCP/OpenAPI attaches stored connector credentials only to requests on the configured origin, including calls made from previously discovered tool definitions.
 
 ### E. Credential Protection, Rate Limiting & Uploads
 
@@ -49,4 +49,4 @@ Kojo Code Mode (`execute_connector_code` and `POST /api/connectors/[id]/invoke` 
 
 ## Verification and Dependency Status
 
-Local tests exercise tenant isolation, request authorization, session invalidation, ClamAV protocol handling, SSRF/UTCP/Remote MCP bridge behavior, and isolated subprocess Code Mode secret isolation and `SIGKILL` termination. Native PostgreSQL integration tests (`tests/postgres-integration.test.ts`), Docker `container-smoke`, live `clamd`, and live LiteLLM/upstream LLM calls run in CI or target staging environments.
+Local tests exercise tenant isolation, request authorization, session invalidation, ClamAV protocol handling, SSRF/UTCP/Remote MCP bridge behavior, and the production Code Mode guard and development/test worker timeout. Native PostgreSQL integration tests (`tests/postgres-integration.test.ts`), Docker `container-smoke`, live `clamd`, and live LiteLLM/upstream LLM calls run in CI or target staging environments.
