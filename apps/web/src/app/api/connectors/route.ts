@@ -100,8 +100,16 @@ export async function POST(req: Request) {
       body.slug ??
       `${kind}-${body.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24)}-${crypto.randomUUID().slice(0, 4)}`;
 
+    const catalogMatch = CONNECTOR_CATALOG.find(
+      (c) =>
+        (body.slug && c.slug === body.slug.toLowerCase()) ||
+        (kind !== "http" && c.slug === kind) ||
+        c.slug === rawSlug
+    );
+
     const category: "mcp" | "http" | "scada" | "erp" | "messaging" | "custom" =
       body.category ??
+      catalogMatch?.category ??
       (kind === "http" || kind === "webhook"
         ? "http"
         : kind === "scada"
@@ -115,10 +123,11 @@ export async function POST(req: Request) {
                 : "custom");
 
     const demo = isDemoMode();
-    const catalogMatch = CONNECTOR_CATALOG.find((c) => c.slug === kind || c.slug === rawSlug);
     const defaultEndpoint = demo
-      ? "mock://custom.local"
-      : catalogMatch?.transport === "in_memory_mcp" ? `mcp://${catalogMatch.slug}` : "";
+      ? (catalogMatch?.credentialFields?.find((f) => f.key === "endpointUrl" || f.key === "endpoint")?.defaultValue ?? "mock://custom.local")
+      : catalogMatch?.transport === "in_memory_mcp"
+        ? `mcp://${catalogMatch.slug}`
+        : "";
     const endpointUrl = body.endpointUrl ?? body.baseUrl ?? body.endpoint ?? defaultEndpoint;
     const transport:
       | "in_memory_mcp"
@@ -143,13 +152,8 @@ export async function POST(req: Request) {
               ? "in_memory_mcp"
               : endpointUrl.startsWith("mock://") || endpointUrl.startsWith("sim://")
                 ? "simulated"
-                : kind.startsWith("sap-") ||
-                    kind.startsWith("aws-") ||
-                    kind === "servicenow" ||
-                    kind === "mqtt-broker" ||
-                    kind === "opc-ua" ||
-                    kind === "modbus-tcp"
-                  ? "simulated"
+                : catalogMatch && catalogMatch.slug !== "http"
+                  ? catalogMatch.transport
                   : category === "http"
                     ? "http"
                     : "simulated");

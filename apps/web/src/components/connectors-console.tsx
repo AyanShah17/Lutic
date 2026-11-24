@@ -122,9 +122,12 @@ export function ConnectorsConsole() {
   const [form, setForm] = useState({
     name: "",
     kind: "http",
+    templateSlug: "",
     endpointUrl: "",
     apiKey: ""
   });
+  const CATALOG_PAGE_SIZE = 60;
+  const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
 
   const isAdmin = user?.role === "admin";
 
@@ -227,6 +230,10 @@ export function ConnectorsConsole() {
     );
   }, [logs, search]);
 
+  useEffect(() => {
+    setVisibleCatalogCount(CATALOG_PAGE_SIZE);
+  }, [search, categoryFilter]);
+
   if (!user) {
     return (
       <AuthGate
@@ -245,14 +252,14 @@ export function ConnectorsConsole() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
-          kind: form.kind,
+          kind: form.templateSlug || form.kind,
           endpointUrl: form.endpointUrl.trim() || undefined,
           credentials: form.apiKey ? { apiKey: form.apiKey } : undefined
         })
       });
       if (res.ok) {
         setNotice(`Registered connector ${form.name}`);
-        setForm({ name: "", kind: "http", endpointUrl: "", apiKey: "" });
+        setForm({ name: "", kind: "http", templateSlug: "", endpointUrl: "", apiKey: "" });
         await load();
       } else {
         const d = (await res.json().catch(() => ({}))) as { detail?: string };
@@ -748,8 +755,15 @@ export function ConnectorsConsole() {
                   : "No catalog templates match your search."}
               </Card>
             ) : (
+              <div className="space-y-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  Showing {Math.min(visibleCatalogCount, filteredCatalog.length).toLocaleString()} of{" "}
+                  {filteredCatalog.length.toLocaleString()} distinct connectors
+                </span>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredCatalog.map((cat) => (
+                {filteredCatalog.slice(0, visibleCatalogCount).map((cat) => (
                   <Card key={cat.slug} className="p-4 flex flex-col justify-between gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
@@ -791,6 +805,7 @@ export function ConnectorsConsole() {
                               : cat.category === "scada" || cat.category === "erp"
                                 ? cat.category
                                 : "http",
+                            templateSlug: cat.slug,
                             endpointUrl: cat.credentialFields?.find((field) => field.key === "endpoint" || field.key === "endpointUrl")?.defaultValue ?? "",
                             apiKey: ""
                           });
@@ -803,6 +818,18 @@ export function ConnectorsConsole() {
                     )}
                   </Card>
                 ))}
+              </div>
+              {filteredCatalog.length > visibleCatalogCount && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCatalogCount((c) => c + CATALOG_PAGE_SIZE)}
+                  >
+                    Show More ({Math.min(CATALOG_PAGE_SIZE, filteredCatalog.length - visibleCatalogCount)} more of{" "}
+                    {(filteredCatalog.length - visibleCatalogCount).toLocaleString()} remaining)
+                  </Button>
+                </div>
+              )}
               </div>
             )
           )}

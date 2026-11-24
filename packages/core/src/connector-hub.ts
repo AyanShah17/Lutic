@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
+import generatedConnectorCatalog from "./connector-catalog.generated.json";
 import { decryptCredentials } from "./crypto";
 import type { LuticDatabase } from "./db/client";
 import {
@@ -346,7 +347,8 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
       { key: "endpointUrl", label: "Modbus TCP Gateway Address", defaultValue: "modbus://gateway-l3.plant.internal:502" },
       { key: "apiKey", label: "Gateway Auth Token (optional)", secret: true }
     ]
-  }
+  },
+  ...(generatedConnectorCatalog as CatalogConnectorEntry[])
 ];
 
 type ConnectorConnection = typeof connectorConnections.$inferSelect;

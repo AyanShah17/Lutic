@@ -204,6 +204,16 @@ describe("Clerk Free-Tier Auth, Plan Provisioning, White-Label, Enterprise/OT Co
       expect(CONNECTOR_CATALOG.some((entry) => entry.slug === slug)).toBe(true);
     }
 
+    expect(CONNECTOR_CATALOG.length).toBeGreaterThan(2000);
+    const catalogSlugs = CONNECTOR_CATALOG.map((entry) => entry.slug);
+    expect(new Set(catalogSlugs).size).toBe(catalogSlugs.length);
+
+    for (const popular of ["slack", "github", "jira", "linear", "stripe", "digicert", "tabapi"]) {
+      const found = CONNECTOR_CATALOG.find((entry) => entry.slug === popular);
+      expect(found, `Missing ${popular} in CONNECTOR_CATALOG`).toBeDefined();
+      expect(found!.defaultTools.length).toBeGreaterThan(0);
+    }
+
     const loginRes = await loginPost(
       new Request("http://localhost:3000/api/auth/login", {
         method: "POST",
@@ -261,6 +271,42 @@ describe("Clerk Free-Tier Auth, Plan Provisioning, White-Label, Enterprise/OT Co
       })
     );
     expect(createRes.status).toBe(201);
+
+    const jiraCreateRes = await connectorsPost(
+      new Request("http://localhost:3000/api/connectors", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: "Jira Cloud Ops",
+          kind: "jira"
+        })
+      })
+    );
+    expect(jiraCreateRes.status).toBe(201);
+    const jiraCreated = (await jiraCreateRes.json()) as {
+      id: string;
+      connector: { discoveredTools: Array<{ name: string }> };
+    };
+    expect(jiraCreated.connector.discoveredTools.length).toBeGreaterThan(0);
+
+    const jiraInvoke = await connectorInvokePost(
+      new Request(`http://localhost:3000/api/connectors/${jiraCreated.id}/invoke`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          toolName: jiraCreated.connector.discoveredTools[0]!.name,
+          args: {}
+        })
+      }),
+      { params: Promise.resolve({ id: jiraCreated.id }) }
+    );
+    expect(jiraInvoke.status).toBe(200);
   });
 
   it("supports Jira/Linear-style Board CRUD with strict cross-tenant isolation", async () => {

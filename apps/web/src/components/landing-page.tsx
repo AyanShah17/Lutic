@@ -199,6 +199,7 @@ const PLATFORM_PRODUCTS: Array<{
 ];
 
 const ECOSYSTEM_ITEMS = [
+  "2,100+ Ready Connectors",
   "SAP S/4HANA PM · MM · PP · QM",
   "AWS IoT SiteWise · S3 · CloudWatch",
   "ServiceNow ITSM & Incidents",
