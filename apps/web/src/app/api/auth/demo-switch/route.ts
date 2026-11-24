@@ -10,7 +10,7 @@ import {
   userPlants,
   users,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { getWebAdministrativeDb } from "@/lib/db";
 import {
   getSessionCookieOptions,

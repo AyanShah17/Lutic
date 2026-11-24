@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 usage() {
   cat <<'EOF'
-Kojo PostgreSQL Encrypted Backup & Isolated Restore Verification
+Lutic PostgreSQL Encrypted Backup & Isolated Restore Verification
 
 Usage:
   bash deploy/backup-restore.sh backup --output <file.dump> [--db-url <url>] [--encrypt] [--dry-run]
@@ -80,10 +80,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 validate_isolated_target_db() {
-  KOJO_ROOT_DIR="$ROOT_DIR" \
-  KOJO_TARGET_DB_URL="$target_db_url" \
-  KOJO_LIVE_DB_URL="${DATABASE_URL:-}" \
-  KOJO_ARG_DB_URL="$db_url_arg" \
+  LUTIC_ROOT_DIR="$ROOT_DIR" \
+  LUTIC_TARGET_DB_URL="$target_db_url" \
+  LUTIC_LIVE_DB_URL="${DATABASE_URL:-}" \
+  LUTIC_ARG_DB_URL="$db_url_arg" \
   bun -e '
     import fs from "node:fs";
     import path from "node:path";
@@ -93,7 +93,7 @@ validate_isolated_target_db() {
       if (raw.startsWith("pglite://")) {
         const stripped = raw.slice("pglite://".length);
         if (!stripped || stripped === "memory") return null;
-        const rootDir = process.env.KOJO_ROOT_DIR || process.cwd();
+        const rootDir = process.env.LUTIC_ROOT_DIR || process.cwd();
         const resolved = path.resolve(rootDir, stripped);
         const dbName = path.basename(resolved).trim().toLowerCase();
         if (!dbName) return null;
@@ -138,13 +138,13 @@ validate_isolated_target_db() {
       return found;
     }
 
-    const target = canonicalizeTargetUrl(process.env.KOJO_TARGET_DB_URL || "");
+    const target = canonicalizeTargetUrl(process.env.LUTIC_TARGET_DB_URL || "");
     if (!target) {
       console.error("Invalid --target-db-url; expected a postgres://, postgresql://, or pglite:// URL with a database name.");
       process.exit(1);
     }
 
-    const rootDir = process.env.KOJO_ROOT_DIR || process.cwd();
+    const rootDir = process.env.LUTIC_ROOT_DIR || process.cwd();
     const envFiles = [...new Set([
       path.resolve(rootDir, ".env.production"),
       path.resolve(rootDir, ".env"),
@@ -153,8 +153,8 @@ validate_isolated_target_db() {
     ])];
 
     const liveCandidates = [
-      process.env.KOJO_LIVE_DB_URL,
-      process.env.KOJO_ARG_DB_URL,
+      process.env.LUTIC_LIVE_DB_URL,
+      process.env.LUTIC_ARG_DB_URL,
       ...readEnvDatabaseUrls(envFiles)
     ].filter(Boolean);
 
@@ -166,7 +166,7 @@ validate_isolated_target_db() {
       }
     }
 
-    const reservedNames = new Set(["kojo", "postgres"]);
+    const reservedNames = new Set(["lutic", "postgres"]);
     if (reservedNames.has(target.dbName) || !/(restore|verify|test|tmp|drill|isolated)/i.test(target.dbName)) {
       console.error("Refusing restore-verify: target database name must indicate an isolated restore/verify/test database.");
       process.exit(1);
@@ -204,7 +204,7 @@ if [[ "$cmd" == "backup" ]]; then
     if [[ "$enc_out" != *.enc ]]; then
       enc_out="${output_file}.enc"
     fi
-    KOJO_BACKUP_PASS="$passphrase" openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -salt -in "$tmp_dump" -out "$enc_out" -pass env:KOJO_BACKUP_PASS
+    LUTIC_BACKUP_PASS="$passphrase" openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -salt -in "$tmp_dump" -out "$enc_out" -pass env:LUTIC_BACKUP_PASS
     rm -f "$tmp_dump"
     echo "Encrypted backup written to $enc_out"
   else
@@ -221,7 +221,7 @@ if [[ "$cmd" == "restore-verify" ]]; then
   fi
   validate_isolated_target_db
   if [[ "$dry_run" == "true" ]]; then
-    echo "[dry-run] Would restore $input_file into isolated target DB and run Kojo schema/migration verification"
+    echo "[dry-run] Would restore $input_file into isolated target DB and run Lutic schema/migration verification"
     exit 0
   fi
   if [[ ! -f "$input_file" ]]; then
@@ -230,8 +230,8 @@ if [[ "$cmd" == "restore-verify" ]]; then
   fi
 
   if [[ "$allow_overwrite" != "true" ]]; then
-    DATABASE_URL="$target_db_url" KOJO_CORE_ENTRY="${ROOT_DIR}/packages/core/src/index.ts" bun -e '
-      const { createDbConnection, sql } = await import(process.env.KOJO_CORE_ENTRY);
+    DATABASE_URL="$target_db_url" LUTIC_CORE_ENTRY="${ROOT_DIR}/packages/core/src/index.ts" bun -e '
+      const { createDbConnection, sql } = await import(process.env.LUTIC_CORE_ENTRY);
       const conn = await createDbConnection();
       try {
         const regRes = await conn.db.execute(sql`SELECT to_regclass(\x27public.tenants\x27) IS NOT NULL AS exists`);
@@ -260,13 +260,13 @@ if [[ "$cmd" == "restore-verify" ]]; then
       exit 1
     fi
     tmp_dec="$(mktemp)"
-    KOJO_BACKUP_PASS="$passphrase" openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -in "$input_file" -out "$tmp_dec" -pass env:KOJO_BACKUP_PASS
+    LUTIC_BACKUP_PASS="$passphrase" openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -in "$input_file" -out "$tmp_dec" -pass env:LUTIC_BACKUP_PASS
     restore_src="$tmp_dec"
   fi
 
   pg_restore --clean --if-exists --no-owner --no-acl -d "$target_db_url" "$restore_src"
-  DATABASE_URL="$target_db_url" KOJO_CORE_ENTRY="${ROOT_DIR}/packages/core/src/index.ts" bun -e '
-    const { createDbConnection, ensureSchema, getAppliedMigrations } = await import(process.env.KOJO_CORE_ENTRY);
+  DATABASE_URL="$target_db_url" LUTIC_CORE_ENTRY="${ROOT_DIR}/packages/core/src/index.ts" bun -e '
+    const { createDbConnection, ensureSchema, getAppliedMigrations } = await import(process.env.LUTIC_CORE_ENTRY);
     const conn = await createDbConnection();
     try {
       await ensureSchema(conn);

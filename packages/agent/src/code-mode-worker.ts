@@ -84,7 +84,7 @@ rl.on("line", (line) => {
     started = true;
     void (async () => {
       try {
-        const kojo = {
+        const lutic = {
           input: msg.input ?? {},
           listTools: () => msg.toolCatalog ?? [],
           callTool: (toolName: string, args: Record<string, unknown> = {}) =>
@@ -122,10 +122,10 @@ rl.on("line", (line) => {
 
         const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (
           ...args: string[]
-        ) => (kojoArg: unknown, inputArg: unknown, consoleArg: unknown) => Promise<unknown>;
+        ) => (luticArg: unknown, inputArg: unknown, consoleArg: unknown) => Promise<unknown>;
 
-        const runner = new AsyncFunction("kojo", "input", "console", msg.code);
-        const result = await runner(kojo, msg.input ?? {}, workerConsole);
+        const runner = new AsyncFunction("lutic", "input", "console", msg.code);
+        const result = await runner(lutic, msg.input ?? {}, workerConsole);
         finish({ type: "done", result: result === undefined ? null : result, logs });
       } catch (err) {
         finish({

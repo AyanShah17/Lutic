@@ -8,7 +8,7 @@ import {
   DashboardSpecSchema,
   eq,
   isDashboardSharedWithUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { getSessionUser } from "@/lib/auth";
 import { withWebTenantDb } from "@/lib/db";
 import { DashboardWorkspace } from "@/components/dashboard-workspace";

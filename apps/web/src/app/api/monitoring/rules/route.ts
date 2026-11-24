@@ -11,7 +11,7 @@ import {
   inArray,
   isNull,
   or,
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { serializeRule } from "@/lib/serializers";
 import {

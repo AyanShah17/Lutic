@@ -15,7 +15,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 
 FROM manifests AS production-deps
-RUN bun install --production --frozen-lockfile --filter @kojo/web
+RUN bun install --production --frozen-lockfile --filter @lutic/web
 
 FROM oven/bun:1.4.2-debian AS runtime
 WORKDIR /app

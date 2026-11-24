@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createDbConnection, seedDatabase, withTenantScope, type DbConnection } from "@kojo/core";
+import { createDbConnection, seedDatabase, withTenantScope, type DbConnection } from "@lutic/core";
 import { GET as getAdminConnectors } from "../apps/web/src/app/api/admin/connectors/route";
 import { POST as postTopicSubscribe } from "../apps/web/src/app/api/topics/[id]/subscribe/route";
 import { POST as postSubscriptions } from "../apps/web/src/app/api/subscriptions/route";
@@ -32,7 +32,7 @@ afterAll(async () => state.conn?.close());
 
 describe("M1 route guards & Zod v4 connector schema extraction", () => {
   it("extracts Zod v4 schema fields and defaults in demo mode and omits them in non-demo mode", async () => {
-    vi.stubEnv("KOJO_DEMO_MODE", "true");
+    vi.stubEnv("LUTIC_DEMO_MODE", "true");
     const demoRes = await getAdminConnectors(new Request("http://localhost/api/admin/connectors"));
     expect(demoRes.status).toBe(200);
     const demoBody = (await demoRes.json()) as {
@@ -64,7 +64,7 @@ describe("M1 route guards & Zod v4 connector schema extraction", () => {
       defaultValue: "cmms-demo-key"
     });
 
-    vi.stubEnv("KOJO_DEMO_MODE", "false");
+    vi.stubEnv("LUTIC_DEMO_MODE", "false");
     const prodRes = await getAdminConnectors(new Request("http://localhost/api/admin/connectors"));
     expect(prodRes.status).toBe(200);
     const prodBody = (await prodRes.json()) as {
@@ -74,13 +74,13 @@ describe("M1 route guards & Zod v4 connector schema extraction", () => {
   });
 
   it("blocks webhook subscriptions with HTTP 501 outside demo mode while allowing in_app and demo webhooks", async () => {
-    vi.stubEnv("KOJO_DEMO_MODE", "false");
+    vi.stubEnv("LUTIC_DEMO_MODE", "false");
 
     const subWebhookByProtocol = await postTopicSubscribe(
       new Request("http://localhost/api/topics/topic-plant-alerts/subscribe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ protocol: "webhook", endpoint: "https://hooks.example.test/kojo" })
+        body: JSON.stringify({ protocol: "webhook", endpoint: "https://hooks.example.test/lutic" })
       }),
       { params: Promise.resolve({ id: "topic-plant-alerts" }) }
     );
@@ -90,7 +90,7 @@ describe("M1 route guards & Zod v4 connector schema extraction", () => {
       new Request("http://localhost/api/topics/topic-plant-alerts/subscribe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ targetType: "webhook", endpoint: "https://hooks.example.test/kojo" })
+        body: JSON.stringify({ targetType: "webhook", endpoint: "https://hooks.example.test/lutic" })
       }),
       { params: Promise.resolve({ id: "topic-plant-alerts" }) }
     );
@@ -103,7 +103,7 @@ describe("M1 route guards & Zod v4 connector schema extraction", () => {
         body: JSON.stringify({
           topicId: "topic-plant-alerts",
           protocol: "webhook",
-          endpoint: "https://hooks.example.test/kojo"
+          endpoint: "https://hooks.example.test/lutic"
         })
       })
     );
@@ -119,12 +119,12 @@ describe("M1 route guards & Zod v4 connector schema extraction", () => {
     );
     expect(inAppSub.status).toBe(201);
 
-    vi.stubEnv("KOJO_DEMO_MODE", "true");
+    vi.stubEnv("LUTIC_DEMO_MODE", "true");
     const demoSub = await postTopicSubscribe(
       new Request("http://localhost/api/topics/topic-plant-alerts/subscribe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ protocol: "webhook", endpoint: "https://hooks.example.test/kojo" })
+        body: JSON.stringify({ protocol: "webhook", endpoint: "https://hooks.example.test/lutic" })
       }),
       { params: Promise.resolve({ id: "topic-plant-alerts" }) }
     );
@@ -137,7 +137,7 @@ describe("M1 route guards & Zod v4 connector schema extraction", () => {
         body: JSON.stringify({
           topicId: "topic-plant-alerts",
           protocol: "webhook",
-          endpoint: "https://hooks.example.test/kojo"
+          endpoint: "https://hooks.example.test/lutic"
         })
       })
     );

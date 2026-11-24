@@ -1,11 +1,11 @@
 const knownSecrets = new Set([
-  "kojo_dev_password",
-  "kojo-demo-password",
-  "kojo-local-dev-session-secret-2026-keep-private",
+  "lutic_dev_password",
+  "lutic-demo-password",
+  "lutic-local-dev-session-secret-2026-keep-private",
   "dev-auth-secret-change-in-production-32chars",
-  "kojo-change-this-secret-in-production-32chars",
-  "kojo-replace-with-32-plus-char-random-secret",
-  "kojo-dev-license-signing-secret-2026",
+  "lutic-change-this-secret-in-production-32chars",
+  "lutic-replace-with-32-plus-char-random-secret",
+  "lutic-dev-license-signing-secret-2026",
   "license-server-dev-admin-token",
   "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -83,8 +83,8 @@ export function validateProductionConfig(env: NodeJS.ProcessEnv = process.env): 
   if (env.LICENSE_ENFORCE === "true") {
     requireProductionLicenseUrl(env.LICENSE_SERVER_URL);
     requireDeploymentSecret("LICENSE_SIGNING_SECRET", env.LICENSE_SIGNING_SECRET, 32);
-    if (!env.KOJO_LICENSE_KEY?.trim() || /^KOJO-(DEV-VALID|PRO-VALID|EXP-0000|REV-0000)-/i.test(env.KOJO_LICENSE_KEY)) {
-      throw new Error("KOJO_LICENSE_KEY requires an issued production license");
+    if (!env.LUTIC_LICENSE_KEY?.trim() || /^LUTIC-(DEV-VALID|PRO-VALID|EXP-0000|REV-0000)-/i.test(env.LUTIC_LICENSE_KEY)) {
+      throw new Error("LUTIC_LICENSE_KEY requires an issued production license");
     }
   }
 }

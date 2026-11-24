@@ -8,14 +8,14 @@ import {
   desc,
   documents,
   eq
-} from "@kojo/core";
+} from "@lutic/core";
 import {
   extractTextFromDocumentFile,
   ingestDocumentJob,
   scanUploadForViruses,
   getMaxUploadBytes,
   validateDocumentUpload
-} from "@kojo/agent";
+} from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { readBoundedBody } from "@/lib/request-body";
 import {

@@ -21,7 +21,7 @@ import {
   Users,
   X
 } from "lucide-react";
-import { PERMISSIONS, ROLE_PERMISSIONS, ROLES } from "@kojo/core/rbac";
+import { PERMISSIONS, ROLE_PERMISSIONS, ROLES } from "@lutic/core/rbac";
 import { ActivateLicensePanel } from "./activate-license-panel";
 import { AssetCreateForm } from "./admin-asset-create-form";
 import { useAppContext } from "./providers";

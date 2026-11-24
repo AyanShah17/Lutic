@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   X
 } from "lucide-react";
-import { can } from "@kojo/core/rbac";
+import { can } from "@lutic/core/rbac";
 import { getNavGroupsForUser } from "@/lib/navigation";
 import { useAppContext } from "./providers";
 import { Dialog } from "./ui/dialog";
@@ -251,7 +251,7 @@ export function CommandSearch({
                     title: q.name,
                     subtitle: `${q.id} · ${q.readyCount} ready`,
                     href: "/queues",
-                    badge: "Kojo Queue"
+                    badge: "Lutic Queue"
                   });
                 }
               }

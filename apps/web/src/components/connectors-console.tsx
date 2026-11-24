@@ -75,8 +75,8 @@ export function isConnectorSupportedInRuntime(
     return /^https:\/\//i.test(connector.endpointUrl.trim());
   }
   return (
-    (connector.transport === "in_memory_mcp" || connector.transport === "kojo_protocol") &&
-    /^(?:kojo|mcp):\/\/([a-z-]+)$/.test(connector.endpointUrl.trim())
+    (connector.transport === "in_memory_mcp" || connector.transport === "lutic_protocol") &&
+    /^(?:lutic|mcp):\/\/([a-z-]+)$/.test(connector.endpointUrl.trim())
   );
 }
 
@@ -95,7 +95,7 @@ export function ConnectorsConsole() {
   const [playgroundMode, setPlaygroundMode] = useState<"tool" | "code">("tool");
   const [codeModeEnabled, setCodeModeEnabled] = useState(false);
   const [codeScript, setCodeScript] = useState(
-    'const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });\nreturn { machineId: input.machineId, status: st.status };'
+    'const st = await lutic.callTool("get_machine_status", { machineId: input.machineId });\nreturn { machineId: input.machineId, status: st.status };'
   );
   const [invokeOutput, setInvokeOutput] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -249,14 +249,14 @@ export function ConnectorsConsole() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Kojo Connector Protocol
+            Lutic Connector Protocol
           </div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
             <Plug className="h-5 w-5 text-primary" />
             <span>Connectors Hub</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Discover Kojo connectors, invoke governed tools, verify health, sync schemas, and inspect logs.
+            Discover Lutic connectors, invoke governed tools, verify health, sync schemas, and inspect logs.
           </p>
         </div>
 
@@ -288,7 +288,7 @@ export function ConnectorsConsole() {
 
       {!demoEnabled && (
         <div className="rounded-md border border-border bg-muted/40 px-3.5 py-2 text-xs text-muted-foreground">
-          Production mode: local <code className="font-mono">mcp://</code> / <code className="font-mono">kojo://</code> adapters, <code className="font-mono">remote_mcp</code> (Metorial, OpenConnectors, UTCP-MCP), and <code className="font-mono">utcp_http</code> (UTCP / OpenAPI over HTTPS) execute live tool discovery and invocations. Unimplemented raw HTTP/SCADA/ERP/webhook entries store configuration only and return HTTP 501.
+          Production mode: local <code className="font-mono">mcp://</code> / <code className="font-mono">lutic://</code> adapters, <code className="font-mono">remote_mcp</code> (Metorial, OpenConnectors, UTCP-MCP), and <code className="font-mono">utcp_http</code> (UTCP / OpenAPI over HTTPS) execute live tool discovery and invocations. Unimplemented raw HTTP/SCADA/ERP/webhook entries store configuration only and return HTTP 501.
         </div>
       )}
 
@@ -555,7 +555,7 @@ export function ConnectorsConsole() {
                               : "text-muted-foreground hover:text-foreground"
                           } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
-                          Kojo Code Mode
+                          Lutic Code Mode
                         </button>
                       </div>
                     </div>
@@ -573,7 +573,7 @@ export function ConnectorsConsole() {
                     ) : (
                       <div className="space-y-1">
                         <Label htmlFor="connector-code-script">
-                          Isolated Code Mode Script (<code className="font-mono">kojo.callTool / kojo.connectors</code>)
+                          Isolated Code Mode Script (<code className="font-mono">lutic.callTool / lutic.connectors</code>)
                         </Label>
                         <Textarea
                           id="connector-code-script"
@@ -598,7 +598,7 @@ export function ConnectorsConsole() {
                     </div>
                     {playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled) && (
                       <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
-                        External runtime unavailable in production mode. Use <code className="font-mono">remote_mcp</code>, <code className="font-mono">utcp_http</code> (HTTPS), or local <code className="font-mono">kojo://</code>/<code className="font-mono">mcp://</code> connectors.
+                        External runtime unavailable in production mode. Use <code className="font-mono">remote_mcp</code>, <code className="font-mono">utcp_http</code> (HTTPS), or local <code className="font-mono">lutic://</code>/<code className="font-mono">mcp://</code> connectors.
                       </div>
                     )}
                     {!codeModeEnabled && (

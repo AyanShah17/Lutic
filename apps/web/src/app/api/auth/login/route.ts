@@ -12,7 +12,7 @@ import {
   users,
   verifyPassword,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { getWebAdministrativeDb } from "@/lib/db";
 import { readBoundedBody } from "@/lib/request-body";
 import {

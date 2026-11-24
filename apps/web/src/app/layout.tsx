@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { isDemoMode } from "@kojo/core";
+import { isDemoMode } from "@lutic/core";
 import "./globals.css";
 import { getSessionUser } from "@/lib/auth";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
-  title: "Kojo — Industrial Operations AI",
+  metadataBase: new URL("https://lutic.app"),
+  title: "Lutic — Industrial Operations Platform",
   description:
-    "Role-governed industrial AI operations platform across manuals, telemetry, workflows, connectors, messaging, and semantic dashboards."
+    "Lutic turns shop-floor alerts, plant manuals, telemetry, and cross-system operations into fast, verified, human-approved outcomes."
 };
 
 export const dynamic = "force-dynamic";

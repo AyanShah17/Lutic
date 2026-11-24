@@ -10,8 +10,8 @@ import {
   roleToolkits,
   toolkits,
   toolkitTools
-} from "@kojo/core";
-import { defaultMcpRegistry } from "@kojo/connectors";
+} from "@lutic/core";
+import { defaultMcpRegistry } from "@lutic/connectors";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,

@@ -6,9 +6,9 @@ import {
   desc,
   eq,
   getLocalConnectorKind
-} from "@kojo/core";
-import { defaultMcpRegistry } from "@kojo/connectors";
-import { getAllowedToolsForUser } from "@kojo/agent";
+} from "@lutic/core";
+import { defaultMcpRegistry } from "@lutic/connectors";
+import { getAllowedToolsForUser } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { getSessionUser, handleApiError, problemResponse } from "@/lib/auth";
 
@@ -25,8 +25,8 @@ function zodToSchemaObj(schema: unknown): Record<string, unknown> {
 }
 
 /**
- * Exposes an authenticated UTCP 1.0 manual combining authorized Kojo MCP tools and
- * registered remote MCP / UTCP / Kojo protocol connectors for external UTCP clients.
+ * Exposes an authenticated UTCP 1.0 manual combining authorized Lutic MCP tools and
+ * registered remote MCP / UTCP / Lutic protocol connectors for external UTCP clients.
  */
 export async function GET(req: Request) {
   try {
@@ -100,7 +100,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         manual_version: "1.0.0",
         utcp_version: "1.0.0",
-        protocol: "kojo-connector-v1",
+        protocol: "lutic-connector-v1",
         tenantId: user.tenantId,
         tools: utcpTools
       });

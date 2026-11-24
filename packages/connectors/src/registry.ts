@@ -14,7 +14,7 @@ import { cmmsConnector } from "./servers/cmms";
 import { partsErpConnector } from "./servers/parts-erp";
 import { mesConnector } from "./servers/mes";
 import { paasConnector } from "./servers/paas";
-import type { KojoDatabase } from "@kojo/core";
+import type { LuticDatabase } from "@lutic/core";
 
 export const ALL_CONNECTORS: Connector[] = [
   docsConnector,
@@ -59,7 +59,7 @@ export class McpToolRegistry {
           InMemoryTransport.createLinkedPair();
         const server = connector.createMcpServer();
         const client = new Client({
-          name: `kojo-agent-client-${connector.kind}`,
+          name: `lutic-agent-client-${connector.kind}`,
           version: "0.1.0"
         });
         await server.connect(serverTransport);
@@ -161,7 +161,7 @@ export class McpToolRegistry {
   }
 
   async healthChecks(
-    db: KojoDatabase,
+    db: LuticDatabase,
     tenantId: string
   ): Promise<ConnectorHealth[]> {
     return Promise.all(

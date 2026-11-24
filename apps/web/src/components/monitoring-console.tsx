@@ -361,7 +361,7 @@ export function MonitoringConsole() {
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Kojo Telemetry &amp; Alert Rules
+            Lutic Telemetry &amp; Alert Rules
           </div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />

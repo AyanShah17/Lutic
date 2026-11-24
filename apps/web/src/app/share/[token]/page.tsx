@@ -12,7 +12,7 @@ import {
   inArray,
   messages,
   userPlants
-} from "@kojo/core";
+} from "@lutic/core";
 import { getSessionUser } from "@/lib/auth";
 import { withWebTenantDb } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";

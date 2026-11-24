@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq, getDbConnection, ensureSchema, assets, machineStatus, plants } from "@kojo/core";
+import { eq, getDbConnection, ensureSchema, assets, machineStatus, plants } from "@lutic/core";
 import { bootstrapDatabase } from "../packages/core/src/db/bootstrap";
 import * as assetsRoute from "../apps/web/src/app/api/admin/assets/route";
 import { POST as loginPost } from "../apps/web/src/app/api/auth/login/route";
@@ -11,7 +11,7 @@ let tenantId: string;
 let plantId: string;
 
 function createAsset(body: Record<string, unknown>) {
-  return assetsRoute.POST(new Request("https://kojo.example/api/admin/assets", {
+  return assetsRoute.POST(new Request("https://lutic.example/api/admin/assets", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -23,16 +23,16 @@ beforeAll(async () => {
   vi.stubEnv("NODE_ENV", "production");
   vi.stubEnv("AUTH_SECRET", "84f025c02a72de52f50c4ed583fb6efc9");
   vi.stubEnv("LICENSE_ENFORCE", "false");
-  vi.stubEnv("KOJO_RUNTIME_DISABLED", "true");
+  vi.stubEnv("LUTIC_RUNTIME_DISABLED", "true");
   const conn = await getDbConnection();
   await ensureSchema(conn);
   await bootstrapDatabase(conn, {
-    KOJO_TENANT_NAME: "New Tenant",
-    KOJO_PLANT_NAME: "First Plant",
-    KOJO_ADMIN_EMAIL: email,
-    KOJO_ADMIN_PASSWORD: password
+    LUTIC_TENANT_NAME: "New Tenant",
+    LUTIC_PLANT_NAME: "First Plant",
+    LUTIC_ADMIN_EMAIL: email,
+    LUTIC_ADMIN_PASSWORD: password
   });
-  const response = await loginPost(new Request("https://kojo.example/api/auth/login", {
+  const response = await loginPost(new Request("https://lutic.example/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password })
   }));
@@ -58,7 +58,7 @@ describe("admin asset creation", () => {
     expect(machineResponse.status).toBe(201);
     const { asset: machine } = await machineResponse.json();
     expect(machine).toMatchObject({ name: "Conveyor", type: "machine", tenantId, plantId, parentId: line.id });
-    const read = await assetsRoute.GET(new Request("https://kojo.example/api/admin/assets", {
+    const read = await assetsRoute.GET(new Request("https://lutic.example/api/admin/assets", {
       headers: { Authorization: `Bearer ${token}` }
     }));
     await expect(read.json()).resolves.toMatchObject({

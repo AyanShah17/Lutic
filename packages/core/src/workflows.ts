@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import {
   alarms,
   assets,
@@ -251,7 +251,7 @@ export function buildWorkflowFromPrompt(prompt: string): BuiltWorkflowDraft {
 }
 
 export async function pruneWorkflowVersions(
-  db: KojoDatabase,
+  db: LuticDatabase,
   workflowId: string,
   tenantId: string,
   maxVersions = 5
@@ -282,7 +282,7 @@ export async function pruneWorkflowVersions(
 }
 
 async function runMcpNodeAction(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   tool: string,
   args: Record<string, unknown>,
@@ -380,7 +380,7 @@ function compareCondition(
 }
 
 async function runWorkflowGraph(
-  db: KojoDatabase,
+  db: LuticDatabase,
   params: {
     runId: string;
     tenantId: string;
@@ -602,7 +602,7 @@ async function runWorkflowGraph(
               partsUsed: [],
               openedAt: new Date(),
               closedAt: null,
-              technician: "Kojo Workflow"
+              technician: "Lutic Workflow"
             });
             stepOutput = { workOrderCreated: true, workOrderId: woId };
           } else {
@@ -679,7 +679,7 @@ async function runWorkflowGraph(
 }
 
 export async function executeWorkflow(
-  db: KojoDatabase,
+  db: LuticDatabase,
   params: {
     tenantId: string;
     workflowId: string;
@@ -754,15 +754,15 @@ export async function executeWorkflow(
 }
 
 export async function executeQueuedWorkflowRun(
-  db: KojoDatabase,
+  db: LuticDatabase,
   runId: string
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    await executeClaimedWorkflowRun(tx as unknown as KojoDatabase, runId);
+    await executeClaimedWorkflowRun(tx as unknown as LuticDatabase, runId);
   });
 }
 
-async function executeClaimedWorkflowRun(db: KojoDatabase, runId: string): Promise<void> {
+async function executeClaimedWorkflowRun(db: LuticDatabase, runId: string): Promise<void> {
   const [run] = await db
     .update(workflowRuns)
     .set({ status: "running" })

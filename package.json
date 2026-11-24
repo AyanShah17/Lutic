@@ -1,5 +1,5 @@
 {
-  "name": "kojo",
+  "name": "lutic",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
@@ -7,15 +7,15 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun --filter @kojo/web dev",
-    "build": "bun --filter @kojo/core build && bun --filter @kojo/connectors build && bun --filter @kojo/agent build && bun --filter @kojo/web build",
+    "dev": "bun --filter @lutic/web dev",
+    "build": "bun --filter @lutic/core build && bun --filter @lutic/connectors build && bun --filter @lutic/agent build && bun --filter @lutic/web build",
     "typecheck": "bun --filter '*' typecheck",
     "lint": "bun --filter '*' lint",
     "test": "vitest run",
-    "db:migrate": "bun --filter @kojo/core db:migrate",
-    "db:bootstrap": "bun --filter @kojo/core db:bootstrap",
-    "db:seed": "bun --filter @kojo/core db:seed",
-    "sim": "bun --filter @kojo/core sim"
+    "db:migrate": "bun --filter @lutic/core db:migrate",
+    "db:bootstrap": "bun --filter @lutic/core db:bootstrap",
+    "db:seed": "bun --filter @lutic/core db:seed",
+    "sim": "bun --filter @lutic/core sim"
   },
   "overrides": {
     "postcss": "8.5.33",

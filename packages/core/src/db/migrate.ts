@@ -765,24 +765,24 @@ function buildRlsSql(): string {
   const roleSetup = `
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'kojo_app') THEN
-    CREATE ROLE kojo_app NOLOGIN NOSUPERUSER NOBYPASSRLS;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lutic_app') THEN
+    CREATE ROLE lutic_app NOLOGIN NOSUPERUSER NOBYPASSRLS;
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_roles
-    WHERE rolname = 'kojo_app' AND (rolcanlogin OR rolsuper OR rolbypassrls)
+    WHERE rolname = 'lutic_app' AND (rolcanlogin OR rolsuper OR rolbypassrls)
   ) THEN
-    RAISE EXCEPTION 'kojo_app must be a NOLOGIN, NOSUPERUSER, NOBYPASSRLS role';
+    RAISE EXCEPTION 'lutic_app must be a NOLOGIN, NOSUPERUSER, NOBYPASSRLS role';
   END IF;
 END
 $$;
-GRANT kojo_app TO CURRENT_USER;
-GRANT USAGE ON SCHEMA public TO kojo_app;
-REVOKE ALL ON license_state FROM kojo_app;
-REVOKE ALL ON schema_migrations FROM kojo_app;
-REVOKE INSERT, UPDATE, DELETE ON tenants FROM kojo_app;
-GRANT SELECT ON tenants TO kojo_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ${TENANT_RLS_TABLES.filter((table) => table !== "tenants").join(", ")}, rate_limits TO kojo_app;
+GRANT lutic_app TO CURRENT_USER;
+GRANT USAGE ON SCHEMA public TO lutic_app;
+REVOKE ALL ON license_state FROM lutic_app;
+REVOKE ALL ON schema_migrations FROM lutic_app;
+REVOKE INSERT, UPDATE, DELETE ON tenants FROM lutic_app;
+GRANT SELECT ON tenants TO lutic_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ${TENANT_RLS_TABLES.filter((table) => table !== "tenants").join(", ")}, rate_limits TO lutic_app;
 `;
   const blocks = TENANT_RLS_TABLES.map((tbl) => {
     const tenantColumn = tbl === "tenants" ? "id" : "tenant_id";
@@ -791,11 +791,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ${TENANT_RLS_TABLES.filter((table) => ta
 ALTER TABLE ${tbl} ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ${tbl} FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_${tbl} ON ${tbl};
-CREATE POLICY tenant_isolation_${tbl} ON ${tbl} TO kojo_app
+CREATE POLICY tenant_isolation_${tbl} ON ${tbl} TO lutic_app
   USING (${scope}) WITH CHECK (${scope});
 DROP POLICY IF EXISTS tenant_administration ON ${tbl};
 CREATE POLICY tenant_administration ON ${tbl} TO CURRENT_USER
-  USING (current_user <> 'kojo_app');
+  USING (current_user <> 'lutic_app');
 `;
   });
   return roleSetup + blocks.join("\n");
@@ -813,7 +813,7 @@ export async function ensureSchema(conn?: DbConnection): Promise<void> {
   }
 
   await connection.withRawTransaction(async (execute, queryRows) => {
-    await queryRows("SELECT pg_advisory_xact_lock(hashtext('kojo.migrations'), 1)");
+    await queryRows("SELECT pg_advisory_xact_lock(hashtext('lutic.migrations'), 1)");
     await execute(SCHEMA_MIGRATIONS_DDL);
     const appliedRows = await queryRows<{ version: number; name: string; checksum: string }>(
       "SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC"

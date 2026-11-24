@@ -14,7 +14,7 @@ import {
   withTenantScope,
   type DbConnection,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { GET as getMachine } from "../apps/web/src/app/api/machines/[id]/route";
 
 describe("tenant database isolation", () => {
@@ -41,7 +41,7 @@ describe("tenant database isolation", () => {
   it("requires nonempty tenant context for the application database role", async () => {
     async function readWithoutScope() {
       return conn.db.transaction(async (tx) => {
-        await tx.execute(sql`SET LOCAL ROLE kojo_app`);
+        await tx.execute(sql`SET LOCAL ROLE lutic_app`);
         return (await tx.execute(sql`SELECT id FROM plants ORDER BY id`)).rows;
       });
     }
@@ -51,7 +51,7 @@ describe("tenant database isolation", () => {
     expect(await readWithoutScope()).toEqual([]);
 
     await expect(conn.db.transaction(async (tx) => {
-      await tx.execute(sql`SET LOCAL ROLE kojo_app`);
+      await tx.execute(sql`SET LOCAL ROLE lutic_app`);
       await tx.execute(sql`INSERT INTO plants (id, tenant_id, name, code) VALUES ('no-context', 'alpha', 'Denied', 'X')`);
     })).rejects.toMatchObject(rlsViolation);
   });

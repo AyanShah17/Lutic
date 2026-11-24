@@ -402,7 +402,7 @@ export function ChatWorkspace({
     return (
       <AuthGate
         title="Authentication Required"
-        description="Please sign in to access Kojo role-governed operations chat."
+        description="Please sign in to access Lutic role-governed operations chat."
       />
     );
   }
@@ -582,7 +582,7 @@ export function ChatWorkspace({
         ? {
             id: "draft-from-chat",
             title: `Analytics from Chat (${new Date().toLocaleDateString()})`,
-            description: "Generated from Kojo chat answer",
+            description: "Generated from Lutic chat answer",
             plantScope: user.plantIds,
             filters: { range: "7d" },
             widgets: msg.charts.map((c, idx) => ({
@@ -1011,7 +1011,7 @@ export function ChatWorkspace({
                 <h2 className="text-lg font-bold tracking-tight">
                   {machineHeader
                     ? `Scoped Diagnostics: ${machineHeader.name}`
-                    : `Ask Kojo (${user.role})`}
+                    : `Ask Lutic (${user.role})`}
                 </h2>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Responses about torque specifications, lockout/tagout, parts, and telemetry cite verified plant manuals and execute tools under your RBAC scope.

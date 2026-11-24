@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { SessionUser } from "@kojo/core";
+import type { SessionUser } from "@lutic/core";
 import { translate, type Locale } from "@/lib/i18n";
 
 interface AppContextValue {

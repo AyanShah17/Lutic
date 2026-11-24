@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import {
   alertEvents,
   alertRules,
@@ -53,7 +53,7 @@ export interface RuntimeTickSummary {
 }
 
 export interface RuntimeHooks {
-  executeWorkflowRun?: (db: KojoDatabase, runId: string) => Promise<void>;
+  executeWorkflowRun?: (db: LuticDatabase, runId: string) => Promise<void>;
 }
 
 export interface RuntimeHealthSnapshot {
@@ -68,7 +68,7 @@ export interface RuntimeHealthSnapshot {
 }
 
 const globalForRuntime = globalThis as unknown as {
-  __kojoRuntimeState?: {
+  __luticRuntimeState?: {
     timer?: ReturnType<typeof setInterval>;
     hooks?: RuntimeHooks;
     startedAt?: string;
@@ -81,10 +81,10 @@ const globalForRuntime = globalThis as unknown as {
 };
 
 function getRuntimeState() {
-  if (!globalForRuntime.__kojoRuntimeState) {
-    globalForRuntime.__kojoRuntimeState = {};
+  if (!globalForRuntime.__luticRuntimeState) {
+    globalForRuntime.__luticRuntimeState = {};
   }
-  return globalForRuntime.__kojoRuntimeState;
+  return globalForRuntime.__luticRuntimeState;
 }
 
 export function getRuntimeHealthSnapshot(): RuntimeHealthSnapshot {
@@ -111,7 +111,7 @@ export function getRuntimeHooks(): RuntimeHooks | undefined {
 }
 
 export function isDemoMode(): boolean {
-  return process.env.NODE_ENV !== "production" && process.env.KOJO_DEMO_MODE !== "false";
+  return process.env.NODE_ENV !== "production" && process.env.LUTIC_DEMO_MODE !== "false";
 }
 
 /** Code Mode executes user-authored JavaScript and is restricted to trusted development and tests. */
@@ -120,7 +120,7 @@ export function isCodeModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean
 }
 
 export function shouldSkipAutoRuntime(): boolean {
-  if (process.env.KOJO_RUNTIME_DISABLED === "true") return true;
+  if (process.env.LUTIC_RUNTIME_DISABLED === "true") return true;
   if (process.env.VITEST === "true" || process.env.NODE_ENV === "test") return true;
   if (process.env.NEXT_PHASE === "phase-production-build") return true;
   if (
@@ -153,7 +153,7 @@ function compareMetric(
 }
 
 async function executeRuntimeTick(
-  db: KojoDatabase,
+  db: LuticDatabase,
   now: Date,
   options?: RuntimeTickOptions
 ): Promise<RuntimeTickSummary> {
@@ -621,7 +621,7 @@ async function executeRuntimeTick(
 }
 
 export async function runRuntimeTick(
-  db: KojoDatabase,
+  db: LuticDatabase,
   options?: RuntimeTickOptions
 ): Promise<RuntimeTickSummary> {
   const started = Date.now();
@@ -630,14 +630,14 @@ export async function runRuntimeTick(
   try {
     summary = await db.transaction(async (tx) => {
       const lock = await tx.execute<{ acquired: boolean; tick_at: string }>(sql`
-        SELECT pg_try_advisory_xact_lock(hashtext('kojo.runtime'), 1) AS acquired,
+        SELECT pg_try_advisory_xact_lock(hashtext('lutic.runtime'), 1) AS acquired,
           clock_timestamp()::text AS tick_at
       `);
       const [tick] = lock.rows;
       if (!tick?.acquired) return undefined;
       await tx.execute(sql`SET LOCAL statement_timeout = '15s'`);
       await tx.execute(sql`SET LOCAL lock_timeout = '3s'`);
-      return executeRuntimeTick(tx as unknown as KojoDatabase, new Date(tick.tick_at), options);
+      return executeRuntimeTick(tx as unknown as LuticDatabase, new Date(tick.tick_at), options);
     });
   } catch (err) {
     state.lastTickAt = new Date().toISOString();
@@ -688,7 +688,7 @@ export async function runRuntimeTick(
 }
 
 export function startBackgroundRuntime(
-  getDb: () => Promise<KojoDatabase>,
+  getDb: () => Promise<LuticDatabase>,
   intervalMs = Number(process.env.RUNTIME_TICK_INTERVAL_MS ?? 15000)
 ): void {
   if (shouldSkipAutoRuntime()) return;

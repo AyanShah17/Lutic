@@ -15,8 +15,8 @@ import {
   sql,
   TimeRangeSchema,
   type DashboardSpec,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import {
   buildConnectorMcpServer,
   type Connector,
@@ -288,7 +288,7 @@ export const mesConnector: Connector = {
   kind: "mes",
   name: "Mock MES & Semantic Analytics",
   credentialSchema: MesCredentialSchema,
-  async healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth> {
+  async healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth> {
     const start = Date.now();
     await db
       .select({ id: productionRuns.id })

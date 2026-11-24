@@ -42,12 +42,12 @@ import {
   workflowVersions,
   workflows,
   type DbConnection,
-  type KojoDatabase,
+  type LuticDatabase,
   type SessionUser
-} from "@kojo/core";
-import { McpToolRegistry, PAAS_CONNECTORS } from "@kojo/connectors";
-import { MockLLMProvider, runAgentTurn } from "@kojo/agent";
-import { DEMO_PASSWORD } from "@kojo/core";
+} from "@lutic/core";
+import { McpToolRegistry, PAAS_CONNECTORS } from "@lutic/connectors";
+import { MockLLMProvider, runAgentTurn } from "@lutic/agent";
+import { DEMO_PASSWORD } from "@lutic/core";
 import { handleLicenseRequest, resetLicenseStore } from "./fixtures/mock-license-server";
 import { dynamic as healthDynamic } from "../apps/web/src/app/api/health/route";
 import { POST as loginPost } from "../apps/web/src/app/api/auth/login/route";
@@ -62,7 +62,7 @@ import { POST as monitoringTickPost } from "../apps/web/src/app/api/monitoring/t
 import { getWebAdministrativeDb } from "../apps/web/src/lib/db";
 
 let conn: DbConnection;
-let db: KojoDatabase;
+let db: LuticDatabase;
 
 const detroitEngineer: SessionUser = {
   userId: "user-det-eng",
@@ -184,7 +184,7 @@ describe("Milestone 2 — Core PaaS Services, MCP Tools & Multimodal Agent", () 
     expect(run.stepTraces.every((t) => t.status === "succeeded")).toBe(true);
   });
 
-  it("tests, syncs, and triggers Kojo Connector Hub connections with encrypted config", async () => {
+  it("tests, syncs, and triggers Lutic Connector Hub connections with encrypted config", async () => {
     expect(CONNECTOR_CATALOG.length).toBeGreaterThanOrEqual(5);
 
     const connId = `cc-m2-${crypto.randomUUID().slice(0, 8)}`;
@@ -250,7 +250,7 @@ describe("Milestone 2 — Core PaaS Services, MCP Tools & Multimodal Agent", () 
     expect(runs[0]?.triggerSource).toBe("connector");
   });
 
-  it("fans out Kojo topics and manages Kojo queue visibility timeouts, DLQ routing, ack, and purge", async () => {
+  it("fans out Lutic topics and manages Lutic queue visibility timeouts, DLQ routing, ack, and purge", async () => {
     const topicId = `topic-m2-${crypto.randomUUID().slice(0, 8)}`;
     const dlqId = `queue-dlq-${crypto.randomUUID().slice(0, 8)}`;
     const qId = `queue-m2-${crypto.randomUUID().slice(0, 8)}`;
@@ -520,16 +520,16 @@ describe("Milestone 2 — Core PaaS Services, MCP Tools & Multimodal Agent", () 
   it("enforces dynamic /api/health, license deactivation lock, and API route plant/ownership security", async () => {
     expect(healthDynamic).toBe("force-dynamic");
 
-    // requireLicense must NOT re-activate KOJO_LICENSE_KEY after explicit deactivation
+    // requireLicense must NOT re-activate LUTIC_LICENSE_KEY after explicit deactivation
     process.env.DATABASE_URL = "memory://";
     const webDb = await getWebAdministrativeDb();
     resetLicenseStore();
     resetLicenseCacheForTests();
     const prevEnforce = process.env.LICENSE_ENFORCE;
-    const prevKey = process.env.KOJO_LICENSE_KEY;
+    const prevKey = process.env.LUTIC_LICENSE_KEY;
     const prevFetch = globalThis.fetch;
     process.env.LICENSE_ENFORCE = "true";
-    process.env.KOJO_LICENSE_KEY = "KOJO-PRO-VALID-2026";
+    process.env.LUTIC_LICENSE_KEY = "LUTIC-PRO-VALID-2026";
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const urlStr = typeof input === "string" ? input : input.toString();
       if (urlStr.includes(":4100")) {
@@ -545,8 +545,8 @@ describe("Milestone 2 — Core PaaS Services, MCP Tools & Multimodal Agent", () 
       globalThis.fetch = prevFetch;
       if (prevEnforce === undefined) delete process.env.LICENSE_ENFORCE;
       else process.env.LICENSE_ENFORCE = prevEnforce;
-      if (prevKey === undefined) delete process.env.KOJO_LICENSE_KEY;
-      else process.env.KOJO_LICENSE_KEY = prevKey;
+      if (prevKey === undefined) delete process.env.LUTIC_LICENSE_KEY;
+      else process.env.LUTIC_LICENSE_KEY = prevKey;
       resetLicenseCacheForTests();
     }
 

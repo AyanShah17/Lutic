@@ -2,7 +2,7 @@ import type {
   alertRules,
   connectorConnections,
   workflows
-} from "@kojo/core";
+} from "@lutic/core";
 
 export function serializeWorkflow(row: typeof workflows.$inferSelect) {
   const def = (row.definition ?? { nodes: [], edges: [] }) as {

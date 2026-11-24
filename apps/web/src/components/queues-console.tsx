@@ -132,7 +132,7 @@ export function QueuesConsole({
           prev && topicList.some((t) => t.id === prev) ? prev : (topicList[0]?.id ?? "")
         );
       } else {
-        errors.push(await readErr(tRes, "Failed to load Kojo topics"));
+        errors.push(await readErr(tRes, "Failed to load Lutic topics"));
       }
       if (qRes.ok) {
         const qData = (await qRes.json()) as { queues: QueueRow[] };
@@ -142,7 +142,7 @@ export function QueuesConsole({
           prev && queueList.some((q) => q.id === prev) ? prev : (queueList[0]?.id ?? "")
         );
       } else {
-        errors.push(await readErr(qRes, "Failed to load Kojo queues"));
+        errors.push(await readErr(qRes, "Failed to load Lutic queues"));
       }
       if (errors.length > 0) {
         setLoadError(errors[0] ?? "Failed to load queues data");
@@ -205,7 +205,7 @@ export function QueuesConsole({
     return (
       <AuthGate
         title="Sign in to view Notifications & Queues"
-        description="Operational notifications, Kojo pub/sub topics, and Kojo dispatch queues require an authenticated session."
+        description="Operational notifications, Lutic pub/sub topics, and Lutic dispatch queues require an authenticated session."
       />
     );
   }
@@ -217,14 +217,14 @@ export function QueuesConsole({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Kojo Topics &amp; Dispatch
+            Lutic Topics &amp; Dispatch
           </div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
             <span>Notifications &amp; Queues</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time notification feed, Kojo pub/sub fan-out topics, and Kojo dispatch queues with visibility timeouts &amp; DLQ.
+            Real-time notification feed, Lutic pub/sub fan-out topics, and Lutic dispatch queues with visibility timeouts &amp; DLQ.
           </p>
         </div>
 
@@ -278,13 +278,13 @@ export function QueuesConsole({
           },
           {
             id: "topics",
-            label: "Kojo Topics",
+            label: "Lutic Topics",
             badge: topics.length,
             icon: <Radio className="h-3.5 w-3.5" />
           },
           {
             id: "queues",
-            label: "Kojo Queues",
+            label: "Lutic Queues",
             badge: queues.length,
             icon: <Layers className="h-3.5 w-3.5" />
           }
@@ -412,13 +412,13 @@ export function QueuesConsole({
               <Card className={`${canWriteTopics ? "lg:col-span-2" : ""} p-4 space-y-3 min-w-0`}>
                 <h2 className="text-sm font-semibold flex items-center gap-1.5">
                   <Radio className="h-4 w-4 text-primary" />
-                  <span>Kojo Topics &amp; Subscriptions ({filteredTopics.length})</span>
+                  <span>Lutic Topics &amp; Subscriptions ({filteredTopics.length})</span>
                 </h2>
                 {filteredTopics.length === 0 ? (
                   <div className="py-6 text-center text-xs text-muted-foreground">
                     {topics.length === 0
-                      ? (loadError ?? "No Kojo topics created for this tenant yet.")
-                      : "No Kojo topics match your search."}
+                      ? (loadError ?? "No Lutic topics created for this tenant yet.")
+                      : "No Lutic topics match your search."}
                   </div>
                 ) : (
                   <div className="space-y-2.5">
@@ -501,7 +501,7 @@ export function QueuesConsole({
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                              subject: pubSubject || "Kojo Broadcast",
+                              subject: pubSubject || "Lutic Broadcast",
                               message: pubMessage
                             })
                           });
@@ -643,7 +643,7 @@ export function QueuesConsole({
               <Card className={`${canWriteQueues ? "lg:col-span-2" : ""} p-4 space-y-3 min-w-0`}>
                 <h2 className="text-sm font-semibold flex items-center gap-1.5">
                   <Layers className="h-4 w-4 text-primary" />
-                  <span>Kojo Dispatch Queues ({filteredQueues.length})</span>
+                  <span>Lutic Dispatch Queues ({filteredQueues.length})</span>
                 </h2>
                 {filteredQueues.length === 0 ? (
                   <div className="py-6 text-center text-xs text-muted-foreground">
@@ -796,7 +796,7 @@ export function QueuesConsole({
                       }}
                       className="space-y-2.5"
                     >
-                      <div className="text-xs font-semibold">Create Kojo Queue</div>
+                      <div className="text-xs font-semibold">Create Lutic Queue</div>
                       <div className="flex gap-2">
                         <Input
                           value={queueName}

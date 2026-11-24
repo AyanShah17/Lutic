@@ -304,7 +304,7 @@ export function WorkflowCanvas({ workflowId }: { workflowId: string }) {
     return (
       <AuthGate
         title="Sign in to view Workflow Canvas"
-        description="Visual workflow editing and execution traces require an authenticated Kojo session."
+        description="Visual workflow editing and execution traces require an authenticated Lutic session."
       />
     );
   }
@@ -786,7 +786,7 @@ export function WorkflowCanvas({ workflowId }: { workflowId: string }) {
               >
                 <defs>
                   <marker
-                    id="kojo-arrow"
+                    id="lutic-arrow"
                     markerWidth="8"
                     markerHeight="8"
                     refX="7"
@@ -813,7 +813,7 @@ export function WorkflowCanvas({ workflowId }: { workflowId: string }) {
                       fill="none"
                       stroke="hsl(var(--primary))"
                       strokeWidth="2"
-                      markerEnd="url(#kojo-arrow)"
+                      markerEnd="url(#lutic-arrow)"
                     />
                   );
                 })}

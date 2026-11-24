@@ -1,4 +1,4 @@
-import type { KojoDatabase } from "./client";
+import type { LuticDatabase } from "./client";
 import * as schema from "./schema";
 
 interface ToolkitDefinition {
@@ -12,7 +12,7 @@ interface ToolkitDefinition {
 const paasToolkit: ToolkitDefinition = {
   id: "tk-paas",
   name: "paas",
-  description: "Workflows, monitoring alerts, notification topics, queues, and isolated Kojo Code Mode",
+  description: "Workflows, monitoring alerts, notification topics, queues, and isolated Lutic Code Mode",
   tools: [
     "paas.list_workflows", "paas.trigger_workflow", "paas.list_alerts",
     "paas.acknowledge_alert", "paas.publish_notification", "paas.inspect_queues",
@@ -21,7 +21,7 @@ const paasToolkit: ToolkitDefinition = {
   roles: ["engineer", "analyst", "manager", "admin"]
 };
 
-export async function installCoreToolkits(db: KojoDatabase, tenantId: string, idPrefix: string): Promise<void> {
+export async function installCoreToolkits(db: LuticDatabase, tenantId: string, idPrefix: string): Promise<void> {
   await installToolkits(db, tenantId, idPrefix, [
     {
       id: "tk-knowledge",
@@ -62,11 +62,11 @@ export async function installCoreToolkits(db: KojoDatabase, tenantId: string, id
   ]);
 }
 
-export async function installPaasToolkit(db: KojoDatabase, tenantId: string): Promise<void> {
+export async function installPaasToolkit(db: LuticDatabase, tenantId: string): Promise<void> {
   await installToolkits(db, tenantId, "", [paasToolkit]);
 }
 
-async function installToolkits(db: KojoDatabase, tenantId: string, idPrefix: string, toolkitDefs: ToolkitDefinition[]): Promise<void> {
+async function installToolkits(db: LuticDatabase, tenantId: string, idPrefix: string, toolkitDefs: ToolkitDefinition[]): Promise<void> {
   await db.insert(schema.toolkits).values(
     toolkitDefs.map((tk) => ({
       id: `${idPrefix}${tk.id}`,

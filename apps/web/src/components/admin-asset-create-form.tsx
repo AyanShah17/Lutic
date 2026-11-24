@@ -40,7 +40,7 @@ export function AssetCreateForm({ plants, lines, onCreated }: AssetCreateFormPro
       const { asset } = await response.json() as { asset: { name: string } };
       onCreated(asset.name);
     } catch {
-      setError("Unable to reach Kojo. Check your connection and try again.");
+      setError("Unable to reach Lutic. Check your connection and try again.");
     } finally {
       setPending(false);
     }

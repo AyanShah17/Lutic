@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import {
   computeDeterministicEmbedding,
   extractFaultCodesAndPartNumbers
@@ -132,7 +132,7 @@ export interface HybridSearchResult {
 }
 
 export async function hybridSearchDocuments(
-  db: KojoDatabase,
+  db: LuticDatabase,
   options: HybridSearchOptions
 ): Promise<HybridSearchResult> {
   const embedder = options.embeddingProvider ?? new LocalMockEmbeddingProvider();

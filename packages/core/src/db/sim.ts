@@ -7,7 +7,7 @@ async function runSimulator() {
   if (!isDemoMode()) throw new Error("The simulator requires demo mode");
   const conn = await createDbConnection();
   const db = conn.db;
-  console.log("Kojo Live Simulator started (writing readings every 5s; Ctrl+C to stop)...");
+  console.log("Lutic Live Simulator started (writing readings every 5s; Ctrl+C to stop)...");
 
   const tick = async () => {
     const machines = await db

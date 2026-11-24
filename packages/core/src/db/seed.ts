@@ -8,7 +8,7 @@ import { SEED_DOCUMENTS } from "./seed-manuals";
 import type { DashboardSpec } from "../dashboard/schema";
 import { installCoreToolkits, installPaasToolkit } from "./core-toolkits";
 
-export const DEMO_PASSWORD = "kojo-demo-password";
+export const DEMO_PASSWORD = "lutic-demo-password";
 
 interface MachineBlueprint {
   id: string;
@@ -758,11 +758,11 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
 
   // 12. Connectors (with encrypted credentials)
   const connectorSeeds = [
-    { id: "conn-cmms", kind: "cmms", name: "Kojo CMMS Connector", status: "healthy" as const, creds: { endpoint: "mock://cmms.local", apiKey: "cmms-demo-secret-key" } },
-    { id: "conn-historian", kind: "historian", name: "Kojo Historian & SCADA Connector", status: "healthy" as const, creds: { endpoint: "mock://historian.local", token: "historian-demo-secret-token" } },
-    { id: "conn-mes", kind: "mes", name: "Kojo MES & Quality Connector", status: "healthy" as const, creds: { endpoint: "mock://mes.local", apiKey: "mes-demo-secret-key" } },
-    { id: "conn-parts", kind: "parts-erp", name: "Kojo Parts & Inventory Connector", status: "healthy" as const, creds: { endpoint: "mock://parts-erp.local", clientSecret: "erp-demo-secret" } },
-    { id: "conn-docs", kind: "docs", name: "Kojo Knowledge Document Store", status: "healthy" as const, creds: { rootPath: "/knowledge/manuals", readOnly: true } }
+    { id: "conn-cmms", kind: "cmms", name: "Lutic CMMS Connector", status: "healthy" as const, creds: { endpoint: "mock://cmms.local", apiKey: "cmms-demo-secret-key" } },
+    { id: "conn-historian", kind: "historian", name: "Lutic Historian & SCADA Connector", status: "healthy" as const, creds: { endpoint: "mock://historian.local", token: "historian-demo-secret-token" } },
+    { id: "conn-mes", kind: "mes", name: "Lutic MES & Quality Connector", status: "healthy" as const, creds: { endpoint: "mock://mes.local", apiKey: "mes-demo-secret-key" } },
+    { id: "conn-parts", kind: "parts-erp", name: "Lutic Parts & Inventory Connector", status: "healthy" as const, creds: { endpoint: "mock://parts-erp.local", clientSecret: "erp-demo-secret" } },
+    { id: "conn-docs", kind: "docs", name: "Lutic Knowledge Document Store", status: "healthy" as const, creds: { rootPath: "/knowledge/manuals", readOnly: true } }
   ];
 
   await db.insert(schema.connectors).values(
@@ -1067,7 +1067,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       {
         id: "conn-hub-cmms",
         slug: "cmms",
-        name: "Kojo CMMS Hub",
+        name: "Lutic CMMS Hub",
         category: "mcp",
         transport: "in_memory_mcp",
         endpointUrl: "mcp://cmms",
@@ -1077,7 +1077,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       {
         id: "conn-hub-historian",
         slug: "historian",
-        name: "Kojo Historian & SCADA Hub",
+        name: "Lutic Historian & SCADA Hub",
         category: "scada",
         transport: "in_memory_mcp",
         endpointUrl: "mcp://historian",
@@ -1087,7 +1087,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       {
         id: "conn-hub-mes",
         slug: "mes",
-        name: "Kojo MES Production Hub",
+        name: "Lutic MES Production Hub",
         category: "mcp",
         transport: "in_memory_mcp",
         endpointUrl: "mcp://mes",
@@ -1097,7 +1097,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       {
         id: "conn-hub-parts-erp",
         slug: "parts-erp",
-        name: "Kojo Parts & Inventory Hub",
+        name: "Lutic Parts & Inventory Hub",
         category: "erp",
         transport: "in_memory_mcp",
         endpointUrl: "mcp://parts-erp",
@@ -1107,7 +1107,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       {
         id: "conn-hub-docs",
         slug: "docs",
-        name: "Kojo Knowledge & SOP Hub",
+        name: "Lutic Knowledge & SOP Hub",
         category: "mcp",
         transport: "in_memory_mcp",
         endpointUrl: "mcp://docs",
@@ -1117,7 +1117,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       {
         id: "conn-hub-ops-webhook",
         slug: "ops-webhook",
-        name: "Kojo Outbound Webhook Bridge",
+        name: "Lutic Outbound Webhook Bridge",
         category: "messaging",
         transport: "simulated",
         endpointUrl: "sim://ops-webhook.local/events",
@@ -1234,7 +1234,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
         id: "queue-maintenance-dispatch",
         tenantId: "tenant-acme",
         name: "maintenance-dispatch",
-        description: "Kojo dispatch queue for technician inspections and parts triage",
+        description: "Lutic dispatch queue for technician inspections and parts triage",
         visibilityTimeoutSec: 30,
         maxReceiveCount: 3,
         deadLetterQueueId: "queue-maintenance-dlq"
@@ -1469,7 +1469,7 @@ if (isCli) {
     .then(async (conn) => {
       try {
         await seedDatabase(conn);
-        console.log("Kojo seed complete! Demo password:", DEMO_PASSWORD);
+        console.log("Lutic seed complete! Demo password:", DEMO_PASSWORD);
       } finally {
         await conn.close();
       }

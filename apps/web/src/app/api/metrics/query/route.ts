@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { querySemanticMetric } from "@kojo/core";
+import { querySemanticMetric } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,

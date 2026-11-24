@@ -12,8 +12,8 @@ import {
   invokeExternalConnectorTool,
   isCodeModeEnabled,
   sha256Hex
-} from "@kojo/core";
-import { defaultMcpRegistry, type ToolExecutionContext } from "@kojo/connectors";
+} from "@lutic/core";
+import { defaultMcpRegistry, type ToolExecutionContext } from "@lutic/connectors";
 import crypto from "node:crypto";
 import {
   executeToolWithPolicy,
@@ -27,7 +27,7 @@ export const DEFAULT_CODE_MODE_MAX_CALLS = 8;
 export const DEFAULT_CODE_MODE_TIMEOUT_MS = 5000;
 const MAX_WORKER_STDOUT_BYTES = 256 * 1024;
 
-export interface KojoCodeModeInnerCall {
+export interface LuticCodeModeInnerCall {
   toolName: string;
   args: Record<string, unknown>;
   status: PolicyEvaluationResult["status"];
@@ -37,13 +37,13 @@ export interface KojoCodeModeInnerCall {
   latencyMs: number;
 }
 
-export interface KojoCodeModeResult {
-  protocol: "kojo-connector-v1";
+export interface LuticCodeModeResult {
+  protocol: "lutic-connector-v1";
   mode: "code";
   status: "allowed" | "requires_confirmation" | "error";
   result: unknown;
   logs: string[];
-  innerCalls: KojoCodeModeInnerCall[];
+  innerCalls: LuticCodeModeInnerCall[];
   pendingAction?: PolicyEvaluationResult["pendingAction"];
   error?: string;
   latencyMs: number;
@@ -59,12 +59,12 @@ function resolveWorkerScriptPath(): string {
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
   }
-  throw new Error("Kojo Code Mode worker entrypoint (code-mode-worker.ts) not found.");
+  throw new Error("Lutic Code Mode worker entrypoint (code-mode-worker.ts) not found.");
 }
 
 function resolveBunExecutable(): string {
   const candidates = [
-    process.env.KOJO_BUN_BIN,
+    process.env.LUTIC_BUN_BIN,
     process.versions.bun ? process.execPath : undefined,
     path.join(os.homedir(), ".bun/bin/bun"),
     "/usr/local/bin/bun",
@@ -86,16 +86,16 @@ type WorkerOutMsg =
  * (`env: {}`, zero host secrets/DB handles) and hard OS SIGKILL timeout. All tool invocations route
  * back over stdio IPC through parent Policy Engine and tenant external bridge enforcement.
  */
-export async function executeKojoConnectorCode(params: {
+export async function executeLuticConnectorCode(params: {
   code: string;
   input?: Record<string, unknown>;
   ctx: ToolExecutionContext;
   options?: PolicyCheckOptions;
   maxCalls?: number;
   timeoutMs?: number;
-}): Promise<KojoCodeModeResult> {
+}): Promise<LuticCodeModeResult> {
   if (!isCodeModeEnabled()) {
-    throw new Error("Kojo Code Mode is available only in trusted development and test runtimes.");
+    throw new Error("Lutic Code Mode is available only in trusted development and test runtimes.");
   }
   const started = Date.now();
   const code = params.code.trim();
@@ -139,9 +139,9 @@ export async function executeKojoConnectorCode(params: {
 
   const workerPath = resolveWorkerScriptPath();
   const bunBin = resolveBunExecutable();
-  const innerCalls: KojoCodeModeInnerCall[] = [];
+  const innerCalls: LuticCodeModeInnerCall[] = [];
 
-  return new Promise<KojoCodeModeResult>((resolve, reject) => {
+  return new Promise<LuticCodeModeResult>((resolve, reject) => {
     const child = spawn(bunBin, [workerPath], {
       cwd: os.tmpdir(),
       env: { NODE_ENV: process.env.NODE_ENV ?? "production" },
@@ -170,7 +170,7 @@ export async function executeKojoConnectorCode(params: {
       reject(err);
     };
 
-    const succeed = (res: KojoCodeModeResult) => {
+    const succeed = (res: LuticCodeModeResult) => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -178,7 +178,7 @@ export async function executeKojoConnectorCode(params: {
     };
 
     const timer = setTimeout(() => {
-      fail(new Error(`Kojo Code Mode execution timed out after ${timeoutMs}ms.`));
+      fail(new Error(`Lutic Code Mode execution timed out after ${timeoutMs}ms.`));
     }, timeoutMs);
 
     const writeToChild = (msg: unknown) => {
@@ -190,7 +190,7 @@ export async function executeKojoConnectorCode(params: {
     child.stdout.on("data", (chunk: Buffer) => {
       totalStdoutBytes += chunk.length;
       if (totalStdoutBytes > MAX_WORKER_STDOUT_BYTES) {
-        fail(new Error(`Kojo Code Mode worker output exceeded ${MAX_WORKER_STDOUT_BYTES} bytes.`));
+        fail(new Error(`Lutic Code Mode worker output exceeded ${MAX_WORKER_STDOUT_BYTES} bytes.`));
       }
     });
 
@@ -201,7 +201,7 @@ export async function executeKojoConnectorCode(params: {
     });
 
     child.on("error", (err) => {
-      fail(new Error(`Kojo Code Mode worker failed to start: ${err.message}`));
+      fail(new Error(`Lutic Code Mode worker failed to start: ${err.message}`));
     });
 
     const rl = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
@@ -221,7 +221,7 @@ export async function executeKojoConnectorCode(params: {
       }
 
       if (innerCalls.length >= maxCalls) {
-        fail(new Error(`Kojo Code Mode tool call budget exceeded (max ${maxCalls}).`));
+        fail(new Error(`Lutic Code Mode tool call budget exceeded (max ${maxCalls}).`));
         return;
       }
 
@@ -299,7 +299,7 @@ export async function executeKojoConnectorCode(params: {
 
       if (policyRes.status === "requires_confirmation") {
         succeed({
-          protocol: "kojo-connector-v1",
+          protocol: "lutic-connector-v1",
           mode: "code",
           status: "requires_confirmation",
           result: null,
@@ -346,7 +346,7 @@ export async function executeKojoConnectorCode(params: {
 
       if (msg.type === "done") {
         succeed({
-          protocol: "kojo-connector-v1",
+          protocol: "lutic-connector-v1",
           mode: "code",
           status: "allowed",
           result: msg.result ?? null,
@@ -368,7 +368,7 @@ export async function executeKojoConnectorCode(params: {
           new Error(
             stderrBuf.trim() ||
               lastInnerDenial ||
-              `Kojo Code Mode worker exited unexpectedly (${exitCode ?? "signal"}).`
+              `Lutic Code Mode worker exited unexpectedly (${exitCode ?? "signal"}).`
           )
         );
       }

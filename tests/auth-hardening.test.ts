@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createDbConnection, seedDatabase, signSessionToken, type DbConnection } from "@kojo/core";
+import { createDbConnection, seedDatabase, signSessionToken, type DbConnection } from "@lutic/core";
 import { POST as login } from "../apps/web/src/app/api/auth/login/route";
 import { getSessionCookieOptions, getSessionUser, handleApiError } from "../apps/web/src/lib/auth";
 import { POST as logout } from "../apps/web/src/app/api/auth/logout/route";
-import { createLLMProvider } from "@kojo/agent";
+import { createLLMProvider } from "@lutic/agent";
 
 const state = vi.hoisted(() => ({ conn: undefined as DbConnection | undefined }));
 vi.mock("../apps/web/src/lib/db", () => ({

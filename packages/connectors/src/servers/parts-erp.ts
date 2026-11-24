@@ -8,8 +8,8 @@ import {
   pendingActions,
   plants,
   sql,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import {
   boundRows,
   buildConnectorMcpServer,
@@ -20,7 +20,7 @@ import {
 
 const PartsErpCredentialSchema = z.object({
   endpoint: z.string().min(1).default("mock://parts-erp.local"),
-  clientId: z.string().min(1).default("kojo-erp"),
+  clientId: z.string().min(1).default("lutic-erp"),
   clientSecret: z.string().min(1).default("erp-demo-secret")
 });
 
@@ -298,7 +298,7 @@ export const partsErpConnector: Connector = {
   kind: "parts-erp",
   name: "Mock Spare Parts ERP",
   credentialSchema: PartsErpCredentialSchema,
-  async healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth> {
+  async healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth> {
     const start = Date.now();
     await db
       .select({ id: parts.id })

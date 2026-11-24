@@ -78,7 +78,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-kojo-spin-slow {
+  .animate-lutic-spin-slow {
     animation: none !important;
   }
 }

@@ -12,7 +12,7 @@ import {
   dashboardVersions,
   eq,
   isDashboardSharedWithUser,
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense, withWebTenantDb, pruneDashboardVersions } from "@/lib/db";
 import {
   getSessionUser,

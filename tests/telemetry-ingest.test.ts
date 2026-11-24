@@ -11,15 +11,15 @@ import {
   userPlants,
   withTenantScope,
   type DbConnection,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import { POST } from "../apps/web/src/app/api/telemetry/route";
 
 const state = vi.hoisted(() => ({ conn: undefined as DbConnection | undefined }));
 vi.mock("../apps/web/src/lib/db", () => ({
   getWebAdministrativeDb: async () => state.conn!.db,
   requireWebLicense: async () => {},
-  withWebTenantDb: (tenantId: string, run: (db: KojoDatabase) => Promise<unknown>) =>
+  withWebTenantDb: (tenantId: string, run: (db: LuticDatabase) => Promise<unknown>) =>
     withTenantScope(state.conn!.db, tenantId, run)
 }));
 

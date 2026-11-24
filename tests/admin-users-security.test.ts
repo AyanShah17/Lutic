@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createDbConnection, seedDatabase, withTenantScope, type DbConnection } from "@kojo/core";
+import { createDbConnection, seedDatabase, withTenantScope, type DbConnection } from "@lutic/core";
 import { POST, PATCH } from "../apps/web/src/app/api/admin/users/route";
 
 const state = vi.hoisted(() => ({ conn: undefined as DbConnection | undefined }));

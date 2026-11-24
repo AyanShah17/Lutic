@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authorize, runRetentionCleanup } from "@kojo/core";
+import { authorize, runRetentionCleanup } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { getSessionUser, handleApiError, problemResponse, verifyCsrfOrigin } from "@/lib/auth";
 import { readBoundedBody } from "@/lib/request-body";

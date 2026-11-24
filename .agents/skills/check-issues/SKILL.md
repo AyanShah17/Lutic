@@ -1,7 +1,7 @@
 ---
 name: check-issues
 description: >-
-  Audits ISSUES.md and the Kojo codebase to explain every active issue,
+  Audits ISSUES.md and the Lutic codebase to explain every active issue,
   unsupported production path, stub, or unverified test gap in simple words while
   pointing to the exact file, function, and line number creating it. Use when the
   user invokes /check-issues or asks what issues currently exist in the project.

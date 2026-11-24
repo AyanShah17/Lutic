@@ -29,7 +29,7 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "machine.partsForFault": "Parts for this fault",
     "dashboard.readOnly": "Read-only viewer",
     "dashboard.saveVersion": "Save Version",
-    "admin.title": "Kojo Admin Console"
+    "admin.title": "Lutic Admin Console"
   },
   es: {
     "nav.group.operations": "Operaciones",
@@ -59,7 +59,7 @@ export const MESSAGES: Record<Locale, Record<string, string>> = {
     "machine.partsForFault": "Repuestos para esta falla",
     "dashboard.readOnly": "Vista de solo lectura",
     "dashboard.saveVersion": "Guardar versión",
-    "admin.title": "Consola de Administración Kojo"
+    "admin.title": "Consola de Administración Lutic"
   }
 };
 

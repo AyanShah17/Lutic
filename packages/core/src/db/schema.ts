@@ -808,7 +808,7 @@ export const connectorConnections = pgTable(
       .notNull()
       .default("custom"),
     transport: text("transport")
-      .$type<"in_memory_mcp" | "kojo_protocol" | "remote_mcp" | "utcp_http" | "http" | "webhook" | "simulated">()
+      .$type<"in_memory_mcp" | "lutic_protocol" | "remote_mcp" | "utcp_http" | "http" | "webhook" | "simulated">()
       .notNull()
       .default("simulated"),
     endpointUrl: text("endpoint_url").notNull().default(""),
@@ -875,7 +875,7 @@ export const connectorSyncLogs = pgTable(
   (t) => [index("connector_sync_logs_conn_ts_idx").on(t.tenantId, t.connectionId, t.createdAt)]
 );
 
-// 10. Notifications & Queues (Kojo Pub/Sub Topics & Dispatch Queues)
+// 10. Notifications & Queues (Lutic Pub/Sub Topics & Dispatch Queues)
 export const topics = pgTable(
   "topics",
   {

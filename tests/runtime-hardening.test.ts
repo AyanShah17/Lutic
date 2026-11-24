@@ -23,9 +23,9 @@ import {
   workflows,
   type DbConnection,
   type SessionUser
-} from "@kojo/core";
-import { executeToolWithPolicy } from "@kojo/agent";
-import { defaultMcpRegistry } from "@kojo/connectors";
+} from "@lutic/core";
+import { executeToolWithPolicy } from "@lutic/agent";
+import { defaultMcpRegistry } from "@lutic/connectors";
 
 let conn: DbConnection;
 const tenantId = "tenant-acme";
@@ -50,7 +50,7 @@ afterAll(async () => conn?.close());
 
 it("preserves recorded telemetry and does not claim connector activity in production", async () => {
   vi.stubEnv("NODE_ENV", "production");
-  vi.stubEnv("KOJO_DEMO_MODE", "true");
+  vi.stubEnv("LUTIC_DEMO_MODE", "true");
   const { db } = conn;
   const readStatus = () => db.select().from(machineStatus).where(eq(machineStatus.machineId, machineId));
   const readReadings = () => db.select({ id: readings.id }).from(readings).where(eq(readings.machineId, machineId));

@@ -15,7 +15,7 @@ import {
   users,
   withTenantScope,
   type DbConnection
-} from "@kojo/core";
+} from "@lutic/core";
 
 // Set only to a dedicated test database; CI supplies an isolated PostgreSQL service.
 describe.skipIf(!process.env.POSTGRES_TEST_URL)("PostgreSQL multi-connection isolation", () => {
@@ -48,7 +48,7 @@ describe.skipIf(!process.env.POSTGRES_TEST_URL)("PostgreSQL multi-connection iso
     ));
     expect(rows).toEqual([[{ id: alpha }], [{ id: beta }]]);
     const unscoped = await first.db.transaction(async (tx) => {
-      await tx.execute(sql`SET LOCAL ROLE kojo_app`);
+      await tx.execute(sql`SET LOCAL ROLE lutic_app`);
       return (await tx.execute(sql`SELECT id FROM plants`)).rows;
     });
     expect(unscoped).toEqual([]);
@@ -63,20 +63,20 @@ describe.skipIf(!process.env.POSTGRES_TEST_URL)("PostgreSQL multi-connection iso
 
   it("does not run a second runtime tick while another instance holds the lock", async () => {
     await first.db.transaction(async (tx) => {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('kojo.runtime'), 1)`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('lutic.runtime'), 1)`);
       const result = await runRuntimeTick(second.db);
       expect(result.skipped).toBe("busy");
       expect(result.telemetryUpdated).toBe(0);
     });
   });
 
-  it("tracks versioned migrations and blocks kojo_app from schema_migrations and cross-tenant ingestion_tokens", async () => {
+  it("tracks versioned migrations and blocks lutic_app from schema_migrations and cross-tenant ingestion_tokens", async () => {
     const applied = await getAppliedMigrations(first);
     expect(applied.map((m) => m.version)).toEqual([1, 2]);
 
     await expect(
       first.db.transaction(async (tx) => {
-        await tx.execute(sql`SET LOCAL ROLE kojo_app`);
+        await tx.execute(sql`SET LOCAL ROLE lutic_app`);
         return tx.execute(sql`SELECT version FROM schema_migrations`);
       })
     ).rejects.toThrow();

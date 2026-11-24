@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
-import type { KojoDatabase } from "../db/client";
+import type { LuticDatabase } from "../db/client";
 import { authorize, type SessionUser } from "../rbac";
 import {
   SemanticDimensionSchema,
@@ -181,7 +181,7 @@ function buildDimensionExpr(
 }
 
 async function runMetricWindow(
-  db: KojoDatabase,
+  db: LuticDatabase,
   user: SessionUser,
   metric: MetricDefinition,
   input: MetricQueryInput,
@@ -642,7 +642,7 @@ async function runMetricWindow(
  * Executes a governed semantic metric query with server-side RBAC + plant scoping.
  */
 export async function querySemanticMetric(
-  db: KojoDatabase,
+  db: LuticDatabase,
   user: SessionUser,
   rawInput: unknown
 ): Promise<MetricQueryResult> {

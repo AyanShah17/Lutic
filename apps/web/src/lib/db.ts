@@ -9,12 +9,12 @@ import {
   seedDatabase,
   sql,
   withTenantScope,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 
-let initPromise: Promise<KojoDatabase> | null = null;
+let initPromise: Promise<LuticDatabase> | null = null;
 
-export async function getWebAdministrativeDb(): Promise<KojoDatabase> {
+export async function getWebAdministrativeDb(): Promise<LuticDatabase> {
   if (!initPromise) {
     initPromise = (async () => {
       const conn = await getDbConnection();
@@ -42,7 +42,7 @@ export async function getWebDbConnection() {
 
 export async function withWebTenantDb<T>(
   tenantId: string,
-  fn: (db: KojoDatabase) => Promise<T>
+  fn: (db: LuticDatabase) => Promise<T>
 ): Promise<T> {
   return withTenantScope(await getWebAdministrativeDb(), tenantId, fn);
 }
@@ -52,7 +52,7 @@ export async function requireWebLicense(): Promise<void> {
 }
 
 export async function pruneDashboardVersions(
-  db: KojoDatabase,
+  db: LuticDatabase,
   dashboardId: string,
   tenantId: string,
   maxVersions = 5

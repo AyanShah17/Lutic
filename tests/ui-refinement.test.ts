@@ -4,8 +4,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { SessionUser } from "@kojo/core/rbac";
-import { resetGlobalDbForTests } from "@kojo/core";
+import type { SessionUser } from "@lutic/core/rbac";
+import { resetGlobalDbForTests } from "@lutic/core";
 import { getNavGroupsForUser } from "../apps/web/src/lib/navigation";
 import { translate } from "../apps/web/src/lib/i18n";
 import { cn } from "../apps/web/src/lib/utils";
@@ -119,7 +119,7 @@ function makeUser(
   };
 }
 
-describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeance & Zero Emojis", () => {
+describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengeance & Zero Emojis", () => {
   beforeAll(() => {
     process.env.DATABASE_URL = "memory://";
     resetGlobalDbForTests();
@@ -294,7 +294,7 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
           React.createElement(
             CardHeader,
             null,
-            React.createElement(CardTitle, null, "Kojo Operations"),
+            React.createElement(CardTitle, null, "Lutic Operations"),
             React.createElement(Badge, { variant: "success" }, "Running"),
             React.createElement(MachineStatusBadge, { status: "fault", size: "sm" }),
             React.createElement(Button, { variant: "outline" }, "Inspect"),
@@ -331,7 +331,7 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
         )
       )
     );
-    expect(html).toContain("Kojo Operations");
+    expect(html).toContain("Lutic Operations");
     expect(html).toContain("Running");
     expect(html).toContain("Fault");
     expect(html).toContain("Inspect");
@@ -379,7 +379,7 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
 
     mockedSessionUser = null;
     const unauthHtml = renderToStaticMarkup(await HomePage());
-    expect(unauthHtml).toContain("Kojo Industrial Operations PaaS");
+    expect(unauthHtml).toContain("Lutic Industrial Operations PaaS");
     expect(unauthHtml).toContain("Sign in with Demo Role");
     expect(unauthHtml).not.toContain('href="/activate"');
     expect(unauthHtml).not.toContain('href="/admin"');
@@ -402,21 +402,21 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
     expect(admHtml).toContain('href="/activate"');
 
     // In production / non-demo mode, HomePage drops demo role CTA & demo Detroit fallback
-    const prevDemo = process.env.KOJO_DEMO_MODE;
+    const prevDemo = process.env.LUTIC_DEMO_MODE;
     try {
-      process.env.KOJO_DEMO_MODE = "false";
+      process.env.LUTIC_DEMO_MODE = "false";
       mockedSessionUser = null;
       const prodUnauthHtml = renderToStaticMarkup(await HomePage());
       expect(prodUnauthHtml).not.toContain("Sign in with Demo Role");
       expect(prodUnauthHtml).toContain("Sign in");
       expect(prodUnauthHtml).not.toContain("mach-l3-filler-01");
     } finally {
-      if (prevDemo === undefined) delete process.env.KOJO_DEMO_MODE;
-      else process.env.KOJO_DEMO_MODE = prevDemo;
+      if (prevDemo === undefined) delete process.env.LUTIC_DEMO_MODE;
+      else process.env.LUTIC_DEMO_MODE = prevDemo;
     }
   });
 
-  it("renders all Kojo consoles cleanly for both unauthenticated and authenticated states", async () => {
+  it("renders all Lutic consoles cleanly for both unauthenticated and authenticated states", async () => {
     const { default: LoginPage } = await import("../apps/web/src/app/login/page");
     const { default: MachinesPage } = await import("../apps/web/src/app/machines/page");
     const { default: DashboardsListPage } = await import("../apps/web/src/app/dashboards/page");
@@ -497,7 +497,7 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
     expect(renderToStaticMarkup(React.createElement(WorkflowCanvas, { workflowId: "wf-1" }))).toContain(
       "Workflow Canvas"
     );
-    expect(renderToStaticMarkup(React.createElement(ChatWorkspace))).toContain("Ask Kojo");
+    expect(renderToStaticMarkup(React.createElement(ChatWorkspace))).toContain("Ask Lutic");
     expect(renderToStaticMarkup(React.createElement(ConnectorsConsole))).toContain(
       "Connectors Hub"
     );
@@ -508,13 +508,13 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
       renderToStaticMarkup(React.createElement(QueuesConsole, { initialTab: "notifications" }))
     ).toContain("Notifications &amp; Queues");
     expect(renderToStaticMarkup(React.createElement(AdminConsole))).toContain(
-      "Kojo Admin Console"
+      "Lutic Admin Console"
     );
     expect(renderToStaticMarkup(React.createElement(AdminConsole))).toContain(
       "Diagnostics &amp; Retention"
     );
     expect(renderToStaticMarkup(React.createElement(ActivateLicensePanel))).toContain(
-      "Kojo License Status"
+      "Lutic License Status"
     );
   });
 
@@ -1617,7 +1617,7 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
       expect(connCards.length).toBe(1);
       const codeModeBtn = findAll(
         connContainer,
-        (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Kojo Code Mode"
+        (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Lutic Code Mode"
       )[0];
       expect(codeModeBtn).toBeDefined();
       expect(Boolean(codeModeBtn?.disabled || codeModeBtn?.attributes.disabled !== undefined)).toBe(true);

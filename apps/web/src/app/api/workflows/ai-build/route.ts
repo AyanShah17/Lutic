@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   authorize,
   buildWorkflowFromPrompt,
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense } from "@/lib/db";
 import {
   getSessionUser,

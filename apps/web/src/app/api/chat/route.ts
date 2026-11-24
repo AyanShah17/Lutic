@@ -9,8 +9,8 @@ import {
   createPostgresRateLimitConsumer,
   eq,
   messages,
-} from "@kojo/core";
-import { runAgentTurn } from "@kojo/agent";
+} from "@lutic/core";
+import { runAgentTurn } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { readBoundedBody } from "@/lib/request-body";
 import {

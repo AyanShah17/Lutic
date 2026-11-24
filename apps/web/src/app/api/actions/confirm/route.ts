@@ -4,12 +4,12 @@ import {
   authorize,
   eq,
   pendingActions,
-} from "@kojo/core";
+} from "@lutic/core";
 import {
   ConfirmationInputSchema,
   executeToolWithPolicy
-} from "@kojo/agent";
-import { defaultMcpRegistry } from "@kojo/connectors";
+} from "@lutic/agent";
+import { defaultMcpRegistry } from "@lutic/connectors";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,

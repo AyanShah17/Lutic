@@ -1,8 +1,8 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, stepCountIs, tool, type ModelMessage, type LanguageModel, type ToolSet } from "ai";
-import type { SessionUser } from "@kojo/core";
-import type { ConnectorToolDefinition } from "@kojo/connectors";
+import type { SessionUser } from "@lutic/core";
+import type { ConnectorToolDefinition } from "@lutic/connectors";
 
 export class LLMTimeoutError extends Error {
   constructor(message = "LLM request timed out") {
@@ -159,7 +159,7 @@ function isInjectionAttempt(text: string): boolean {
  */
 export class MockLLMProvider implements LLMProvider {
   public readonly id = "mock";
-  public readonly modelName = "kojo-deterministic-v1";
+  public readonly modelName = "lutic-deterministic-v1";
 
   async generateStep(input: LLMGenerateStepInput): Promise<LLMGenerateStepOutput> {
     if (input.abortSignal?.aborted) {
@@ -223,13 +223,13 @@ export class MockLLMProvider implements LLMProvider {
         return { toolCalls: calls, promptTokens: 240, completionTokens: 40, model: this.modelName };
       }
 
-      // Isolated Kojo Code Mode multi-tool scripting intent
+      // Isolated Lutic Code Mode multi-tool scripting intent
       if (hasCodeModeIntent && allowedSet.has("execute_connector_code")) {
         const mId = targetMachineId ?? "mach-l3-filler-01";
         pushCall("execute_connector_code", {
           code: `
-const status = await kojo.callTool("get_machine_status", { machineId: input.machineId });
-const alarms = await kojo.callTool("get_active_alarms", { machineId: input.machineId });
+const status = await lutic.callTool("get_machine_status", { machineId: input.machineId });
+const alarms = await lutic.callTool("get_active_alarms", { machineId: input.machineId });
 return { machineId: input.machineId, status: status.status, alarmCount: Array.isArray(alarms.alarms) ? alarms.alarms.length : 0 };
 `.trim(),
           input: { machineId: mId }
@@ -382,7 +382,7 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
         if (/\b(publish|send)\b.*\b(notification|topic)\b/i.test(prompt)) {
           pushCall("paas.publish_notification", {
             topicId: "topic-plant-alerts",
-            subject: "Kojo Chat Notification",
+            subject: "Lutic Chat Notification",
             message: prompt.slice(0, 240),
             severity: /critical|urgent/i.test(prompt) ? "critical" : "info"
           });
@@ -536,7 +536,7 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
       }
       return {
         toolCalls: [],
-        finalText: `Access denied by Kojo Policy Engine:\n\n- ${reasons.join("\n- ")}`,
+        finalText: `Access denied by Lutic Policy Engine:\n\n- ${reasons.join("\n- ")}`,
         promptTokens: 290,
         completionTokens: 45,
         model: this.modelName
@@ -820,7 +820,7 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
         (t) => `- Topic **${String(t.name)}** (\`${String(t.id)}\`): ${String(t.description ?? "")}`
       );
       sections.push(
-        `### Messaging: Kojo Topics & Dispatch Queues\n${[...tLines, ...qLines].join("\n") || "- No topics or queues configured."}`
+        `### Messaging: Lutic Topics & Dispatch Queues\n${[...tLines, ...qLines].join("\n") || "- No topics or queues configured."}`
       );
     }
 
@@ -833,7 +833,7 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
         : [];
       const summaryLines = inner.map((c) => `- \`${c.toolName}\` -> ${c.status}`);
       sections.push(
-        `### Kojo Code Mode Execution\nRan isolated script across **${inner.length} governed tool call(s)**:\n${summaryLines.join("\n")}\n\n\`\`\`json\n${JSON.stringify(codeModeObs.data.result ?? {}, null, 2)}\n\`\`\``
+        `### Lutic Code Mode Execution\nRan isolated script across **${inner.length} governed tool call(s)**:\n${summaryLines.join("\n")}\n\n\`\`\`json\n${JSON.stringify(codeModeObs.data.result ?? {}, null, 2)}\n\`\`\``
       );
     }
 
@@ -988,14 +988,14 @@ export class VercelAILLMProvider implements LLMProvider {
   }
 }
 
-export interface KojoGatewayRouteResolution {
-  routeType: "kojo-gateway" | "anthropic" | "openai" | "kojo-deterministic";
+export interface LuticGatewayRouteResolution {
+  routeType: "lutic-gateway" | "anthropic" | "openai" | "lutic-deterministic";
   brandedModel: string;
   upstreamModel: string;
   baseURL?: string;
 }
 
-export interface KojoLLMGatewayConfig {
+export interface LuticLLMGatewayConfig {
   model?: string;
   gatewayUrl?: string;
   gatewayKey?: string;
@@ -1004,21 +1004,21 @@ export interface KojoLLMGatewayConfig {
   allowMockFallback?: boolean;
 }
 
-function normalizeKojoModel(rawModel?: string): {
+function normalizeLuticModel(rawModel?: string): {
   brandedModel: string;
   providerHint?: "anthropic" | "openai" | "mock";
   upstreamModel: string;
 } {
-  const clean = (rawModel || "kojo/claude-sonnet-4-6").trim();
-  if (clean === "kojo-deterministic-v1" || clean === "kojo/deterministic-v1") {
+  const clean = (rawModel || "lutic/claude-sonnet-4-6").trim();
+  if (clean === "lutic-deterministic-v1" || clean === "lutic/deterministic-v1") {
     return {
-      brandedModel: "kojo-deterministic-v1",
+      brandedModel: "lutic-deterministic-v1",
       providerHint: "mock",
-      upstreamModel: "kojo-deterministic-v1"
+      upstreamModel: "lutic-deterministic-v1"
     };
   }
-  if (clean.startsWith("kojo/")) {
-    const rest = clean.slice("kojo/".length);
+  if (clean.startsWith("lutic/")) {
+    const rest = clean.slice("lutic/".length);
     if (rest.startsWith("anthropic/")) {
       return {
         brandedModel: clean,
@@ -1037,32 +1037,32 @@ function normalizeKojoModel(rawModel?: string): {
   }
   if (clean.startsWith("anthropic/")) {
     const modelId = clean.slice("anthropic/".length);
-    return { brandedModel: `kojo/${clean}`, providerHint: "anthropic", upstreamModel: modelId };
+    return { brandedModel: `lutic/${clean}`, providerHint: "anthropic", upstreamModel: modelId };
   }
   if (clean.startsWith("openai/")) {
     const modelId = clean.slice("openai/".length);
-    return { brandedModel: `kojo/${clean}`, providerHint: "openai", upstreamModel: modelId };
+    return { brandedModel: `lutic/${clean}`, providerHint: "openai", upstreamModel: modelId };
   }
-  return { brandedModel: `kojo/${clean}`, upstreamModel: clean };
+  return { brandedModel: `lutic/${clean}`, upstreamModel: clean };
 }
 
-export function resolveKojoGatewayRoute(config: KojoLLMGatewayConfig = {}): KojoGatewayRouteResolution {
-  const parsed = normalizeKojoModel(config.model ?? process.env.LLM_MODEL);
-  const gatewayUrl = (config.gatewayUrl ?? process.env.KOJO_AI_GATEWAY_URL)?.trim();
-  const gatewayKey = (config.gatewayKey ?? process.env.KOJO_AI_GATEWAY_KEY)?.trim();
+export function resolveLuticGatewayRoute(config: LuticLLMGatewayConfig = {}): LuticGatewayRouteResolution {
+  const parsed = normalizeLuticModel(config.model ?? process.env.LLM_MODEL);
+  const gatewayUrl = (config.gatewayUrl ?? process.env.LUTIC_AI_GATEWAY_URL)?.trim();
+  const gatewayKey = (config.gatewayKey ?? process.env.LUTIC_AI_GATEWAY_KEY)?.trim();
   const anthropicKey = (config.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY)?.trim();
   const openaiKey = (config.openaiApiKey ?? process.env.OPENAI_API_KEY)?.trim();
 
   if (parsed.providerHint === "mock") {
     return {
-      routeType: "kojo-deterministic",
-      brandedModel: "kojo-deterministic-v1",
-      upstreamModel: "kojo-deterministic-v1"
+      routeType: "lutic-deterministic",
+      brandedModel: "lutic-deterministic-v1",
+      upstreamModel: "lutic-deterministic-v1"
     };
   }
   if (gatewayUrl && gatewayKey) {
     return {
-      routeType: "kojo-gateway",
+      routeType: "lutic-gateway",
       brandedModel: parsed.brandedModel,
       upstreamModel: parsed.upstreamModel,
       baseURL: gatewayUrl
@@ -1103,34 +1103,34 @@ export function resolveKojoGatewayRoute(config: KojoLLMGatewayConfig = {}): Kojo
     };
   }
   return {
-    routeType: "kojo-deterministic",
-    brandedModel: "kojo-deterministic-v1",
-    upstreamModel: "kojo-deterministic-v1"
+    routeType: "lutic-deterministic",
+    brandedModel: "lutic-deterministic-v1",
+    upstreamModel: "lutic-deterministic-v1"
   };
 }
 
 /**
- * Kojo AI Gateway: unified multi-provider LLM router under Kojo branding.
- * Supports KOJO_AI_GATEWAY_URL (OpenAI-compatible router endpoint) as well as
+ * Lutic AI Gateway: unified multi-provider LLM router under Lutic branding.
+ * Supports LUTIC_AI_GATEWAY_URL (OpenAI-compatible router endpoint) as well as
  * direct Anthropic/OpenAI credentials and offline deterministic fallback.
  */
-export class KojoLLMGateway implements LLMProvider {
-  public readonly id = "kojo-gateway";
+export class LuticLLMGateway implements LLMProvider {
+  public readonly id = "lutic-gateway";
   public readonly modelName: string;
-  public readonly route: KojoGatewayRouteResolution;
+  public readonly route: LuticGatewayRouteResolution;
   private readonly model?: LanguageModel;
   private readonly mockFallback?: MockLLMProvider;
 
-  constructor(config: KojoLLMGatewayConfig = {}) {
-    this.route = resolveKojoGatewayRoute(config);
+  constructor(config: LuticLLMGatewayConfig = {}) {
+    this.route = resolveLuticGatewayRoute(config);
     this.modelName = this.route.brandedModel;
 
-    if (this.route.routeType === "kojo-gateway") {
-      const gatewayKey = (config.gatewayKey ?? process.env.KOJO_AI_GATEWAY_KEY)?.trim() ?? "";
+    if (this.route.routeType === "lutic-gateway") {
+      const gatewayKey = (config.gatewayKey ?? process.env.LUTIC_AI_GATEWAY_KEY)?.trim() ?? "";
       const router = createOpenAI({
         baseURL: this.route.baseURL,
         apiKey: gatewayKey,
-        name: "kojo-gateway"
+        name: "lutic-gateway"
       });
       this.model = router.chat(this.route.upstreamModel);
     } else if (this.route.routeType === "anthropic") {
@@ -1147,7 +1147,7 @@ export class KojoLLMGateway implements LLMProvider {
       const allowMock = config.allowMockFallback ?? process.env.NODE_ENV !== "production";
       if (!allowMock) {
         throw new Error(
-          "Kojo AI Gateway requires KOJO_AI_GATEWAY_URL + KOJO_AI_GATEWAY_KEY or a provider API key in production."
+          "Lutic AI Gateway requires LUTIC_AI_GATEWAY_URL + LUTIC_AI_GATEWAY_KEY or a provider API key in production."
         );
       }
       this.mockFallback = new MockLLMProvider();
@@ -1168,21 +1168,21 @@ export function createLLMProvider(): LLMProvider {
   const model = process.env.LLM_MODEL || "claude-sonnet-4-6";
 
   if (
-    kind === "kojo" ||
-    kind === "kojo-gateway" ||
-    (process.env.KOJO_AI_GATEWAY_URL && process.env.KOJO_AI_GATEWAY_KEY)
+    kind === "lutic" ||
+    kind === "lutic-gateway" ||
+    (process.env.LUTIC_AI_GATEWAY_URL && process.env.LUTIC_AI_GATEWAY_KEY)
   ) {
-    return new KojoLLMGateway({
+    return new LuticLLMGateway({
       model,
       allowMockFallback: process.env.NODE_ENV !== "production" && kind === "mock"
     });
   }
   if (kind === "anthropic" && process.env.ANTHROPIC_API_KEY) {
-    return new KojoLLMGateway({ model: `kojo/anthropic/${model}`, allowMockFallback: false });
+    return new LuticLLMGateway({ model: `lutic/anthropic/${model}`, allowMockFallback: false });
   }
   if (kind === "openai" && process.env.OPENAI_API_KEY) {
-    return new KojoLLMGateway({
-      model: `kojo/openai/${process.env.LLM_MODEL || "gpt-4o-mini"}`,
+    return new LuticLLMGateway({
+      model: `lutic/openai/${process.env.LLM_MODEL || "gpt-4o-mini"}`,
       allowMockFallback: false
     });
   }

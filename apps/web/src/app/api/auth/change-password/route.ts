@@ -15,7 +15,7 @@ import {
   userPlants,
   users,
   verifyPassword
-} from "@kojo/core";
+} from "@lutic/core";
 import { getWebAdministrativeDb, withWebTenantDb } from "@/lib/db";
 import { readBoundedBody } from "@/lib/request-body";
 import {
@@ -35,7 +35,7 @@ const ChangePasswordSchema = z.strictObject({
     .min(12, "New password must be at least 12 characters")
     .max(1024)
     .refine(
-      (pw) => pw !== "kojo-demo-password" && new Set(pw).size >= 8,
+      (pw) => pw !== "lutic-demo-password" && new Set(pw).size >= 8,
       "Choose a unique password with varied characters"
     )
 });

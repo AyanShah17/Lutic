@@ -29,13 +29,13 @@ import {
   type Permission,
   type Role,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import {
   executeToolWithPolicy,
   MockLLMProvider,
   resetRateLimits,
   runAgentTurn
-} from "@kojo/agent";
+} from "@lutic/agent";
 
 let conn: DbConnection;
 

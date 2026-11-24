@@ -48,7 +48,7 @@ function isPrivateOrReservedIp(rawIp: string): boolean {
 
 /**
  * Validates that an external connector URL uses HTTPS (or HTTP only when explicitly opted-in for
- * isolated local tests via KOJO_ALLOW_PRIVATE_CONNECTOR_URLS=true) and resolves solely to public IPs.
+ * isolated local tests via LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true) and resolves solely to public IPs.
  */
 export async function assertSafeExternalUrl(rawUrl: string): Promise<URL> {
   let parsed: URL;
@@ -58,7 +58,7 @@ export async function assertSafeExternalUrl(rawUrl: string): Promise<URL> {
     throw new Error("Invalid connector endpoint URL.");
   }
 
-  const allowPrivate = process.env.KOJO_ALLOW_PRIVATE_CONNECTOR_URLS === "true";
+  const allowPrivate = process.env.LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS === "true";
   const allowedProtocols = allowPrivate ? ["https:", "http:"] : ["https:"];
   if (!allowedProtocols.includes(parsed.protocol)) {
     throw new Error(
@@ -200,7 +200,7 @@ async function mcpJsonRpc(
     headers,
     body: JSON.stringify({
       jsonrpc: "2.0",
-      id: `kojo-${Date.now()}`,
+      id: `lutic-${Date.now()}`,
       method,
       params
     }),
@@ -238,7 +238,7 @@ export async function discoverRemoteMcpTools(
     {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "kojo", version: "0.1.0" }
+      clientInfo: { name: "lutic", version: "0.1.0" }
     },
     creds
   );
@@ -275,7 +275,7 @@ export async function callRemoteMcpTool(
     {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "kojo", version: "0.1.0" }
+      clientInfo: { name: "lutic", version: "0.1.0" }
     },
     creds
   );

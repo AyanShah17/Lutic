@@ -10,7 +10,7 @@ import {
   isNull,
   machineStatus,
   plants
-} from "@kojo/core";
+} from "@lutic/core";
 import { getSessionUser } from "@/lib/auth";
 import { withWebTenantDb } from "@/lib/db";
 import { ChatWorkspace, type MachineHeaderInfo } from "@/components/chat-workspace";

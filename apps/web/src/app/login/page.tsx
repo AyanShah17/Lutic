@@ -129,7 +129,7 @@ export default function LoginPage() {
         </span>
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-            Sign in to Kojo
+            Sign in to Lutic
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
             Role-governed industrial operations AI across manuals, telemetry, workflows, and dashboards.
@@ -186,7 +186,7 @@ export default function LoginPage() {
                   className="h-10"
                 />
                 {demoEnabled && <p className="text-[11px] text-muted-foreground">
-                  Dev demo password: <code className="font-mono">kojo-demo-password</code>
+                  Dev demo password: <code className="font-mono">lutic-demo-password</code>
                 </p>}
               </div>
 

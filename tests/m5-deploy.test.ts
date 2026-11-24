@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createDbConnection, ensureSchema, tenants } from "@kojo/core";
+import { createDbConnection, ensureSchema, tenants } from "@lutic/core";
 import { bootstrapDatabase } from "../packages/core/src/db/bootstrap";
 import { validateProductionConfig } from "../packages/core/src/production-config";
 import {
@@ -28,26 +28,26 @@ describe("Milestone 5 — Client Docker Container & Linux Deployment CLI", () =>
     expect(compose).toContain("services:");
     expect(compose).toContain("pgvector/pgvector:pg16");
     expect(compose).toContain("litellm:");
-    expect(compose).toContain("kojo-paas:");
-    expect(compose).toContain("KOJO_AI_GATEWAY_URL");
-    expect(compose).toContain("KOJO_LICENSE_KEY");
+    expect(compose).toContain("lutic-paas:");
+    expect(compose).toContain("LUTIC_AI_GATEWAY_URL");
+    expect(compose).toContain("LUTIC_LICENSE_KEY");
     expect(compose).toContain("LICENSE_SERVER_URL");
     expect(compose).toContain("DATABASE_URL");
     expect(compose).toContain("/api/health");
     expect(fs.existsSync(path.join(ROOT, "deploy/litellm_config.yaml"))).toBe(true);
 
     const envExample = fs.readFileSync(
-      path.join(ROOT, "deploy/kojo.env.example"),
+      path.join(ROOT, "deploy/lutic.env.example"),
       "utf-8"
     );
-    expect(envExample).toContain("KOJO_AI_GATEWAY_URL=");
-    expect(envExample).toContain("KOJO_LICENSE_KEY=");
+    expect(envExample).toContain("LUTIC_AI_GATEWAY_URL=");
+    expect(envExample).toContain("LUTIC_LICENSE_KEY=");
     expect(envExample).toContain("LICENSE_SERVER_URL=");
   });
 
   it("passes bash syntax check, --help, and --dry-run on Linux deployment and backup scripts", () => {
-    const deployScript = path.join(ROOT, "deploy/kojo-linux-deploy.sh");
-    const wrapperScript = path.join(ROOT, "deploy/kojo.sh");
+    const deployScript = path.join(ROOT, "deploy/lutic-linux-deploy.sh");
+    const wrapperScript = path.join(ROOT, "deploy/lutic.sh");
     const backupScript = path.join(ROOT, "deploy/backup-restore.sh");
 
     expect(fs.existsSync(deployScript)).toBe(true);
@@ -70,7 +70,7 @@ describe("Milestone 5 — Client Docker Container & Linux Deployment CLI", () =>
     expect(backupHelp).toContain("restore-verify");
     const backupDry = execFileSync(
       "bash",
-      [backupScript, "backup", "--output", "/tmp/kojo-test.dump", "--encrypt", "--dry-run"],
+      [backupScript, "backup", "--output", "/tmp/lutic-test.dump", "--encrypt", "--dry-run"],
       { encoding: "utf-8" }
     );
     expect(backupDry).toContain("[dry-run]");
@@ -80,7 +80,7 @@ describe("Milestone 5 — Client Docker Container & Linux Deployment CLI", () =>
         backupScript,
         "restore-verify",
         "--input",
-        "/tmp/kojo-test.dump.enc",
+        "/tmp/lutic-test.dump.enc",
         "--target-db-url",
         "postgres://u:p@127.0.0.1:5432/isolated_restore",
         "--dry-run"
@@ -99,24 +99,24 @@ describe("Milestone 5 — Client Docker Container & Linux Deployment CLI", () =>
         deployScript,
         "--dry-run",
         "--license-key",
-        "KOJO-PRO-VALID-2026",
+        "LUTIC-PRO-VALID-2026",
         "--license-server",
         "http://127.0.0.1:4100"
       ],
       { encoding: "utf-8" }
     );
     expect(dryOut).toContain("[dry-run]");
-    expect(dryOut).not.toContain("KOJO-PRO-VALID-2026");
+    expect(dryOut).not.toContain("LUTIC-PRO-VALID-2026");
   });
 
-  it("sends { key, instanceId } accepted by @kojo/license-server on activate and reuses .env settings", async () => {
+  it("sends { key, instanceId } accepted by @lutic/license-server on activate and reuses .env settings", async () => {
     resetLicenseStore();
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kojo-deploy-test-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lutic-deploy-test-"));
     try {
       const binDir = path.join(tmpDir, "bin");
       fs.mkdirSync(binDir);
       const captureFile = path.join(tmpDir, "curl-body.json");
-      const envFile = path.join(tmpDir, "kojo.env");
+      const envFile = path.join(tmpDir, "lutic.env");
 
       // Mock curl captures -d payload & URL and emits valid response
       const curlShim = path.join(binDir, "curl");
@@ -138,15 +138,15 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
         { mode: 0o755 }
       );
 
-      fs.writeFileSync(envFile, "KOJO_LICENSE_KEY=KOJO-PRO-VALID-2026\nLICENSE_SERVER_URL=http://127.0.0.1:4100\n");
-      const deployScript = path.join(ROOT, "deploy/kojo-linux-deploy.sh");
+      fs.writeFileSync(envFile, "LUTIC_LICENSE_KEY=LUTIC-PRO-VALID-2026\nLICENSE_SERVER_URL=http://127.0.0.1:4100\n");
+      const deployScript = path.join(ROOT, "deploy/lutic-linux-deploy.sh");
       execFileSync(
         "bash",
         [
           deployScript,
           "activate",
           "--license-key",
-          "KOJO-PRO-VALID-2026",
+          "LUTIC-PRO-VALID-2026",
           "--license-server",
           "http://127.0.0.1:4100",
           "--env-file",
@@ -160,7 +160,7 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
 
       const capturedBody = fs.readFileSync(captureFile, "utf-8");
       const parsed = JSON.parse(capturedBody) as { key?: string; instanceId?: string };
-      expect(parsed.key).toBe("KOJO-PRO-VALID-2026");
+      expect(parsed.key).toBe("LUTIC-PRO-VALID-2026");
       expect(parsed.instanceId).toBeTruthy();
 
       // Feed exact script wire body into real reference license server handler
@@ -177,10 +177,10 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
       expect(resJson.status).toBe("active");
 
       // Subsequent `up --dry-run` with bundled internal DNS URL in .env loads key & maps to localhost for host checks
-      fs.appendFileSync(envFile, "\nKOJO_PORT=3123\n");
+      fs.appendFileSync(envFile, "\nLUTIC_PORT=3123\n");
       execFileSync(
         "sed",
-        ["-i.bak", "s|http://127.0.0.1:4100|http://kojo-license-server:4100|g", envFile]
+        ["-i.bak", "s|http://127.0.0.1:4100|http://lutic-license-server:4100|g", envFile]
       );
       const envDryOut = execFileSync(
         "bash",
@@ -189,7 +189,7 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
         // license settings are honored when enforcement is explicitly enabled.
         { encoding: "utf-8", env: { ...process.env, LICENSE_ENFORCE: "true" } }
       );
-      expect(envDryOut).not.toContain("KOJO-PRO-VALID-2026");
+      expect(envDryOut).not.toContain("LUTIC-PRO-VALID-2026");
       expect(envDryOut).toContain("http://127.0.0.1:4100/api/licenses/activate");
       expect(envDryOut).toContain("http://127.0.0.1:3123/api/health");
     } finally {
@@ -205,7 +205,7 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
       delete cleanEnv.DATABASE_URL;
       return spawnSync(
         "bash",
-        [backupScript, "restore-verify", "--input", "/tmp/kojo.dump", "--dry-run", ...args],
+        [backupScript, "restore-verify", "--input", "/tmp/lutic.dump", "--dry-run", ...args],
         {
           cwd: opts?.cwd ?? ROOT,
           env: { ...cleanEnv, ...(opts?.env ?? {}) },
@@ -215,31 +215,31 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
     };
 
     const equivLive = runRestoreDry(
-      ["--target-db-url", "postgres://u2:p2@127.0.0.1/kojo?sslmode=disable"],
-      { env: { DATABASE_URL: "postgresql://u1:p1@localhost:5432/kojo" } }
+      ["--target-db-url", "postgres://u2:p2@127.0.0.1/lutic?sslmode=disable"],
+      { env: { DATABASE_URL: "postgresql://u1:p1@localhost:5432/lutic" } }
     );
     expect(equivLive.status).not.toBe(0);
     expect(equivLive.stderr).toMatch(/live or configured DATABASE_URL/i);
 
-    const nonIsolated = runRestoreDry(["--target-db-url", "postgres://u:p@127.0.0.1:5432/kojo"]);
+    const nonIsolated = runRestoreDry(["--target-db-url", "postgres://u:p@127.0.0.1:5432/lutic"]);
     expect(nonIsolated.status).not.toBe(0);
     expect(nonIsolated.stderr).toMatch(/isolated restore\/verify\/test/i);
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kojo-restore-env-test-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lutic-restore-env-test-"));
     try {
       fs.writeFileSync(
         path.join(tmpDir, ".env.production"),
-        "DATABASE_URL=postgres://produser:prodpass@localhost:5432/kojo_restore_staging\n"
+        "DATABASE_URL=postgres://produser:prodpass@localhost:5432/lutic_restore_staging\n"
       );
       const matchedEnvProd = runRestoreDry(
-        ["--target-db-url", "postgresql://other:pass@127.0.0.1/kojo_restore_staging"],
+        ["--target-db-url", "postgresql://other:pass@127.0.0.1/lutic_restore_staging"],
         { cwd: tmpDir }
       );
       expect(matchedEnvProd.status).not.toBe(0);
       expect(matchedEnvProd.stderr).toMatch(/live or configured DATABASE_URL/i);
 
       const isolatedOk = runRestoreDry(
-        ["--target-db-url", "postgres://u:p@127.0.0.1:5432/kojo_restore_verify"],
+        ["--target-db-url", "postgres://u:p@127.0.0.1:5432/lutic_restore_verify"],
         { cwd: tmpDir }
       );
       expect(isolatedOk.status).toBe(0);
@@ -255,7 +255,7 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
     expect(compose).toContain("CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS");
     expect(compose).toContain("DATA_RETENTION_DAYS");
 
-    const envExample = fs.readFileSync(path.join(ROOT, "deploy/kojo.env.example"), "utf-8");
+    const envExample = fs.readFileSync(path.join(ROOT, "deploy/lutic.env.example"), "utf-8");
     expect(envExample).toContain("AUTH_SECRET_PREVIOUS=");
     expect(envExample).toContain("CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS=");
     expect(envExample).toContain("DATA_RETENTION_DAYS=90");
@@ -272,10 +272,10 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
         ciEnv[m[1]] = m[2] ?? m[3] ?? "";
       }
     }
-    expect(ciEnv.KOJO_ADMIN_EMAIL).toBeTruthy();
-    expect(ciEnv.KOJO_ADMIN_PASSWORD).toBeTruthy();
-    expect(ciEnv.KOJO_TENANT_NAME).toBeTruthy();
-    expect(ciEnv.KOJO_PLANT_NAME).toBeTruthy();
+    expect(ciEnv.LUTIC_ADMIN_EMAIL).toBeTruthy();
+    expect(ciEnv.LUTIC_ADMIN_PASSWORD).toBeTruthy();
+    expect(ciEnv.LUTIC_TENANT_NAME).toBeTruthy();
+    expect(ciEnv.LUTIC_PLANT_NAME).toBeTruthy();
     expect(ciWorkflow).toContain("rotate-keys.ts");
 
     expect(() => validateProductionConfig(ciEnv as NodeJS.ProcessEnv)).not.toThrow();
@@ -292,7 +292,7 @@ printf '{"valid":true,"status":"active","plan":"pro"}\\n200'
 
   it("handles fresh, empty initialized, populated, and equivalent live URL targets in restore-verify preflight", async () => {
     const backupScript = path.join(ROOT, "deploy/backup-restore.sh");
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "kojo-restore-preflight-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lutic-restore-preflight-"));
     try {
       const binDir = path.join(tmpDir, "bin");
       fs.mkdirSync(binDir);
@@ -306,7 +306,7 @@ printf '%s\\n' "$*" >> "${restoreLog}"
 `,
         { mode: 0o755 }
       );
-      const dumpFile = path.join(tmpDir, "kojo-backup.dump");
+      const dumpFile = path.join(tmpDir, "lutic-backup.dump");
       fs.writeFileSync(dumpFile, "PGDMP-MOCK");
 
       const runRestore = (targetUrl: string, extraArgs: string[] = [], extraEnv: NodeJS.ProcessEnv = {}) => {
@@ -328,14 +328,14 @@ printf '%s\\n' "$*" >> "${restoreLog}"
       };
 
       // 1. Fresh uninitialized PGlite database (no public.tenants table) -> succeeds without --allow-overwrite
-      const freshDir = path.join(tmpDir, "kojo-fresh-restore");
+      const freshDir = path.join(tmpDir, "lutic-fresh-restore");
       const freshRes = runRestore(`pglite://${freshDir}`);
       expect(freshRes.status, freshRes.stderr).toBe(0);
       expect(freshRes.stdout).toContain("Restored and verified migrations: [1,2]");
       expect(fs.readFileSync(restoreLog, "utf8")).toContain(freshDir);
 
       // 2. Empty initialized database (schema exists, public.tenants has 0 rows) -> succeeds without --allow-overwrite
-      const emptyInitDir = path.join(tmpDir, "kojo-empty-init-verify");
+      const emptyInitDir = path.join(tmpDir, "lutic-empty-init-verify");
       const emptyConn = await createDbConnection(`pglite://${emptyInitDir}`);
       try {
         await ensureSchema(emptyConn);
@@ -347,7 +347,7 @@ printf '%s\\n' "$*" >> "${restoreLog}"
       expect(emptyRes.stdout).toContain("Isolated restore verification succeeded.");
 
       // 3. Populated database (public.tenants has 1 row) -> refused before pg_restore unless --allow-overwrite is set
-      const populatedDir = path.join(tmpDir, "kojo-populated-test");
+      const populatedDir = path.join(tmpDir, "lutic-populated-test");
       const popConn = await createDbConnection(`pglite://${populatedDir}`);
       try {
         await ensureSchema(popConn);
@@ -371,9 +371,9 @@ printf '%s\\n' "$*" >> "${restoreLog}"
 
       // 4. Equivalent live URL (Postgres or PGlite path alias) -> refused even with --allow-overwrite
       const liveEquivRes = runRestore(
-        "postgres://other:pw@127.0.0.1/kojo_restore_live?sslmode=disable",
+        "postgres://other:pw@127.0.0.1/lutic_restore_live?sslmode=disable",
         ["--allow-overwrite"],
-        { DATABASE_URL: "postgresql://main:pw@localhost:5432/kojo_restore_live" }
+        { DATABASE_URL: "postgresql://main:pw@localhost:5432/lutic_restore_live" }
       );
       expect(liveEquivRes.status).not.toBe(0);
       expect(liveEquivRes.stderr).toMatch(/live or configured DATABASE_URL/i);

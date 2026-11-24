@@ -9,8 +9,8 @@ import {
   isNull,
   machineStatus,
   PostgresTimeSeriesStore,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import {
   boundRows,
   buildConnectorMcpServer,
@@ -327,7 +327,7 @@ export const historianConnector: Connector = {
   kind: "historian",
   name: "Mock Historian / SCADA",
   credentialSchema: HistorianCredentialSchema,
-  async healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth> {
+  async healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth> {
     const start = Date.now();
     await db
       .select({ id: machineStatus.id })

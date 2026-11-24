@@ -13,8 +13,8 @@ import {
   publishToTopic,
   topics,
   workflows,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import {
   boundRows,
   buildConnectorMcpServer,
@@ -67,7 +67,7 @@ const ExecuteConnectorCodeSchema = z.object({
 const paasTools: ConnectorToolDefinition[] = [
   {
     name: "paas.list_workflows",
-    description: "List automation workflows configured in Kojo for the caller's tenant.",
+    description: "List automation workflows configured in Lutic for the caller's tenant.",
     inputSchema: ListWorkflowsSchema,
     requiredPermission: "workflow:read",
     access: "read",
@@ -130,7 +130,7 @@ const paasTools: ConnectorToolDefinition[] = [
   },
   {
     name: "paas.list_alerts",
-    description: "List Kojo alert rules and alert events scoped to authorized plants.",
+    description: "List Lutic alert rules and alert events scoped to authorized plants.",
     inputSchema: ListAlertsSchema,
     requiredPermission: "alert:read",
     access: "read",
@@ -180,7 +180,7 @@ const paasTools: ConnectorToolDefinition[] = [
   },
   {
     name: "paas.acknowledge_alert",
-    description: "Acknowledge an active Kojo alert event (requires confirmation).",
+    description: "Acknowledge an active Lutic alert event (requires confirmation).",
     inputSchema: AcknowledgeAlertSchema,
     requiredPermission: "alert:acknowledge",
     access: "write",
@@ -228,7 +228,7 @@ const paasTools: ConnectorToolDefinition[] = [
   },
   {
     name: "paas.publish_notification",
-    description: "Publish a Kojo topic notification across subscribed channels (requires confirmation).",
+    description: "Publish a Lutic topic notification across subscribed channels (requires confirmation).",
     inputSchema: PublishNotificationSchema,
     requiredPermission: "notification:write",
     access: "write",
@@ -247,7 +247,7 @@ const paasTools: ConnectorToolDefinition[] = [
   },
   {
     name: "paas.inspect_queues",
-    description: "Inspect Kojo dispatch queues and notification topics for the tenant.",
+    description: "Inspect Lutic dispatch queues and notification topics for the tenant.",
     inputSchema: InspectQueuesSchema,
     requiredPermission: "queue:read",
     access: "read",
@@ -273,7 +273,7 @@ const paasTools: ConnectorToolDefinition[] = [
   {
     name: "execute_connector_code",
     description:
-      "Execute a multi-tool script in an isolated child process using Kojo Connector Protocol (UTCP + MCP) with parent policy enforcement.",
+      "Execute a multi-tool script in an isolated child process using Lutic Connector Protocol (UTCP + MCP) with parent policy enforcement.",
     inputSchema: ExecuteConnectorCodeSchema,
     requiredPermission: "connector:read",
     access: "read",
@@ -282,7 +282,7 @@ const paasTools: ConnectorToolDefinition[] = [
     connectorKind: "paas",
     execute: async () => {
       throw new Error(
-        "execute_connector_code must run through the isolated Kojo Code Mode supervisor."
+        "execute_connector_code must run through the isolated Lutic Code Mode supervisor."
       );
     }
   }
@@ -291,9 +291,9 @@ const paasTools: ConnectorToolDefinition[] = [
 export const paasConnector: Connector = {
   id: "connector-paas",
   kind: "paas",
-  name: "Kojo PaaS Control Plane",
+  name: "Lutic PaaS Control Plane",
   credentialSchema: PaasCredentialSchema,
-  async healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth> {
+  async healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth> {
     const start = Date.now();
     await db
       .select({ id: workflows.id })

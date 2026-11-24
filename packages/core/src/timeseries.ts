@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 
 export interface AggregatedReadingBucket {
   bucketStart: string;
@@ -32,7 +32,7 @@ export interface TimeSeriesStore {
 }
 
 export class PostgresTimeSeriesStore implements TimeSeriesStore {
-  constructor(private readonly db: KojoDatabase) {}
+  constructor(private readonly db: LuticDatabase) {}
 
   async queryAggregatedReadings(query: TimeSeriesQuery): Promise<{
     buckets: AggregatedReadingBucket[];

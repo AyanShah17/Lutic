@@ -119,7 +119,7 @@ export function ActivateLicensePanel() {
           <div className="flex items-center gap-2.5">
             <KeyRound className="h-5 w-5 text-primary" />
             <div>
-              <h2 className="text-base font-semibold">Kojo License Status</h2>
+              <h2 className="text-base font-semibold">Lutic License Status</h2>
               <p className="text-xs text-muted-foreground">
                 Online license verification against your configured license server.
               </p>
@@ -212,7 +212,7 @@ export function ActivateLicensePanel() {
                   required
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  placeholder="KOJO-DEV-VALID-0001"
+                  placeholder="LUTIC-DEV-VALID-0001"
                   className="font-mono"
                 />
               </div>

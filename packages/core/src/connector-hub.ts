@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { decryptCredentials } from "./crypto";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import {
   connectorConnections,
   connectorSyncLogs,
@@ -18,7 +18,7 @@ import {
 } from "./external-connectors";
 import { getRuntimeHooks, isDemoMode } from "./runtime";
 
-type TriggerWorkflowExecutor = (db: KojoDatabase, runId: string) => Promise<void>;
+type TriggerWorkflowExecutor = (db: LuticDatabase, runId: string) => Promise<void>;
 let registeredTriggerExecutor: TriggerWorkflowExecutor | undefined;
 
 export function registerTriggerWorkflowExecutor(fn: TriggerWorkflowExecutor): void {
@@ -29,7 +29,7 @@ export interface CatalogConnectorEntry {
   slug: string;
   name: string;
   category: "mcp" | "http" | "scada" | "erp" | "messaging" | "custom";
-  transport: "in_memory_mcp" | "kojo_protocol" | "remote_mcp" | "utcp_http" | "http" | "webhook" | "simulated";
+  transport: "in_memory_mcp" | "lutic_protocol" | "remote_mcp" | "utcp_http" | "http" | "webhook" | "simulated";
   description: string;
   defaultTools: Array<{ name: string; description: string }>;
   credentialFields: Array<{ key: string; label: string; secret?: boolean; defaultValue?: string }>;
@@ -38,7 +38,7 @@ export interface CatalogConnectorEntry {
 export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   {
     slug: "cmms",
-    name: "Kojo CMMS Hub",
+    name: "Lutic CMMS Hub",
     category: "mcp",
     transport: "in_memory_mcp",
     description: "Work orders, machine repair history, ISO failure modes, and draft creation.",
@@ -55,7 +55,7 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   },
   {
     slug: "historian",
-    name: "Kojo Historian & SCADA Hub",
+    name: "Lutic Historian & SCADA Hub",
     category: "scada",
     transport: "in_memory_mcp",
     description: "Live machine states, active alarms, and time-binned sensor telemetry.",
@@ -73,7 +73,7 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   },
   {
     slug: "mes",
-    name: "Kojo MES Production Hub",
+    name: "Lutic MES Production Hub",
     category: "mcp",
     transport: "in_memory_mcp",
     description: "Semantic OEE, downtime, quality, throughput, and declarative dashboards.",
@@ -90,7 +90,7 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   },
   {
     slug: "parts-erp",
-    name: "Kojo Parts & Inventory Hub",
+    name: "Lutic Parts & Inventory Hub",
     category: "erp",
     transport: "in_memory_mcp",
     description: "Spare parts inventory levels, BOM links, lead times, and reservations.",
@@ -106,7 +106,7 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   },
   {
     slug: "docs",
-    name: "Kojo Knowledge & SOP Hub",
+    name: "Lutic Knowledge & SOP Hub",
     category: "mcp",
     transport: "in_memory_mcp",
     description: "Hybrid vector + FTS search over OEM manuals, SOPs, and safety policies.",
@@ -120,7 +120,7 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   },
   {
     slug: "http",
-    name: "Kojo Outbound Webhook Bridge",
+    name: "Lutic Outbound Webhook Bridge",
     category: "http",
     transport: "simulated",
     description: "Connect external SCADA webhooks, REST endpoints, or custom industrial APIs.",
@@ -174,9 +174,9 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
 type ConnectorConnection = typeof connectorConnections.$inferSelect;
 type DiscoverLocalTools = (kind: string) => Promise<Array<{ name: string; description?: string }>>;
 
-export interface KojoConnectorManual {
-  protocol: "kojo-connector-v1";
-  codeModeGlobal: "kojo";
+export interface LuticConnectorManual {
+  protocol: "lutic-connector-v1";
+  codeModeGlobal: "lutic";
   connectorSlug: string;
   transport: string;
   endpointUrl: string;
@@ -184,19 +184,19 @@ export interface KojoConnectorManual {
 }
 
 /**
- * Combines direct connector descriptors and MCP tool definitions under the unified Kojo protocol manual.
+ * Combines direct connector descriptors and MCP tool definitions under the unified Lutic protocol manual.
  */
-export function buildKojoConnectorManual(
+export function buildLuticConnectorManual(
   connector: Pick<ConnectorConnection, "slug" | "transport" | "endpointUrl" | "discoveredTools">,
   tools?: Array<{ name: string; description?: string }>
-): KojoConnectorManual {
+): LuticConnectorManual {
   const discovered = (connector.discoveredTools ?? []).map((t) => ({
     name: String(t.name ?? ""),
     description: typeof t.description === "string" ? t.description : undefined
   }));
   return {
-    protocol: "kojo-connector-v1",
-    codeModeGlobal: "kojo",
+    protocol: "lutic-connector-v1",
+    codeModeGlobal: "lutic",
     connectorSlug: connector.slug,
     transport: connector.transport,
     endpointUrl: connector.endpointUrl,
@@ -205,8 +205,8 @@ export function buildKojoConnectorManual(
 }
 
 export function getLocalConnectorKind(conn: Pick<ConnectorConnection, "transport" | "endpointUrl">): string | undefined {
-  if (conn.transport !== "in_memory_mcp" && conn.transport !== "kojo_protocol") return undefined;
-  return /^(?:kojo|mcp):\/\/([a-z-]+)$/.exec(conn.endpointUrl)?.[1];
+  if (conn.transport !== "in_memory_mcp" && conn.transport !== "lutic_protocol") return undefined;
+  return /^(?:lutic|mcp):\/\/([a-z-]+)$/.exec(conn.endpointUrl)?.[1];
 }
 
 async function discoverConfiguredLocalTools(conn: ConnectorConnection, discover?: DiscoverLocalTools) {
@@ -228,7 +228,7 @@ function readConnectorCredentials(
 }
 
 export async function testConnectorConnection(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   connectionId: string,
   discoverLocalTools?: DiscoverLocalTools
@@ -337,7 +337,7 @@ export async function testConnectorConnection(
 }
 
 export async function syncConnectorConnection(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   connectionId: string,
   discoverLocalTools?: DiscoverLocalTools
@@ -446,7 +446,7 @@ export async function syncConnectorConnection(
  * Invokes a tool on a registered remote_mcp or utcp_http connector with encrypted credentials.
  */
 export async function invokeExternalConnectorTool(
-  db: KojoDatabase,
+  db: LuticDatabase,
   conn: ConnectorConnection,
   toolName: string,
   args: Record<string, unknown>
@@ -475,7 +475,7 @@ export async function invokeExternalConnectorTool(
 }
 
 export async function fireConnectorTrigger(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   triggerId: string,
   payload?: Record<string, unknown>
@@ -545,7 +545,7 @@ export async function fireConnectorTrigger(
 }
 
 export async function listConnectorSyncLogs(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   connectionId?: string,
   limit = 30

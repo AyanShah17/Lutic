@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getLicenseStatus, logger, sql } from "@kojo/core";
+import { getLicenseStatus, logger, sql } from "@lutic/core";
 import { getWebAdministrativeDb } from "@/lib/db";
 import { ensureBackgroundRuntime } from "@/lib/runtime";
 
@@ -13,7 +13,7 @@ export async function GET() {
     ensureBackgroundRuntime();
     return NextResponse.json({
       ok: true,
-      service: "kojo-web",
+      service: "lutic-web",
       db: "ok",
       license: {
         enforced: license.enforced,
@@ -27,7 +27,7 @@ export async function GET() {
     logger.error({ err }, "Health check failed");
     const detail = "Service unavailable. Check server logs.";
     return NextResponse.json(
-      { ok: false, service: "kojo-web", db: "error", detail },
+      { ok: false, service: "lutic-web", db: "error", detail },
       { status: 503 }
     );
   }

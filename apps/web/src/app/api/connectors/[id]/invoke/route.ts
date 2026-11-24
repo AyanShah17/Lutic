@@ -14,9 +14,9 @@ import {
   isCodeModeEnabled,
   isDemoMode,
   sha256Hex
-} from "@kojo/core";
-import { defaultMcpRegistry } from "@kojo/connectors";
-import { executeKojoConnectorCode } from "@kojo/agent";
+} from "@lutic/core";
+import { defaultMcpRegistry } from "@lutic/connectors";
+import { executeLuticConnectorCode } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,
@@ -48,7 +48,7 @@ export async function POST(
 
     const body = InvokeSchema.parse(await req.json());
     if ((body.mode === "code" || typeof body.code === "string") && !isCodeModeEnabled()) {
-      return problemResponse(501, "Code Mode Unavailable", "Kojo Code Mode is available only in trusted development and test runtimes.");
+      return problemResponse(501, "Code Mode Unavailable", "Lutic Code Mode is available only in trusted development and test runtimes.");
     }
     const params = await context.params;
     return await withWebTenantDb(user.tenantId, async (db) => {
@@ -76,7 +76,7 @@ export async function POST(
           return problemResponse(400, "Validation Error", "code script is required when mode is 'code'.");
         }
         try {
-          const codeRes = await executeKojoConnectorCode({
+          const codeRes = await executeLuticConnectorCode({
             code: body.code,
             input: args,
             ctx: {

@@ -35,14 +35,14 @@ import {
   Undo2,
   X
 } from "lucide-react";
-import { listMetrics } from "@kojo/core/metrics";
+import { listMetrics } from "@lutic/core/metrics";
 import type {
   DashboardSpec,
   DashboardWidget,
   SemanticDimension,
   TimeRange,
   WidgetType
-} from "@kojo/core/dashboard";
+} from "@lutic/core/dashboard";
 import { useAppContext } from "./providers";
 import { MachineStatusBadge } from "./machine-status-badge";
 import { Badge } from "./ui/badge";

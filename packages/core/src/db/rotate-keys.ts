@@ -1,7 +1,7 @@
 import { eq, ne } from "drizzle-orm";
 import { rotateEncryptedPayload } from "../crypto";
 import { requireCredentialKey, requireProductionDatabaseUrl } from "../production-config";
-import { createDbConnection, type KojoDatabase } from "./client";
+import { createDbConnection, type LuticDatabase } from "./client";
 import { connectorConnections, connectors } from "./schema";
 
 export interface CredentialRotationSummary {
@@ -10,7 +10,7 @@ export interface CredentialRotationSummary {
 }
 
 export async function rotateStoredCredentials(
-  db: KojoDatabase
+  db: LuticDatabase
 ): Promise<CredentialRotationSummary> {
   return db.transaction(async (tx) => {
     let connectorsRotated = 0;

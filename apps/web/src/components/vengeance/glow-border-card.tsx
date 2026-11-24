@@ -19,7 +19,7 @@ export function GlowBorderCard({
     <div className={cn("relative rounded-lg p-[1px] overflow-hidden", className)}>
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-[100%] animate-kojo-spin-slow opacity-35 motion-reduce:animate-none"
+        className="pointer-events-none absolute -inset-[100%] animate-lutic-spin-slow opacity-35 motion-reduce:animate-none"
         style={{ background: gradient }}
       />
       <div className="relative rounded-[calc(var(--radius)-1px)] bg-card text-card-foreground">

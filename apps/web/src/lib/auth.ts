@@ -15,11 +15,11 @@ import {
   users,
   verifySessionToken,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { resolveCorsOrigin } from "./cors";
 import { withWebTenantDb } from "./db";
 
-export const SESSION_COOKIE_NAME = "kojo_session";
+export const SESSION_COOKIE_NAME = "lutic_session";
 
 function parseCookie(cookieHeader: string | null, name: string): string | null {
   if (!cookieHeader) return null;
@@ -178,7 +178,7 @@ export function problemResponse(
 ): NextResponse {
   return NextResponse.json(
     {
-      type: `https://kojo.local/errors/${status}`,
+      type: `https://lutic.app/errors/${status}`,
       title,
       status,
       detail

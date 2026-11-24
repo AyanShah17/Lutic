@@ -30,12 +30,12 @@ export default defineConfig({
       "tailwind-merge": path.resolve(__dirname, "apps/web/node_modules/tailwind-merge/dist/bundle-mjs.mjs"),
       "class-variance-authority": path.resolve(__dirname, "apps/web/node_modules/class-variance-authority/dist/index.mjs"),
       "lucide-react": path.resolve(__dirname, "apps/web/node_modules/lucide-react/dist/esm/lucide-react.js"),
-      "@kojo/core/rbac": path.resolve(__dirname, "packages/core/src/rbac.ts"),
-      "@kojo/core/metrics": path.resolve(__dirname, "packages/core/src/semantic/registry.ts"),
-      "@kojo/core/dashboard": path.resolve(__dirname, "packages/core/src/dashboard/schema.ts"),
-      "@kojo/core": path.resolve(__dirname, "packages/core/src/index.ts"),
-      "@kojo/connectors": path.resolve(__dirname, "packages/connectors/src/index.ts"),
-      "@kojo/agent": path.resolve(__dirname, "packages/agent/src/index.ts")
+      "@lutic/core/rbac": path.resolve(__dirname, "packages/core/src/rbac.ts"),
+      "@lutic/core/metrics": path.resolve(__dirname, "packages/core/src/semantic/registry.ts"),
+      "@lutic/core/dashboard": path.resolve(__dirname, "packages/core/src/dashboard/schema.ts"),
+      "@lutic/core": path.resolve(__dirname, "packages/core/src/index.ts"),
+      "@lutic/connectors": path.resolve(__dirname, "packages/connectors/src/index.ts"),
+      "@lutic/agent": path.resolve(__dirname, "packages/agent/src/index.ts")
     }
   }
 });

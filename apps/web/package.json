@@ -1,5 +1,5 @@
 {
-  "name": "@kojo/web",
+  "name": "@lutic/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.15",
-    "@kojo/agent": "workspace:*",
-    "@kojo/connectors": "workspace:*",
-    "@kojo/core": "workspace:*",
+    "@lutic/agent": "workspace:*",
+    "@lutic/connectors": "workspace:*",
+    "@lutic/core": "workspace:*",
     "@tanstack/react-query": "^5.66.0",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",

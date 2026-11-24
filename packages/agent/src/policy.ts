@@ -13,18 +13,18 @@ import {
   sql,
   toolkitTools,
   toolkits,
-  type KojoDatabase,
+  type LuticDatabase,
   type RateLimitConsumer,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import {
   defaultMcpRegistry,
   type ConnectorToolDefinition,
   type McpToolRegistry,
   type ToolExecutionContext
-} from "@kojo/connectors";
+} from "@lutic/connectors";
 import crypto from "node:crypto";
-import { executeKojoConnectorCode } from "./code-mode";
+import { executeLuticConnectorCode } from "./code-mode";
 
 export interface PolicyEvaluationResult {
   status: "allowed" | "denied" | "requires_confirmation" | "confirmed" | "error";
@@ -46,7 +46,7 @@ export const RATE_LIMIT_WINDOW_MS = 60_000;
 export const DEFAULT_USER_RATE_LIMIT = 120;
 export const DEFAULT_TENANT_RATE_LIMIT = 600;
 
-export async function resetRateLimits(db: KojoDatabase): Promise<void> {
+export async function resetRateLimits(db: LuticDatabase): Promise<void> {
   await db.execute(sql`DELETE FROM rate_limits WHERE scope IN ('mcp-user', 'mcp-tenant')`);
 }
 
@@ -63,7 +63,7 @@ export function wrapUntrustedToolResult(
  * Admin Console changes to role_toolkits or toolkit_tools take effect on the very next call.
  */
 export async function getAllowedToolsForUser(
-  db: KojoDatabase,
+  db: LuticDatabase,
   user: SessionUser,
   registry: McpToolRegistry = defaultMcpRegistry
 ): Promise<ConnectorToolDefinition[]> {
@@ -99,7 +99,7 @@ export async function getAllowedToolsForUser(
 }
 
 async function writeAuditEntry(
-  db: KojoDatabase,
+  db: LuticDatabase,
   entry: {
     tenantId: string;
     userId: string;
@@ -381,7 +381,7 @@ export async function executeToolWithPolicy(
         maxCalls?: number;
         timeoutMs?: number;
       };
-      const codeRes = await executeKojoConnectorCode({
+      const codeRes = await executeLuticConnectorCode({
         code: argsObj.code,
         input: argsObj.input,
         maxCalls: argsObj.maxCalls,

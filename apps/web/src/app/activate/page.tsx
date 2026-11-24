@@ -10,7 +10,7 @@ export default function ActivatePage() {
         </div>
         <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
           <KeyRound className="h-5 w-5 text-primary" />
-          <span>Kojo License Activation</span>
+          <span>Lutic License Activation</span>
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           Manage your client deployment license key and online verification state.

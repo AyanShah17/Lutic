@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { and, asc, desc, eq, lte, sql } from "drizzle-orm";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import {
   notifications,
   queueMessages,
@@ -13,7 +13,7 @@ import {
 } from "./db/schema";
 import { getRuntimeHooks, isDemoMode } from "./runtime";
 
-type WorkflowRunExecutor = (db: KojoDatabase, runId: string) => Promise<void>;
+type WorkflowRunExecutor = (db: LuticDatabase, runId: string) => Promise<void>;
 let registeredWorkflowExecutor: WorkflowRunExecutor | undefined;
 
 export function registerTopicWorkflowExecutor(fn: WorkflowRunExecutor): void {
@@ -68,7 +68,7 @@ function matchesFilterPolicy(
 }
 
 export async function publishToTopic(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   topicId: string,
   input: PublishTopicInput
@@ -242,7 +242,7 @@ export async function publishToTopic(
 }
 
 export async function enqueueQueueMessage(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   queueId: string,
   input: {
@@ -288,7 +288,7 @@ export async function enqueueQueueMessage(
 }
 
 export async function sweepExpiredInFlightMessages(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   queueId: string
 ): Promise<{ requeued: number; deadLettered: number }> {
@@ -296,7 +296,7 @@ export async function sweepExpiredInFlightMessages(
 }
 
 export async function sweepQueueVisibilityTimeouts(
-  db: KojoDatabase,
+  db: LuticDatabase,
   queue?: { tenantId: string; queueId: string }
 ): Promise<{ requeued: number; deadLettered: number }> {
   const scope = queue ? sql`AND m.tenant_id = ${queue.tenantId} AND m.queue_id = ${queue.queueId}` : sql``;
@@ -325,7 +325,7 @@ export async function sweepQueueVisibilityTimeouts(
 }
 
 export async function pollQueueMessages(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   queueId: string,
   opts?: { maxMessages?: number; visibilityTimeoutSec?: number }
@@ -390,7 +390,7 @@ export async function pollQueueMessages(
 }
 
 export async function acknowledgeQueueMessage(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   queueId: string,
   input: { messageId?: string; receiptHandle?: string }
@@ -424,7 +424,7 @@ export async function acknowledgeQueueMessage(
 }
 
 export async function purgeQueueMessages(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
   queueId: string
 ): Promise<{ ok: true; purgedCount: number }> {
@@ -462,7 +462,7 @@ export async function purgeQueueMessages(
 }
 
 export async function listQueueSummaries(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string
 ) {
   const [qRows, msgRows] = await Promise.all([

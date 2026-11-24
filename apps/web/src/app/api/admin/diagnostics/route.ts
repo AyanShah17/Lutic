@@ -12,8 +12,8 @@ import {
   machineStatus,
   queueMessages,
   sql
-} from "@kojo/core";
-import { checkScannerHealth } from "@kojo/agent";
+} from "@lutic/core";
+import { checkScannerHealth } from "@lutic/agent";
 import { getWebAdministrativeDb, getWebDbConnection, requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { getSessionUser, handleApiError, problemResponse } from "@/lib/auth";
 

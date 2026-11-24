@@ -13,9 +13,9 @@ import {
   sql,
   userPlants,
   users,
-  type KojoDatabase,
+  type LuticDatabase,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,
@@ -35,7 +35,7 @@ const CreateUserSchema = z.object({
     .max(1024)
     .refine(
       (password) =>
-        password !== "kojo-demo-password" &&
+        password !== "lutic-demo-password" &&
         password.trim() === password &&
         new Set(password).size >= 8,
       "Choose a unique password with varied characters"
@@ -52,14 +52,14 @@ const PatchUserSchema = z.object({
     .min(12, "Password must be at least 12 characters")
     .max(1024)
     .refine(
-      (password) => password !== "kojo-demo-password" && new Set(password).size >= 8,
+      (password) => password !== "lutic-demo-password" && new Set(password).size >= 8,
       "Choose a unique password with varied characters"
     )
     .optional(),
   revokeSessions: z.boolean().optional()
 });
 
-async function canAssignPlants(db: KojoDatabase, user: SessionUser, ids: string[]): Promise<boolean> {
+async function canAssignPlants(db: LuticDatabase, user: SessionUser, ids: string[]): Promise<boolean> {
   if (ids.some((id) => !user.plantIds.includes(id))) return false;
   const rows = await db.select({ id: plants.id }).from(plants)
     .where(and(eq(plants.tenantId, user.tenantId), inArray(plants.id, ids)));

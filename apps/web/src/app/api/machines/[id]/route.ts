@@ -10,7 +10,7 @@ import {
   machineStatus,
   plants,
   workOrders
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { getSessionUser, handleApiError, problemResponse } from "@/lib/auth";
 

@@ -9,8 +9,8 @@ import {
   encryptCredentials,
   eq,
   isDemoMode
-} from "@kojo/core";
-import { ALL_CONNECTORS, defaultMcpRegistry } from "@kojo/connectors";
+} from "@lutic/core";
+import { ALL_CONNECTORS, defaultMcpRegistry } from "@lutic/connectors";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,

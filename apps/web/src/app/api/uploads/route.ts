@@ -2,12 +2,12 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authorize } from "@kojo/core";
+import { authorize } from "@lutic/core";
 import {
   extractTextFromDocumentFile,
   getMaxUploadBytes,
   scanUploadForViruses
-} from "@kojo/agent";
+} from "@lutic/agent";
 import { requireWebLicense } from "@/lib/db";
 import { readBoundedBody } from "@/lib/request-body";
 import {

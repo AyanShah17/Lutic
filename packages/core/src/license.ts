@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
 import os from "node:os";
 import { eq } from "drizzle-orm";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import { licenseState } from "./db/schema";
 import { requireDeploymentSecret, requireProductionLicenseUrl } from "./production-config";
 
 const DEFAULT_LICENSE_ROW_ID = "default";
-const DEFAULT_SIGNING_SECRET = "kojo-dev-license-signing-secret-2026";
+const DEFAULT_SIGNING_SECRET = "lutic-dev-license-signing-secret-2026";
 const CACHE_TTL_MS = 60_000;
 
 export type LicenseStatusKind =
@@ -47,7 +47,7 @@ interface LicenseCacheEntry {
 }
 
 const globalForLicense = globalThis as unknown as {
-  __kojoLicenseCache?: LicenseCacheEntry;
+  __luticLicenseCache?: LicenseCacheEntry;
 };
 
 export class LicenseError extends Error {
@@ -61,7 +61,7 @@ export class LicenseError extends Error {
 }
 
 export function resetLicenseCacheForTests(): void {
-  globalForLicense.__kojoLicenseCache = undefined;
+  globalForLicense.__luticLicenseCache = undefined;
 }
 
 export function maskLicenseKey(key: string): string {
@@ -115,7 +115,7 @@ function normalizePersistedStatus(status: string): LicenseStatusKind {
 }
 
 async function upsertLicenseRow(
-  db: KojoDatabase,
+  db: LuticDatabase,
   values: {
     licenseKey: string;
     serverUrl: string;
@@ -135,7 +135,7 @@ async function upsertLicenseRow(
 }
 
 export async function getLicenseStatus(
-  db: KojoDatabase
+  db: LuticDatabase
 ): Promise<LicenseStatusSnapshot> {
   const enforced = process.env.LICENSE_ENFORCE === "true";
   const rows = await db
@@ -154,7 +154,7 @@ export async function getLicenseStatus(
       expiresAt: null,
       keyHint: "",
       serverUrl: process.env.LICENSE_SERVER_URL ?? "http://localhost:4100",
-      instanceId: process.env.KOJO_INSTANCE_ID || os.hostname() || "kojo-instance",
+      instanceId: process.env.LUTIC_INSTANCE_ID || os.hostname() || "lutic-instance",
       lastVerifiedAt: null,
       activatedAt: null,
       reason: ""
@@ -203,7 +203,7 @@ export async function getLicenseStatus(
 
 async function callLicenseServer(
   endpointPath: "/api/licenses/activate" | "/api/licenses/validate",
-  db: KojoDatabase,
+  db: LuticDatabase,
   input: {
     key: string;
     serverUrl?: string;
@@ -219,9 +219,9 @@ async function callLicenseServer(
   ).replace(/\/+$/, "");
   const instanceId =
     input.instanceId?.trim() ||
-    process.env.KOJO_INSTANCE_ID ||
+    process.env.LUTIC_INSTANCE_ID ||
     os.hostname() ||
-    "kojo-instance";
+    "lutic-instance";
   const now = new Date();
 
   if (!key) {
@@ -309,7 +309,7 @@ async function callLicenseServer(
         activatedAt: now
       });
 
-      globalForLicense.__kojoLicenseCache = {
+      globalForLicense.__luticLicenseCache = {
         active: true,
         expiresAtMs: expiresAtDate ? expiresAtDate.getTime() : null,
         cachedAt: Date.now(),
@@ -360,14 +360,14 @@ async function callLicenseServer(
 }
 
 export async function activateLicense(
-  db: KojoDatabase,
+  db: LuticDatabase,
   input: { key: string; serverUrl?: string; instanceId?: string; hostname?: string }
 ): Promise<LicenseActivationResult> {
   return callLicenseServer("/api/licenses/activate", db, input);
 }
 
 export async function validateCurrentLicense(
-  db: KojoDatabase
+  db: LuticDatabase
 ): Promise<LicenseActivationResult> {
   const rows = await db
     .select()
@@ -392,12 +392,12 @@ export async function validateCurrentLicense(
   });
 }
 
-export async function deactivateLicense(db: KojoDatabase): Promise<void> {
+export async function deactivateLicense(db: LuticDatabase): Promise<void> {
   resetLicenseCacheForTests();
   await upsertLicenseRow(db, {
     licenseKey: "",
     serverUrl: process.env.LICENSE_SERVER_URL ?? "http://localhost:4100",
-    instanceId: process.env.KOJO_INSTANCE_ID || os.hostname() || "kojo-instance",
+    instanceId: process.env.LUTIC_INSTANCE_ID || os.hostname() || "lutic-instance",
     status: "unactivated",
     plan: "",
     signature: "",
@@ -408,11 +408,11 @@ export async function deactivateLicense(db: KojoDatabase): Promise<void> {
   });
 }
 
-export async function requireLicense(db: KojoDatabase): Promise<void> {
+export async function requireLicense(db: LuticDatabase): Promise<void> {
   if (process.env.LICENSE_ENFORCE !== "true") return;
 
   const nowMs = Date.now();
-  const cached = globalForLicense.__kojoLicenseCache;
+  const cached = globalForLicense.__luticLicenseCache;
   if (
     cached &&
     cached.active &&
@@ -423,7 +423,7 @@ export async function requireLicense(db: KojoDatabase): Promise<void> {
   }
 
   let status = await getLicenseStatus(db);
-  if (!status.active && process.env.KOJO_LICENSE_KEY?.trim()) {
+  if (!status.active && process.env.LUTIC_LICENSE_KEY?.trim()) {
     // Only auto-activate from env on initial uninitialized boot, never overriding explicit deactivation/revocation/expiry.
     const existingRows = await db
       .select({ id: licenseState.id })
@@ -431,18 +431,18 @@ export async function requireLicense(db: KojoDatabase): Promise<void> {
       .where(eq(licenseState.id, DEFAULT_LICENSE_ROW_ID))
       .limit(1);
     if (existingRows.length === 0) {
-      await activateLicense(db, { key: process.env.KOJO_LICENSE_KEY.trim() });
+      await activateLicense(db, { key: process.env.LUTIC_LICENSE_KEY.trim() });
       status = await getLicenseStatus(db);
     }
   }
 
   if (!status.active) {
     throw new LicenseError(
-      status.reason || "Valid Kojo license activation is required."
+      status.reason || "Valid Lutic license activation is required."
     );
   }
 
-  globalForLicense.__kojoLicenseCache = {
+  globalForLicense.__luticLicenseCache = {
     active: true,
     expiresAtMs: status.expiresAt ? Date.parse(status.expiresAt) : null,
     cachedAt: nowMs,

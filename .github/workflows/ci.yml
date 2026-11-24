@@ -1,4 +1,4 @@
-name: Kojo CI
+name: Lutic CI
 
 on:
   push:
@@ -14,19 +14,19 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: kojo_ci
+          POSTGRES_USER: lutic_ci
           POSTGRES_PASSWORD: isolated-ci-password
-          POSTGRES_DB: kojo_ci
+          POSTGRES_DB: lutic_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U kojo_ci -d kojo_ci"
+          --health-cmd "pg_isready -U lutic_ci -d lutic_ci"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      POSTGRES_TEST_URL: postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci
+      POSTGRES_TEST_URL: postgres://lutic_ci:isolated-ci-password@127.0.0.1:5432/lutic_ci
       DATABASE_URL: memory://
       LICENSE_ENFORCE: "false"
-      KOJO_RUNTIME_DISABLED: "true"
+      LUTIC_RUNTIME_DISABLED: "true"
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -47,44 +47,44 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: kojo_ci
+          POSTGRES_USER: lutic_ci
           POSTGRES_PASSWORD: isolated-ci-password
-          POSTGRES_DB: kojo_ci
+          POSTGRES_DB: lutic_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U kojo_ci -d kojo_ci"
+          --health-cmd "pg_isready -U lutic_ci -d lutic_ci"
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v5
-      - name: Build Kojo runtime container
-        run: docker build --target runtime -t kojo-smoke:ci .
+      - name: Build Lutic runtime container
+        run: docker build --target runtime -t lutic-smoke:ci .
       - name: Bootstrap production schema and first tenant
         run: |
           docker run --rm --network host \
-            -e DATABASE_URL=postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci \
+            -e DATABASE_URL=postgres://lutic_ci:isolated-ci-password@127.0.0.1:5432/lutic_ci \
             -e AUTH_SECRET=ci-smoke-auth-secret-with-sufficient-entropy-0123456789 \
             -e CREDENTIAL_ENCRYPTION_KEY=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 \
             -e LICENSE_ENFORCE=false \
-            -e KOJO_DEMO_MODE=false \
-            -e KOJO_ADMIN_EMAIL=pilot.admin@smoke.example \
-            -e KOJO_ADMIN_PASSWORD=PilotSmokePassword!2026 \
-            -e KOJO_TENANT_NAME="CI Smoke Manufacturing" \
-            -e KOJO_PLANT_NAME="CI Smoke Plant" \
-            kojo-smoke:ci bun packages/core/src/db/bootstrap.ts
+            -e LUTIC_DEMO_MODE=false \
+            -e LUTIC_ADMIN_EMAIL=pilot.admin@smoke.example \
+            -e LUTIC_ADMIN_PASSWORD=PilotSmokePassword!2026 \
+            -e LUTIC_TENANT_NAME="CI Smoke Manufacturing" \
+            -e LUTIC_PLANT_NAME="CI Smoke Plant" \
+            lutic-smoke:ci bun packages/core/src/db/bootstrap.ts
       - name: Start container and run production smoke + restart recovery checks
         run: |
           set -euo pipefail
-          docker run -d --name kojo-smoke-web --network host \
+          docker run -d --name lutic-smoke-web --network host \
             -e PORT=3100 \
             -e HOSTNAME=127.0.0.1 \
-            -e DATABASE_URL=postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci \
+            -e DATABASE_URL=postgres://lutic_ci:isolated-ci-password@127.0.0.1:5432/lutic_ci \
             -e AUTH_SECRET=ci-smoke-auth-secret-with-sufficient-entropy-0123456789 \
             -e CREDENTIAL_ENCRYPTION_KEY=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 \
             -e LICENSE_ENFORCE=false \
-            -e KOJO_DEMO_MODE=false \
+            -e LUTIC_DEMO_MODE=false \
             -e COOKIE_SECURE=false \
-            kojo-smoke:ci
+            lutic-smoke:ci
 
           for i in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:3100/api/health/live >/dev/null 2>&1; then break; fi
@@ -135,7 +135,7 @@ jobs:
           test "$ext_code" = "501"
 
           # Restart container and verify persistence & diagnostics
-          docker restart kojo-smoke-web
+          docker restart lutic-smoke-web
           for i in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1; then break; fi
             sleep 1
@@ -146,13 +146,13 @@ jobs:
           # Exercise credential key rotation inside the runtime image
           rot_json=$(docker run --rm --network host \
             -e NODE_ENV=production \
-            -e DATABASE_URL=postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci \
+            -e DATABASE_URL=postgres://lutic_ci:isolated-ci-password@127.0.0.1:5432/lutic_ci \
             -e CREDENTIAL_ENCRYPTION_KEY=b1c2d3e4f5061728394a5b6c7d8e9f01b1c2d3e4f5061728394a5b6c7d8e9f01 \
             -e CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 \
-            kojo-smoke:ci bun packages/core/src/db/rotate-keys.ts)
+            lutic-smoke:ci bun packages/core/src/db/rotate-keys.ts)
           echo "$rot_json" | grep -q '"connectionsRotated":1'
       - name: Cleanup smoke container
         if: always()
         run: |
-          docker logs kojo-smoke-web || true
-          docker rm -f kojo-smoke-web || true
+          docker logs lutic-smoke-web || true
+          docker rm -f lutic-smoke-web || true

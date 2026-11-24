@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, authorize, conversations, desc, eq } from "@kojo/core";
+import { and, authorize, conversations, desc, eq } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { getSessionUser, handleApiError, problemResponse } from "@/lib/auth";
 

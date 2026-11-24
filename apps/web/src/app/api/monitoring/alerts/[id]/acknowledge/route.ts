@@ -4,7 +4,7 @@ import {
   and,
   authorize,
   eq,
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,

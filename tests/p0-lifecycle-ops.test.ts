@@ -33,10 +33,10 @@ import {
   workflowRuns,
   workflows,
   type DbConnection,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import { validateProductionConfig } from "../packages/core/src/production-config";
-import { LLMTimeoutError, MockLLMProvider, runAgentTurn } from "@kojo/agent";
+import { LLMTimeoutError, MockLLMProvider, runAgentTurn } from "@lutic/agent";
 
 const state = vi.hoisted(() => ({
   conn: undefined as DbConnection | undefined
@@ -46,7 +46,7 @@ vi.mock("../apps/web/src/lib/db", () => ({
   getWebAdministrativeDb: async () => state.conn!.db,
   getWebDbConnection: async () => state.conn!,
   requireWebLicense: async () => {},
-  withWebTenantDb: (tenantId: string, run: (db: KojoDatabase) => Promise<unknown>) =>
+  withWebTenantDb: (tenantId: string, run: (db: LuticDatabase) => Promise<unknown>) =>
     withTenantScope(state.conn!.db, tenantId, run)
 }));
 
@@ -226,7 +226,7 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
           authorization: `Bearer ${engineerTokenV1}`
         },
         body: JSON.stringify({
-          currentPassword: "kojo-demo-password",
+          currentPassword: "lutic-demo-password",
           newPassword: "aaaaaaaaaaaa"
         })
       })
@@ -241,7 +241,7 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
           authorization: `Bearer ${engineerTokenV1}`
         },
         body: JSON.stringify({
-          currentPassword: "kojo-demo-password",
+          currentPassword: "lutic-demo-password",
           newPassword: "UniquePlantPass!2026"
         })
       })
@@ -511,7 +511,7 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
   it("separates health/live from admin diagnostics and enforces tenant-scoped retention cleanup", async () => {
     const live = await liveHealthGet();
     expect(live.status).toBe(200);
-    expect(await live.json()).toEqual({ ok: true, service: "kojo-web" });
+    expect(await live.json()).toEqual({ ok: true, service: "lutic-web" });
 
     const managerToken = await signSessionToken(
       {
@@ -931,12 +931,12 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
     expect(listText).not.toContain("tokenHash");
   });
 
-  it("returns 404 on demo-switch when KOJO_DEMO_MODE=false or production, maps LLM timeouts to 504, and enforces user create password entropy", async () => {
-    const prevDemo = process.env.KOJO_DEMO_MODE;
+  it("returns 404 on demo-switch when LUTIC_DEMO_MODE=false or production, maps LLM timeouts to 504, and enforces user create password entropy", async () => {
+    const prevDemo = process.env.LUTIC_DEMO_MODE;
     const prevEnv = process.env.NODE_ENV;
     const prevAllow = process.env.ALLOW_DEMO_SWITCH;
     try {
-      process.env.KOJO_DEMO_MODE = "false";
+      process.env.LUTIC_DEMO_MODE = "false";
       const demoOffRes = await demoSwitchPost(
         new Request("http://localhost/api/auth/demo-switch", {
           method: "POST",
@@ -946,7 +946,7 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
       );
       expect(demoOffRes.status).toBe(404);
 
-      delete process.env.KOJO_DEMO_MODE;
+      delete process.env.LUTIC_DEMO_MODE;
       (process.env as Record<string, string | undefined>).NODE_ENV = "production";
       const prodRes = await demoSwitchPost(
         new Request("http://localhost/api/auth/demo-switch", {
@@ -968,8 +968,8 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
       );
       expect(allowOffRes.status).toBe(404);
     } finally {
-      if (prevDemo === undefined) delete process.env.KOJO_DEMO_MODE;
-      else process.env.KOJO_DEMO_MODE = prevDemo;
+      if (prevDemo === undefined) delete process.env.LUTIC_DEMO_MODE;
+      else process.env.LUTIC_DEMO_MODE = prevDemo;
       (process.env as Record<string, string | undefined>).NODE_ENV = prevEnv;
       if (prevAllow === undefined) delete process.env.ALLOW_DEMO_SWITCH;
       else process.env.ALLOW_DEMO_SWITCH = prevAllow;
@@ -1303,7 +1303,7 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
 
   it("validates previous auth and encryption keys in validateProductionConfig and rejects duplicates or weak keys", () => {
     const baseEnv: NodeJS.ProcessEnv = {
-      DATABASE_URL: "postgresql://produser:UniquePgPass2026!@db.internal:5432/kojo_prod",
+      DATABASE_URL: "postgresql://produser:UniquePgPass2026!@db.internal:5432/lutic_prod",
       AUTH_SECRET: "active-auth-secret-with-unique-characters-0123456789",
       CREDENTIAL_ENCRYPTION_KEY: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
       LICENSE_ENFORCE: "false"

@@ -8,7 +8,7 @@ import { sql } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "./schema";
 
-export type KojoDatabase =
+export type LuticDatabase =
   | PgliteDatabase<typeof schema>
   | NodePgDatabase<typeof schema>;
 
@@ -19,7 +19,7 @@ export interface DbPoolStats {
 }
 
 export interface DbConnection {
-  db: KojoDatabase;
+  db: LuticDatabase;
   dialect: "pglite" | "postgres";
   executeRaw: (statement: string) => Promise<void>;
   withRawTransaction?: <T>(
@@ -42,7 +42,7 @@ function findWorkspaceRoot(startDir: string): string {
     if (fs.existsSync(pkgPath)) {
       try {
         const parsed = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { name?: string };
-        if (parsed.name === "kojo") {
+        if (parsed.name === "lutic") {
           return dir;
         }
       } catch {
@@ -152,18 +152,18 @@ export async function createDbConnection(
 }
 
 const globalForDb = globalThis as unknown as {
-  __kojoConnPromise?: Promise<DbConnection>;
-  __kojoSchemaReady?: Promise<void>;
+  __luticConnPromise?: Promise<DbConnection>;
+  __luticSchemaReady?: Promise<void>;
 };
 
 export async function getDbConnection(): Promise<DbConnection> {
-  if (!globalForDb.__kojoConnPromise) {
-    globalForDb.__kojoConnPromise = createDbConnection();
+  if (!globalForDb.__luticConnPromise) {
+    globalForDb.__luticConnPromise = createDbConnection();
   }
-  return globalForDb.__kojoConnPromise;
+  return globalForDb.__luticConnPromise;
 }
 
-export async function getDb(): Promise<KojoDatabase> {
+export async function getDb(): Promise<LuticDatabase> {
   const conn = await getDbConnection();
   return conn.db;
 }
@@ -173,21 +173,21 @@ export async function getDb(): Promise<KojoDatabase> {
  * set so Postgres Row-Level Security (RLS) policies enforce tenant isolation at the DB engine level.
  */
 export async function withTenantScope<T>(
-  db: KojoDatabase,
+  db: LuticDatabase,
   tenantId: string,
-  fn: (tx: KojoDatabase) => Promise<T>
+  fn: (tx: LuticDatabase) => Promise<T>
 ): Promise<T> {
   if (!tenantId.trim()) throw new Error("A tenant ID is required for scoped database access");
   return (await (db as PgliteDatabase<typeof schema>).transaction(async (tx) => {
-    await tx.execute(sql`SET LOCAL ROLE kojo_app`);
+    await tx.execute(sql`SET LOCAL ROLE lutic_app`);
     await tx.execute(
       sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`
     );
-    return fn(tx as unknown as KojoDatabase);
+    return fn(tx as unknown as LuticDatabase);
   })) as T;
 }
 
 export function resetGlobalDbForTests(): void {
-  globalForDb.__kojoConnPromise = undefined;
-  globalForDb.__kojoSchemaReady = undefined;
+  globalForDb.__luticConnPromise = undefined;
+  globalForDb.__luticSchemaReady = undefined;
 }

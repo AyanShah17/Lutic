@@ -6,7 +6,7 @@ import {
   deactivateLicense,
   getLicenseStatus,
   validateCurrentLicense
-} from "@kojo/core";
+} from "@lutic/core";
 import { getWebAdministrativeDb } from "@/lib/db";
 import {
   getSessionUser,

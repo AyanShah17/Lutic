@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, lt, revokedSessions, sha256Hex } from "@kojo/core";
+import { and, eq, lt, revokedSessions, sha256Hex } from "@lutic/core";
 import { withWebTenantDb } from "@/lib/db";
 import { clearSessionCookie, getSessionToken, getSessionUser, handleApiError, verifyCsrfOrigin } from "@/lib/auth";
 

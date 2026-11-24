@@ -11,8 +11,8 @@ import {
   and,
   LocalMockEmbeddingProvider,
   type EmbeddingProvider,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 
 export {
   chunkDocumentText,
@@ -27,7 +27,7 @@ export {
   type HybridSearchResult,
   type RerankCandidate,
   type Reranker
-} from "@kojo/core";
+} from "@lutic/core";
 
 export const ALLOWED_UPLOAD_EXTENSIONS = new Set([
   ".md",
@@ -172,7 +172,7 @@ export interface IngestDocumentInput {
 }
 
 export async function ingestDocumentJob(
-  db: KojoDatabase,
+  db: LuticDatabase,
   input: IngestDocumentInput
 ): Promise<{ documentId: string; chunkCount: number }> {
   const docId =

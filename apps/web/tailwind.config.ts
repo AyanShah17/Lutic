@@ -69,13 +69,13 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)"
       },
       keyframes: {
-        "kojo-spin-slow": {
+        "lutic-spin-slow": {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" }
         }
       },
       animation: {
-        "kojo-spin-slow": "kojo-spin-slow 6s linear infinite"
+        "lutic-spin-slow": "lutic-spin-slow 6s linear infinite"
       }
     }
   },

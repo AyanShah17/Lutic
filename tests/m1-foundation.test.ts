@@ -29,7 +29,7 @@ import {
   workflows,
   type DbConnection,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import {
   handleLicenseRequest,
   startLicenseServer,
@@ -63,7 +63,7 @@ beforeAll(async () => {
   process.env.DATABASE_URL = "memory://";
   process.env.ALLOW_DEMO_SWITCH = "true";
   delete process.env.LICENSE_ENFORCE;
-  delete process.env.KOJO_LICENSE_KEY;
+  delete process.env.LUTIC_LICENSE_KEY;
   resetLicenseStore();
   resetLicenseCacheForTests();
   try {
@@ -259,7 +259,7 @@ describe("M1 Feature 3 & Feature 4: Dashboards 5-Version Cap, Bearer Auth, Cooki
     expect(loginJson.token.length).toBeGreaterThan(20);
     analystToken = loginJson.token;
     const setCookieFalse = loginRes.headers.get("set-cookie") ?? "";
-    expect(setCookieFalse).toContain("kojo_session=");
+    expect(setCookieFalse).toContain("lutic_session=");
     expect(setCookieFalse.toLowerCase()).not.toContain("; secure");
 
     process.env.COOKIE_SECURE = "true";
@@ -296,7 +296,7 @@ describe("M1 Feature 3 & Feature 4: Dashboards 5-Version Cap, Bearer Auth, Cooki
       new Request("http://localhost:3000/api/auth/session", {
         headers: {
           authorization: "Bearer invalid.jwt.token",
-          cookie: `kojo_session=${analystToken}`
+          cookie: `lutic_session=${analystToken}`
         }
       })
     );
@@ -495,13 +495,13 @@ describe("M1 Feature 5: License Server, Activation, & 402 Gate", () => {
           "content-type": "application/json",
           authorization: `Bearer ${engToken}`
         },
-        body: JSON.stringify({ key: "KOJO-DEV-VALID-0001", serverUrl: licenseUrl })
+        body: JSON.stringify({ key: "LUTIC-DEV-VALID-0001", serverUrl: licenseUrl })
       })
     );
     expect(engActivate.status).toBe(403);
 
     // Invalid, expired, revoked keys fail (403) and keep gate closed (402)
-    for (const badKey of ["BAD-KEY-1234", "KOJO-EXP-0000-0001", "KOJO-REV-0000-0001"]) {
+    for (const badKey of ["BAD-KEY-1234", "LUTIC-EXP-0000-0001", "LUTIC-REV-0000-0001"]) {
       const badRes = await licensePost(
         new Request("http://localhost:3000/api/license", {
           method: "POST",
@@ -532,7 +532,7 @@ describe("M1 Feature 5: License Server, Activation, & 402 Gate", () => {
           "content-type": "application/json",
           authorization: `Bearer ${adminToken}`
         },
-        body: JSON.stringify({ key: "KOJO-DEV-VALID-0001", serverUrl: licenseUrl })
+        body: JSON.stringify({ key: "LUTIC-DEV-VALID-0001", serverUrl: licenseUrl })
       })
     );
     expect(okActivate.status).toBe(200);
@@ -553,7 +553,7 @@ describe("M1 Feature 5: License Server, Activation, & 402 Gate", () => {
     await fetch(`${licenseUrl}/api/licenses/revoke`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ key: "KOJO-DEV-VALID-0001" })
+      body: JSON.stringify({ key: "LUTIC-DEV-VALID-0001" })
     });
     const reverify = await licenseGet(
       new Request("http://localhost:3000/api/license?verify=true")

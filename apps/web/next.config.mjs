@@ -2,9 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: [
-    "@kojo/core",
-    "@kojo/connectors",
-    "@kojo/agent"
+    "@lutic/core",
+    "@lutic/connectors",
+    "@lutic/agent"
   ],
   serverExternalPackages: [
     "@electric-sql/pglite",

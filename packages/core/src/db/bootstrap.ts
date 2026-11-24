@@ -10,20 +10,20 @@ import { ensureSchema } from "./migrate";
 import { connectorConnections, plants, queues, tenants, topics, userPlants, users } from "./schema";
 
 const bootstrapSchema = z.object({
-  KOJO_TENANT_NAME: z.string().trim().min(1).max(200),
-  KOJO_PLANT_NAME: z.string().trim().min(1).max(200),
-  KOJO_ADMIN_EMAIL: z.string().trim().email().toLowerCase(),
-  KOJO_ADMIN_PASSWORD: z.string().max(1024)
+  LUTIC_TENANT_NAME: z.string().trim().min(1).max(200),
+  LUTIC_PLANT_NAME: z.string().trim().min(1).max(200),
+  LUTIC_ADMIN_EMAIL: z.string().trim().email().toLowerCase(),
+  LUTIC_ADMIN_PASSWORD: z.string().max(1024)
 });
 
 export async function bootstrapDatabase(conn: DbConnection, env: NodeJS.ProcessEnv): Promise<boolean> {
   const config = bootstrapSchema.parse({
-    KOJO_TENANT_NAME: env.KOJO_TENANT_NAME || env.KOJO_BOOTSTRAP_TENANT_NAME,
-    KOJO_PLANT_NAME: env.KOJO_PLANT_NAME || env.KOJO_BOOTSTRAP_PLANT_NAME,
-    KOJO_ADMIN_EMAIL: env.KOJO_ADMIN_EMAIL || env.KOJO_BOOTSTRAP_EMAIL,
-    KOJO_ADMIN_PASSWORD: env.KOJO_ADMIN_PASSWORD || env.KOJO_BOOTSTRAP_PASSWORD
+    LUTIC_TENANT_NAME: env.LUTIC_TENANT_NAME || env.LUTIC_BOOTSTRAP_TENANT_NAME,
+    LUTIC_PLANT_NAME: env.LUTIC_PLANT_NAME || env.LUTIC_BOOTSTRAP_PLANT_NAME,
+    LUTIC_ADMIN_EMAIL: env.LUTIC_ADMIN_EMAIL || env.LUTIC_BOOTSTRAP_EMAIL,
+    LUTIC_ADMIN_PASSWORD: env.LUTIC_ADMIN_PASSWORD || env.LUTIC_BOOTSTRAP_PASSWORD
   });
-  const password = requireDeploymentSecret("KOJO_ADMIN_PASSWORD", config.KOJO_ADMIN_PASSWORD, 16);
+  const password = requireDeploymentSecret("LUTIC_ADMIN_PASSWORD", config.LUTIC_ADMIN_PASSWORD, 16);
   return conn.db.transaction(async (tx) => {
     // Serialize concurrent attempts and keep existing installations untouched.
     await tx.execute(sql`LOCK TABLE tenants IN EXCLUSIVE MODE`);
@@ -32,14 +32,14 @@ export async function bootstrapDatabase(conn: DbConnection, env: NodeJS.ProcessE
     const tenantId = randomUUID();
     const plantId = randomUUID();
     const userId = randomUUID();
-    const slug = config.KOJO_TENANT_NAME.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    await tx.insert(tenants).values({ id: tenantId, slug: slug || tenantId, name: config.KOJO_TENANT_NAME });
-    await tx.insert(plants).values({ id: plantId, tenantId, name: config.KOJO_PLANT_NAME, code: "PLANT-01", timezone: "UTC" });
+    const slug = config.LUTIC_TENANT_NAME.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    await tx.insert(tenants).values({ id: tenantId, slug: slug || tenantId, name: config.LUTIC_TENANT_NAME });
+    await tx.insert(plants).values({ id: plantId, tenantId, name: config.LUTIC_PLANT_NAME, code: "PLANT-01", timezone: "UTC" });
     await tx.insert(users).values({
       id: userId,
       tenantId,
       name: "Administrator",
-      email: config.KOJO_ADMIN_EMAIL,
+      email: config.LUTIC_ADMIN_EMAIL,
       passwordHash: hashPassword(password),
       role: "admin"
     });

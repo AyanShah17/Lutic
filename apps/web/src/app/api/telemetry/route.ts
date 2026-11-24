@@ -15,7 +15,7 @@ import {
   sql,
   type AuthenticatedIngestionToken,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import { getSessionToken, getSessionUser, handleApiError, problemResponse, verifyCsrfOrigin } from "@/lib/auth";
 import { getWebAdministrativeDb, requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { readBoundedBody } from "@/lib/request-body";

@@ -1,6 +1,6 @@
-# Running Kojo
+# Running Lutic
 
-Kojo supports local development and a portable container deployment. The container can run on a Linux server or a cloud container host with PostgreSQL, ClamAV, and HTTPS. No cloud provider has been provisioned by this change.
+Lutic supports local development and a portable container deployment. The container can run on a Linux server or a cloud container host with PostgreSQL, ClamAV, and HTTPS. No cloud provider has been provisioned by this change.
 
 ## 1. Local development
 
@@ -12,7 +12,7 @@ cp -n .env.example .env
 bun run dev
 ```
 
-Open http://localhost:3000. Development uses an embedded PGlite database, seeded demo accounts, mock chat, and simulated telemetry. Keep this database separate from production. `.env.example` is a development configuration; do not copy its credentials into a deployment. To exercise live chat locally, configure `LLM_PROVIDER=kojo` with the LiteLLM gateway (or direct `anthropic`/`openai`), API key, and model.
+Open http://localhost:3000. Development uses an embedded PGlite database, seeded demo accounts, mock chat, and simulated telemetry. Keep this database separate from production. `.env.example` is a development configuration; do not copy its credentials into a deployment. To exercise live chat locally, configure `LLM_PROVIDER=lutic` with the LiteLLM gateway (or direct `anthropic`/`openai`), API key, and model.
 
 ## 2. Linux server with Docker Compose
 
@@ -21,42 +21,42 @@ Install Docker Engine with the Compose plugin, OpenSSL, and curl. Allow several 
 Generate private configuration:
 
 ```sh
-bash deploy/kojo.sh prepare
+bash deploy/lutic.sh prepare
 ```
 
 This creates `.env.production` with mode 0600 and unique database, authentication, and encryption secrets. Existing configuration is preserved. Edit that file before starting:
 
-- Configure `LLM_PROVIDER=kojo` (`KOJO_AI_GATEWAY_URL=http://litellm:4000/v1`, `KOJO_AI_GATEWAY_KEY` matching `LITELLM_MASTER_KEY`, and `LLM_MODEL=kojo-claude` / `kojo-gpt4o` / `kojo-mini` from `deploy/litellm_config.yaml`), or configure direct `openai`/`anthropic` credentials. Production chat fails if a real provider is not configured; `mock` is for development.
+- Configure `LLM_PROVIDER=lutic` (`LUTIC_AI_GATEWAY_URL=http://litellm:4000/v1`, `LUTIC_AI_GATEWAY_KEY` matching `LITELLM_MASTER_KEY`, and `LLM_MODEL=lutic-claude` / `lutic-gpt4o` / `lutic-mini` from `deploy/litellm_config.yaml`), or configure direct `openai`/`anthropic` credentials. Production chat fails if a real provider is not configured; `mock` is for development.
 - Set `EMBEDDING_PROVIDER=local`. Retrieval uses deterministic 64-dimensional local vectors plus full-text search. External embedding providers are not implemented.
-- If license enforcement is required, supply `LICENSE_SERVER_URL` (HTTPS), `KOJO_LICENSE_KEY`, and the issuer's `LICENSE_SIGNING_SECRET`. Alternatively set `LICENSE_ENFORCE=false` for an installation that does not enforce licenses.
+- If license enforcement is required, supply `LICENSE_SERVER_URL` (HTTPS), `LUTIC_LICENSE_KEY`, and the issuer's `LICENSE_SIGNING_SECRET`. Alternatively set `LICENSE_ENFORCE=false` for an installation that does not enforce licenses.
 - Leave `COOKIE_SECURE=true`. Configure exact HTTPS origins in `CORS_ORIGINS` only for separately hosted browser clients. Same-origin web use needs no CORS entry.
 - Compose supplies `CLAMAV_HOST=clamd` and port 3310. Keep this scanner on a private network.
 
-Create a fresh database and initial administrator (using `bash deploy/kojo.sh bootstrap`, or `bun run db:bootstrap` inside the app container):
+Create a fresh database and initial administrator (using `bash deploy/lutic.sh bootstrap`, or `bun run db:bootstrap` inside the app container):
 
 ```sh
-docker compose --env-file .env.production build kojo-paas
+docker compose --env-file .env.production build lutic-paas
 docker compose --env-file .env.production up -d --wait postgres
-export KOJO_TENANT_NAME='Your company'
-export KOJO_PLANT_NAME='Your first plant'
-export KOJO_ADMIN_EMAIL='admin@your-company.example'
-read -r -s -p 'Initial admin password (16+ characters): ' KOJO_ADMIN_PASSWORD
-export KOJO_ADMIN_PASSWORD
-bash deploy/kojo.sh bootstrap
-unset KOJO_ADMIN_PASSWORD
-bash deploy/kojo.sh up
+export LUTIC_TENANT_NAME='Your company'
+export LUTIC_PLANT_NAME='Your first plant'
+export LUTIC_ADMIN_EMAIL='admin@your-company.example'
+read -r -s -p 'Initial admin password (16+ characters): ' LUTIC_ADMIN_PASSWORD
+export LUTIC_ADMIN_PASSWORD
+bash deploy/lutic.sh bootstrap
+unset LUTIC_ADMIN_PASSWORD
+bash deploy/lutic.sh up
 ```
 
 The password must be unique and contain varied characters. `bootstrap` installs one tenant, one plant, an administrator, core tool permissions, the 5 built-in local `mcp://` connector connections (without demo secrets), the `plant-alerts` topic, and the `ops-dispatch` queue. It creates no machines, telemetry, manuals, or example customers. It is idempotent and leaves an existing installation untouched. Never run `db:seed` on production; production mode explicitly rejects it.
 
-Schema updates are tracked in `schema_migrations` and serialized under a PostgreSQL transaction advisory lock (`pg_advisory_xact_lock`). The schema initializer needs a database owner capable of creating the `vector` extension, roles, and RLS policies. On a managed database, confirm those privileges before adopting the provider. Tenant requests switch to the restricted `kojo_app` role inside a transaction (`schema_migrations` and `license_state` are revoked from `kojo_app`); administrative authentication, migrations, and runtime tasks use the owner connection. Preserve that separation when adding routes.
+Schema updates are tracked in `schema_migrations` and serialized under a PostgreSQL transaction advisory lock (`pg_advisory_xact_lock`). The schema initializer needs a database owner capable of creating the `vector` extension, roles, and RLS policies. On a managed database, confirm those privileges before adopting the provider. Tenant requests switch to the restricted `lutic_app` role inside a transaction (`schema_migrations` and `license_state` are revoked from `lutic_app`); administrative authentication, migrations, and runtime tasks use the owner connection. Preserve that separation when adding routes.
 
 ### HTTPS and network access
 
 Compose binds the app and database ports to loopback. Put a TLS reverse proxy on the same host and expose only HTTPS to users. For example, a Caddy host configuration is:
 
 ```caddyfile
-kojo.your-company.example {
+plant.lutic.app {
     request_body {
         max_size 11MB
     }
@@ -66,7 +66,7 @@ kojo.your-company.example {
 
 Replace the hostname and point DNS at the server. Follow Caddy's [reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) and [request body limits](https://caddyserver.com/docs/caddyfile/directives/request_body) documentation when adapting this configuration. Allow certificate issuance through your proxy's documented setup. Sign in through the HTTPS hostname: production secure cookies will not work over plain remote HTTP. Keep ports 5432 and 3310 private. For another proxy, preserve streaming responses, allow the chat request deadline, forward the original host, and apply an upload body limit.
 
-Check startup with `bash deploy/kojo.sh status` and inspect logs with `bash deploy/kojo.sh logs`. Probe endpoints are separated:
+Check startup with `bash deploy/lutic.sh status` and inspect logs with `bash deploy/lutic.sh logs`. Probe endpoints are separated:
 
 - `GET /api/health/live` reports process liveness without external dependency checks.
 - `GET /api/health` verifies database reachability and reports license state (without making paid LLM calls).
@@ -74,14 +74,14 @@ Check startup with `bash deploy/kojo.sh status` and inspect logs with `bash depl
 
 ## 3. Portable cloud deployment
 
-Build the same image with `docker build --target runtime -t kojo:YOUR_RELEASE .`. Push it to your chosen private registry and run it on a persistent container host with port 3000 behind HTTPS. Supply the environment variables from `deploy/kojo.env.example` through that host's secret manager. Do not bake secrets into the image.
+Build the same image with `docker build --target runtime -t lutic:YOUR_RELEASE .`. Push it to your chosen private registry and run it on a persistent container host with port 3000 behind HTTPS. Supply the environment variables from `deploy/lutic.env.example` through that host's secret manager. Do not bake secrets into the image.
 
 Use PostgreSQL 16 with pgvector and the bootstrap privileges described above, persistent storage/backups, and TLS appropriate to the provider. Run ClamAV as a private service with `deploy/clamd.conf`, persistent signature updates, and sufficient memory; set `CLAMAV_HOST` to its private address. The ClamAV TCP protocol is not authenticated, so never expose it publicly. Run bootstrap once as a release job using the same image and database URL, then launch the app's default command. Keep the app on an always-running container service, not a short-lived function host.
 
 Before increasing replicas, run the native PostgreSQL integration tests against a dedicated disposable database with the same engine and privileges:
 
 ```sh
-POSTGRES_TEST_URL='postgresql://TEST_USER:TEST_PASSWORD@TEST_HOST/kojo_test' \
+POSTGRES_TEST_URL='postgresql://TEST_USER:TEST_PASSWORD@TEST_HOST/lutic_test' \
   bunx vitest run tests/postgres-integration.test.ts
 ```
 
@@ -89,13 +89,13 @@ This suite initializes schema and creates/deletes test records. Never point it a
 
 ## First real data
 
-Sign in as the bootstrap administrator. In **Admin → Assets & QR**, create a line and then machines in that line. Add users with their own passwords and plant assignments. Upload trusted machine manuals; production uploads require a healthy scanner. Scanned/image-only PDFs need text extraction outside Kojo before upload; OCR is not implemented.
+Sign in as the bootstrap administrator. In **Admin → Assets & QR**, create a line and then machines in that line. Add users with their own passwords and plant assignments. Upload trusted machine manuals; production uploads require a healthy scanner. Scanned/image-only PDFs need text extraction outside Lutic before upload; OCR is not implemented.
 
 Send machine snapshots to `POST /api/telemetry` using a dedicated plant-scoped gateway ingestion token (`kjt_...`) issued in **Admin → Assets & QR** (or via `POST /api/admin/ingestion-tokens`). Interactive administrator bearer tokens remain supported for manual testing, but unattended gateways should use scoped ingestion tokens that cannot log into UI endpoints or write to other plants. Rotate or revoke tokens immediately if a gateway is compromised.
 
 ```sh
-curl --fail-with-body 'https://kojo.your-company.example/api/telemetry' \
-  -H "Authorization: Bearer $KOJO_INGESTION_TOKEN" \
+curl --fail-with-body 'https://plant.lutic.app/api/telemetry' \
+  -H "Authorization: Bearer $LUTIC_INGESTION_TOKEN" \
   -H 'Content-Type: application/json' \
   --data '{"samples":[{"sampleId":"press-001-1001","machineId":"YOUR_MACHINE_ID","recordedAt":"2026-11-20T10:00:00Z","status":"running","temperature":43.2,"vibration":1.7,"pressure":6.2,"currentSpeed":91}]}'
 ```
@@ -113,10 +113,10 @@ Back up the database and encryption key together. Losing `CREDENTIAL_ENCRYPTION_
 ```sh
 umask 077
 export BACKUP_PASSPHRASE='strong-offhost-backup-passphrase'
-bash deploy/backup-restore.sh backup --output ./backups/kojo-backup.dump --encrypt
+bash deploy/backup-restore.sh backup --output ./backups/lutic-backup.dump --encrypt
 bash deploy/backup-restore.sh restore-verify \
-  --input ./backups/kojo-backup.dump.enc \
-  --target-db-url 'postgres://user:pass@127.0.0.1:5432/kojo_restore_verify'
+  --input ./backups/lutic-backup.dump.enc \
+  --target-db-url 'postgres://user:pass@127.0.0.1:5432/lutic_restore_verify'
 ```
 
 Never point `restore-verify` at the live production `DATABASE_URL`; test restoration into a separate disposable database first (`restore-verify` checks `to_regclass('public.tenants')` and then `SELECT count(*)::int FROM public.tenants` in two steps so fresh empty targets succeed without `--allow-overwrite`, and also accepts isolated `pglite://` paths for local drills). For Compose containers, you can still stream `pg_dump -Fc` directly from the postgres service. For managed PostgreSQL, also enable provider backups and point-in-time recovery.
@@ -129,14 +129,14 @@ To rotate `AUTH_SECRET` without breaking verification cleanly or to rotate `CRED
 2. Re-encrypt stored connector credentials under the new key before removing the old key:
    ```sh
    # Docker Compose deployment:
-   docker compose --env-file .env.production run --rm --no-deps kojo-paas bun packages/core/src/db/rotate-keys.ts
+   docker compose --env-file .env.production run --rm --no-deps lutic-paas bun packages/core/src/db/rotate-keys.ts
 
    # Direct host / local runtime:
    bun packages/core/src/db/rotate-keys.ts
    ```
 3. After rolling instances cleanly and letting old sessions expire (or bumping `tokenVersion` via admin reset), remove `*_PREVIOUS` from environment secrets.
 
-Before upgrading, take a backup, retain the previous image, and test the new image against a restored database. Startup applies versioned additive migrations recorded in `schema_migrations` under `pg_advisory_xact_lock`; this is not an automatic schema rollback system. Reverting only the application image may be insufficient after a schema upgrade. Run tenant data retention cleanup periodically from **Admin → Diagnostics & Retention** or `POST /api/admin/retention`. `bash deploy/kojo.sh down` preserves volumes; `docker compose down -v` deletes database volumes and must not be used for an ordinary restart.
+Before upgrading, take a backup, retain the previous image, and test the new image against a restored database. Startup applies versioned additive migrations recorded in `schema_migrations` under `pg_advisory_xact_lock`; this is not an automatic schema rollback system. Reverting only the application image may be insufficient after a schema upgrade. Run tenant data retention cleanup periodically from **Admin → Diagnostics & Retention** or `POST /api/admin/retention`. `bash deploy/lutic.sh down` preserves volumes; `docker compose down -v` deletes database volumes and must not be used for an ordinary restart.
 
 Monitor HTTPS availability, error logs, license state, scanner readiness/signature freshness, database capacity, backup age, and telemetry freshness via `GET /api/admin/diagnostics`. Logs should go to your host's log collector with restricted access and retention appropriate to the data.
 

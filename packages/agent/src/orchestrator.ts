@@ -6,14 +6,14 @@ import {
   inArray,
   usageLog,
   type DashboardSpec,
-  type KojoDatabase,
+  type LuticDatabase,
   type RateLimitConsumer,
   type SessionUser
-} from "@kojo/core";
+} from "@lutic/core";
 import {
   defaultMcpRegistry,
   type McpToolRegistry
-} from "@kojo/connectors";
+} from "@lutic/connectors";
 import {
   createAbortError,
   createLLMProvider,
@@ -68,7 +68,7 @@ export interface ChatAttachment {
 }
 
 export interface AgentRunInput {
-  db: KojoDatabase;
+  db: LuticDatabase;
   consumeQuota?: RateLimitConsumer;
   user: SessionUser;
   message: string;
@@ -107,7 +107,7 @@ export function assembleSystemPrompt(params: {
 }): string {
   const today = new Date().toISOString().slice(0, 10);
   return [
-    "You are Kojo, an industrial operations AI assistant.",
+    "You are Lutic, an industrial operations AI assistant.",
     `Current date: ${today}.`,
     `Caller role: ${params.user.role}. Authorized plants: ${params.user.plantIds.join(", ")}.`,
     params.machineContext

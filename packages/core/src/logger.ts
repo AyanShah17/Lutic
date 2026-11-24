@@ -19,7 +19,7 @@ export const logger = pino({
     censor: "[REDACTED]"
   },
   base: {
-    service: "kojo"
+    service: "lutic"
   }
 });
 

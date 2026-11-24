@@ -1,4 +1,4 @@
-import { can, type SessionUser } from "@kojo/core/rbac";
+import { can, type SessionUser } from "@lutic/core/rbac";
 
 export interface NavItemConfig {
   id: string;
@@ -30,7 +30,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
         id: "chat",
         href: "/chat",
         labelKey: "nav.chat",
-        keywords: ["ai", "chat", "assistant", "manuals", "diagnostics", "ask kojo"],
+        keywords: ["ai", "chat", "assistant", "manuals", "diagnostics", "ask lutic"],
         groupId: "operations"
       },
       {
@@ -44,7 +44,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
         id: "monitoring",
         href: "/monitoring",
         labelKey: "nav.monitoring",
-        keywords: ["monitoring", "kojo monitor", "alerts", "alarms", "telemetry", "rules"],
+        keywords: ["monitoring", "lutic monitor", "alerts", "alarms", "telemetry", "rules"],
         groupId: "operations"
       }
     ]
@@ -71,7 +71,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
         id: "connectors",
         href: "/connectors",
         labelKey: "nav.connectors",
-        keywords: ["connectors", "mcp", "scada", "cmms", "erp", "kojo", "code mode"],
+        keywords: ["connectors", "mcp", "scada", "cmms", "erp", "lutic", "code mode"],
         groupId: "automation"
       }
     ]

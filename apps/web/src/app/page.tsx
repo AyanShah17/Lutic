@@ -27,7 +27,7 @@ import {
   machineStatus,
   notifications,
   workflows
-} from "@kojo/core";
+} from "@lutic/core";
 import { getSessionUser } from "@/lib/auth";
 import { withWebTenantDb } from "@/lib/db";
 import { isNavItemVisible } from "@/lib/navigation";
@@ -193,7 +193,7 @@ export default async function HomePage() {
           title: "Monitoring & Alerts",
           description:
             "Telemetry time-series, threshold alarm rules, and acknowledge/resolve lifecycle.",
-          tag: "Kojo Monitor",
+          tag: "Lutic Monitor",
           Icon: Activity
         }
       ]
@@ -227,7 +227,7 @@ export default async function HomePage() {
           title: "Connectors Hub",
           description:
             "Unified UTCP/MCP hub (Metorial & OpenConnectors), LiteLLM gateway, and governed tool execution.",
-          tag: "Kojo Protocol",
+          tag: "Lutic Protocol",
           Icon: Plug
         }
       ]
@@ -235,15 +235,15 @@ export default async function HomePage() {
     {
       code: "03",
       title: "Messaging",
-      subtitle: "Event fan-out topics and Kojo dispatch queues",
+      subtitle: "Event fan-out topics and Lutic dispatch queues",
       items: [
         {
           id: "notifications",
           href: "/notifications",
           title: "Topics & Notifications",
           description:
-            "Kojo pub/sub fan-out topics, subscription routing, and operational notification feed.",
-          tag: "Kojo Topics",
+            "Lutic pub/sub fan-out topics, subscription routing, and operational notification feed.",
+          tag: "Lutic Topics",
           Icon: Bell
         },
         {
@@ -251,8 +251,8 @@ export default async function HomePage() {
           href: "/queues",
           title: "Dispatch Queues",
           description:
-            "Kojo maintenance dispatch queues with visibility timeouts, retries, and dead-letter routing.",
-          tag: "Kojo Queues",
+            "Lutic maintenance dispatch queues with visibility timeouts, retries, and dead-letter routing.",
+          tag: "Lutic Queues",
           Icon: Layers
         }
       ]
@@ -308,10 +308,10 @@ export default async function HomePage() {
       <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-border pb-6">
         <div className="space-y-2 max-w-2xl">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {user ? `${user.role.toUpperCase()} · ${user.plantIds.join(", ")}` : "Kojo Operations Platform"}
+            {user ? `${user.role.toUpperCase()} · ${user.plantIds.join(", ")}` : "Lutic Operations Platform"}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Kojo Industrial Operations PaaS
+            Lutic Industrial Operations PaaS
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Role-governed AI chat, visual workflow automation, live telemetry monitoring, messaging queues, and semantic dashboards in one workspace.

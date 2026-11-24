@@ -1,13 +1,13 @@
 model_list:
-  - model_name: kojo-claude
+  - model_name: lutic-claude
     litellm_params:
       model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
-  - model_name: kojo-gpt4o
+  - model_name: lutic-gpt4o
     litellm_params:
       model: openai/gpt-4o
       api_key: os.environ/OPENAI_API_KEY
-  - model_name: kojo-mini
+  - model_name: lutic-mini
     litellm_params:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY

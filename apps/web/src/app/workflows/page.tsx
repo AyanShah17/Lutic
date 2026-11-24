@@ -83,7 +83,7 @@ export default function WorkflowsPage() {
     return (
       <AuthGate
         title="Sign in to view Workflows"
-        description="Automated DAG orchestration and the Workflow Builder require an authenticated Kojo session."
+        description="Automated DAG orchestration and the Workflow Builder require an authenticated Lutic session."
       />
     );
   }

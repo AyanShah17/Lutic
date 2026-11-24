@@ -9,8 +9,8 @@ import {
   faultCodes,
   inArray,
   workOrders,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import {
   boundRows,
   buildConnectorMcpServer,
@@ -308,9 +308,9 @@ const cmmsTools: ConnectorToolDefinition[] = [
 export const cmmsConnector: Connector = {
   id: "connector-cmms",
   kind: "cmms",
-  name: "Kojo CMMS Connector",
+  name: "Lutic CMMS Connector",
   credentialSchema: CmmsCredentialSchema,
-  async healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth> {
+  async healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth> {
     const start = Date.now();
     await db
       .select({ id: workOrders.id })

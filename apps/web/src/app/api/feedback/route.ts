@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { and, authorize, eq, feedback, messages } from "@kojo/core";
+import { and, authorize, eq, feedback, messages } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,

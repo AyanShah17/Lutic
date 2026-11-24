@@ -1,5 +1,5 @@
 {
-  "name": "@kojo/agent",
+  "name": "@lutic/agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -18,8 +18,8 @@
     "@ai-sdk/anthropic": "3.0.143",
     "@ai-sdk/openai": "3.0.144",
     "@modelcontextprotocol/sdk": "^1.4.1",
-    "@kojo/connectors": "workspace:*",
-    "@kojo/core": "workspace:*",
+    "@lutic/connectors": "workspace:*",
+    "@lutic/core": "workspace:*",
     "ai": "6.0.333",
     "jszip": "^3.10.1",
     "pino": "^9.6.0",

@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { z } from "zod";
-import type { Permission, KojoDatabase, SessionUser } from "@kojo/core";
+import type { Permission, LuticDatabase, SessionUser } from "@lutic/core";
 
 export type ConnectorKind =
   | "cmms"
@@ -20,7 +20,7 @@ export type ToolkitName =
   | "paas";
 
 export interface ToolExecutionContext {
-  db: KojoDatabase;
+  db: LuticDatabase;
   user: SessionUser;
   requestId: string;
   conversationId?: string;
@@ -68,7 +68,7 @@ export interface Connector {
   readonly kind: ConnectorKind;
   readonly name: string;
   readonly credentialSchema: z.ZodObject<z.ZodRawShape>;
-  healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth>;
+  healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth>;
   listTools(): ConnectorToolDefinition[];
   createMcpServer(): McpServer;
 }
@@ -99,7 +99,7 @@ export function buildConnectorMcpServer(
   tools: ConnectorToolDefinition[]
 ): McpServer {
   const server = new McpServer({
-    name: `kojo-${name}`,
+    name: `lutic-${name}`,
     version: "0.1.0"
   });
 

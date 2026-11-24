@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authorize, DashboardSpecSchema } from "@kojo/core";
+import { authorize, DashboardSpecSchema } from "@lutic/core";
 import { requireWebLicense } from "@/lib/db";
 import {
   getSessionUser,

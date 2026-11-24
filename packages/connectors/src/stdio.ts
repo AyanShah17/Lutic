@@ -1,5 +1,5 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { createDbConnection, type SessionUser } from "@kojo/core";
+import { createDbConnection, type SessionUser } from "@lutic/core";
 import { ALL_CONNECTORS } from "./registry";
 import { toolContextStorage } from "./types";
 
@@ -22,7 +22,7 @@ async function main() {
     tenantId: process.env.MCP_TENANT_ID ?? "tenant-acme",
     role: "admin",
     plantIds: (process.env.MCP_PLANT_IDS ?? "plant-detroit,plant-austin").split(","),
-    email: "stdio@kojo.local",
+    email: "stdio@lutic.local",
     name: "Stdio Connector"
   };
 

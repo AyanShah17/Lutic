@@ -16,7 +16,7 @@ Keep [RECENT_CHANGES.md](../../../RECENT_CHANGES.md), [PROJECT_STRUCTURE.md](../
 
 1. **Inspect current codebase changes & run post-edit verification first**:
    - Check `git status` / `git diff` / `git log` (or inspect modified files directly if `.git` metadata is absent) to identify what changed, why each change was necessary, and which tests verify it.
-   - Run relevant post-edit checks (`typecheck`, `typecheck:e2e-paas`, `lint`, `test`, `@kojo/mobile test`, `eval`, `test:e2e`, `build`, `test:e2e:prod`) before syncing documentation so recorded counts, skips (`tests/postgres-integration.test.ts` without `POSTGRES_TEST_URL`), and timings reflect the final code state.
+   - Run relevant post-edit checks (`typecheck`, `typecheck:e2e-paas`, `lint`, `test`, `@lutic/mobile test`, `eval`, `test:e2e`, `build`, `test:e2e:prod`) before syncing documentation so recorded counts, skips (`tests/postgres-integration.test.ts` without `POSTGRES_TEST_URL`), and timings reflect the final code state.
 2. **Update `RECENT_CHANGES.md`**:
    - For each change, record: **What changed** (exact files and functions/routes), **Why** (the bug, race condition, security gap, or requirement solved), and **Verified by** (exact test case or command result, explicitly noting any skipped cases).
 3. **Rescan structure & update `PROJECT_STRUCTURE.md`**:

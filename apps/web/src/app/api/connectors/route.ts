@@ -12,7 +12,7 @@ import {
   isCodeModeEnabled,
   isDemoMode,
   listConnectorSyncLogs,
-} from "@kojo/core";
+} from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { sanitizeConnector } from "@/lib/serializers";
 import {
@@ -30,7 +30,7 @@ const CreateConnectorSchema = z.object({
     .enum(["mcp", "http", "scada", "erp", "messaging", "custom"])
     .optional(),
   transport: z
-    .enum(["in_memory_mcp", "kojo_protocol", "remote_mcp", "utcp_http", "http", "webhook", "simulated"])
+    .enum(["in_memory_mcp", "lutic_protocol", "remote_mcp", "utcp_http", "http", "webhook", "simulated"])
     .optional(),
   baseUrl: z.string().optional(),
   endpoint: z.string().optional(),
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
       const catalog = isDemoMode() ? CONNECTOR_CATALOG : CONNECTOR_CATALOG
         .filter((entry) =>
           entry.transport === "in_memory_mcp" ||
-          entry.transport === "kojo_protocol" ||
+          entry.transport === "lutic_protocol" ||
           entry.transport === "remote_mcp" ||
           entry.transport === "utcp_http"
         )
@@ -68,9 +68,9 @@ export async function GET(req: Request) {
             ? entry
             : {
                 ...entry,
-                name: `Kojo Local ${entry.slug} adapter`,
-                description: `Read or manage Kojo database records with the local ${entry.slug} connector adapter.`,
-                credentialFields: [{ key: "endpoint", label: "Kojo Protocol endpoint", defaultValue: `mcp://${entry.slug}` }]
+                name: `Lutic Local ${entry.slug} adapter`,
+                description: `Read or manage Lutic database records with the local ${entry.slug} connector adapter.`,
+                credentialFields: [{ key: "endpoint", label: "Lutic Protocol endpoint", defaultValue: `mcp://${entry.slug}` }]
               }
         );
       return NextResponse.json({
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
     const endpointUrl = body.endpointUrl ?? body.baseUrl ?? body.endpoint ?? defaultEndpoint;
     const transport:
       | "in_memory_mcp"
-      | "kojo_protocol"
+      | "lutic_protocol"
       | "remote_mcp"
       | "utcp_http"
       | "http"
@@ -133,8 +133,8 @@ export async function POST(req: Request) {
         ? "remote_mcp"
         : kind === "utcp" || kind === "utcp-http" || kind === "utcp_http"
           ? "utcp_http"
-          : endpointUrl.startsWith("kojo://")
-            ? "kojo_protocol"
+          : endpointUrl.startsWith("lutic://")
+            ? "lutic_protocol"
             : endpointUrl.startsWith("mcp://")
               ? "in_memory_mcp"
               : endpointUrl.startsWith("mock://") || endpointUrl.startsWith("sim://")

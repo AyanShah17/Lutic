@@ -6,8 +6,8 @@ import {
   documents,
   eq,
   hybridSearchDocuments,
-  type KojoDatabase
-} from "@kojo/core";
+  type LuticDatabase
+} from "@lutic/core";
 import {
   buildConnectorMcpServer,
   type Connector,
@@ -150,9 +150,9 @@ const docsTools: ConnectorToolDefinition[] = [
 export const docsConnector: Connector = {
   id: "connector-docs",
   kind: "docs",
-  name: "Kojo Knowledge Store",
+  name: "Lutic Knowledge Store",
   credentialSchema: DocsCredentialSchema,
-  async healthCheck(db: KojoDatabase, tenantId: string): Promise<ConnectorHealth> {
+  async healthCheck(db: LuticDatabase, tenantId: string): Promise<ConnectorHealth> {
     const start = Date.now();
     await db
       .select({ id: documents.id })

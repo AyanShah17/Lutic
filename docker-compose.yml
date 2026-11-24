@@ -3,13 +3,13 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-kojo}
+      POSTGRES_USER: ${POSTGRES_USER:-lutic}
       POSTGRES_PASSWORD:
-      POSTGRES_DB: ${POSTGRES_DB:-kojo}
+      POSTGRES_DB: ${POSTGRES_DB:-lutic}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - kojo_pgdata:/var/lib/postgresql/data
+      - lutic_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
@@ -49,7 +49,7 @@ services:
       timeout: 5s
       retries: 5
 
-  kojo-paas:
+  lutic-paas:
     build:
       context: .
       target: runtime
@@ -58,11 +58,11 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     ports:
-      - "127.0.0.1:${KOJO_PORT:-3000}:3000"
+      - "127.0.0.1:${LUTIC_PORT:-3000}:3000"
     environment:
       DATABASE_URL:
-      KOJO_INSTANCE_ID: ${KOJO_INSTANCE_ID:-}
-      KOJO_LICENSE_KEY:
+      LUTIC_INSTANCE_ID: ${LUTIC_INSTANCE_ID:-}
+      LUTIC_LICENSE_KEY:
       LICENSE_SERVER_URL: ${LICENSE_SERVER_URL:-}
       LICENSE_ENFORCE: ${LICENSE_ENFORCE:-true}
       LICENSE_SIGNING_SECRET:
@@ -75,10 +75,10 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamd}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
-      LLM_PROVIDER: ${LLM_PROVIDER:-kojo}
-      LLM_MODEL: ${LLM_MODEL:-kojo-claude}
-      KOJO_AI_GATEWAY_URL: ${KOJO_AI_GATEWAY_URL:-http://litellm:4000/v1}
-      KOJO_AI_GATEWAY_KEY: ${KOJO_AI_GATEWAY_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-lutic}
+      LLM_MODEL: ${LLM_MODEL:-lutic-claude}
+      LUTIC_AI_GATEWAY_URL: ${LUTIC_AI_GATEWAY_URL:-http://litellm:4000/v1}
+      LUTIC_AI_GATEWAY_KEY: ${LUTIC_AI_GATEWAY_KEY:-}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
       ANTHROPIC_API_KEY:
       OPENAI_API_KEY:
@@ -95,5 +95,5 @@ services:
       retries: 5
 
 volumes:
-  kojo_pgdata:
+  lutic_pgdata:
   clamav_signatures:

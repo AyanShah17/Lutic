@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import type * as schema from "./db/schema";
 import {
   auditLog,
@@ -38,7 +38,7 @@ export function getConfiguredRetentionDays(): number {
 }
 
 export async function runRetentionCleanup(
-  db: KojoDatabase,
+  db: LuticDatabase,
   options: {
     tenantId: string;
     retentionDays?: number;

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { sha256Hex } from "./crypto";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import { ingestionTokens } from "./db/schema";
 
 export interface AuthenticatedIngestionToken {
@@ -31,7 +31,7 @@ export function generateIngestionTokenSecret(): {
 }
 
 export async function authenticateIngestionToken(
-  db: KojoDatabase,
+  db: LuticDatabase,
   rawToken: string
 ): Promise<AuthenticatedIngestionToken | null> {
   if (!isIngestionTokenFormat(rawToken)) return null;

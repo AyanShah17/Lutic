@@ -9,7 +9,7 @@ try {
   try {
     await ensureSchema(conn);
     const [tenant] = await conn.db.select({ id: tenants.id }).from(tenants).limit(1);
-    if (!tenant) throw new Error("Run the production bootstrap command before starting Kojo");
+    if (!tenant) throw new Error("Run the production bootstrap command before starting Lutic");
     const demoTenant = await conn.db.query.tenants.findFirst({
       columns: { id: true },
       where: (tenant, { inArray }) => inArray(tenant.id, ["tenant-acme", "tenant-beta"])
@@ -19,6 +19,6 @@ try {
     await conn.close();
   }
 } catch (error) {
-  console.error(`Kojo startup failed: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`Lutic startup failed: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 }

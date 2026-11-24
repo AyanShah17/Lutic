@@ -73,10 +73,10 @@ describe("production deployment", () => {
   it("bootstraps once, preserves credentials, and leaves operational tables empty", async () => {
     const conn = await createDbConnection("memory://");
     const config = {
-      KOJO_TENANT_NAME: "Metro Manufacturing",
-      KOJO_PLANT_NAME: "Main Campus",
-      KOJO_ADMIN_EMAIL: "Owner@metro.example",
-      KOJO_ADMIN_PASSWORD: "75f1481d012137f8d46becd87a10e975"
+      LUTIC_TENANT_NAME: "Metro Manufacturing",
+      LUTIC_PLANT_NAME: "Main Campus",
+      LUTIC_ADMIN_EMAIL: "Owner@metro.example",
+      LUTIC_ADMIN_PASSWORD: "75f1481d012137f8d46becd87a10e975"
     };
     try {
       await ensureSchema(conn);
@@ -85,16 +85,16 @@ describe("production deployment", () => {
         bootstrapDatabase(conn, config)
       ]);
       expect(attempts.sort()).toEqual([false, true]);
-      await expect(bootstrapDatabase(conn, { ...config, KOJO_ADMIN_PASSWORD: "9c5670f33c31ec5136a65942750c899f" }))
+      await expect(bootstrapDatabase(conn, { ...config, LUTIC_ADMIN_PASSWORD: "9c5670f33c31ec5136a65942750c899f" }))
         .resolves.toBe(false);
 
       const [tenant] = await conn.db.query.tenants.findMany();
       const [plant] = await conn.db.query.plants.findMany();
       const [user] = await conn.db.query.users.findMany();
-      expect(tenant).toMatchObject({ name: config.KOJO_TENANT_NAME });
-      expect(plant).toMatchObject({ tenantId: tenant.id, name: config.KOJO_PLANT_NAME });
+      expect(tenant).toMatchObject({ name: config.LUTIC_TENANT_NAME });
+      expect(plant).toMatchObject({ tenantId: tenant.id, name: config.LUTIC_PLANT_NAME });
       expect(user).toMatchObject({ tenantId: tenant.id, role: "admin", email: "owner@metro.example" });
-      expect(verifyPassword(config.KOJO_ADMIN_PASSWORD, user.passwordHash)).toBe(true);
+      expect(verifyPassword(config.LUTIC_ADMIN_PASSWORD, user.passwordHash)).toBe(true);
       await expect(conn.db.query.userPlants.findMany()).resolves.toEqual([{ tenantId: tenant.id, userId: user.id, plantId: plant.id }]);
       await expect(conn.db.query.toolkits.findMany()).resolves.toEqual(expect.arrayContaining([
         expect.objectContaining({ tenantId: tenant.id, name: "knowledge" }),
@@ -129,10 +129,10 @@ describe("production deployment", () => {
   });
 
   it("creates mode-0600 deployment configuration, preserves it, and supports bootstrap --dry-run", () => {
-    const dir = mkdtempSync(join(tmpdir(), "kojo-prod-env-"));
+    const dir = mkdtempSync(join(tmpdir(), "lutic-prod-env-"));
     try {
       const envFile = join(dir, "production.env");
-      const cli = resolve(__dirname, "../deploy/kojo.sh");
+      const cli = resolve(__dirname, "../deploy/lutic.sh");
       const command = [cli, "prepare", "--env-file", envFile];
       execFileSync("bash", command);
       const original = readFileSync(envFile, "utf8");
@@ -141,15 +141,15 @@ describe("production deployment", () => {
       expect(original).toMatch(/^CREDENTIAL_ENCRYPTION_KEY=[a-f0-9]{64}$/m);
       const databasePassword = original.match(/^POSTGRES_PASSWORD=([a-f0-9]{64})$/m)?.[1];
       expect(databasePassword).toBeDefined();
-      expect(original).toContain(`DATABASE_URL=postgresql://kojo:${databasePassword}@postgres:5432/kojo`);
-      const gatewayKey = original.match(/^LITELLM_MASTER_KEY=(sk-kojo-[a-f0-9]{64})$/m)?.[1];
+      expect(original).toContain(`DATABASE_URL=postgresql://lutic:${databasePassword}@postgres:5432/lutic`);
+      const gatewayKey = original.match(/^LITELLM_MASTER_KEY=(sk-lutic-[a-f0-9]{64})$/m)?.[1];
       expect(gatewayKey).toBeDefined();
-      expect(original).toContain(`KOJO_AI_GATEWAY_KEY=${gatewayKey}`);
+      expect(original).toContain(`LUTIC_AI_GATEWAY_KEY=${gatewayKey}`);
 
       execFileSync("bash", command);
       expect(readFileSync(envFile, "utf8")).toBe(original);
 
-      const deployScript = resolve(__dirname, "../deploy/kojo-linux-deploy.sh");
+      const deployScript = resolve(__dirname, "../deploy/lutic-linux-deploy.sh");
       execFileSync("bash", ["-n", deployScript]);
       const dryRun = execFileSync("bash", [cli, "bootstrap", "--dry-run", "--env-file", envFile], {
         encoding: "utf8"

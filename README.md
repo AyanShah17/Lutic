@@ -1,6 +1,6 @@
-# Kojo — Industrial Operations AI Platform
+# Lutic — Industrial Operations Platform (`lutic.app`)
 
-Kojo is a multi-tenant industrial operations platform for role-governed access to plant manuals, machine telemetry, alarms, work orders, external SaaS/API connectors (Remote MCP & UTCP), and LiteLLM-routed AI chat. Analysts can build operational dashboards from governed metrics.
+Lutic ([lutic.app](https://lutic.app)) is a multi-tenant industrial operations platform for role-governed access to plant manuals, machine telemetry, alarms, work orders, external SaaS/API connectors (Remote MCP & UTCP), and LiteLLM-routed AI chat. Analysts can build operational dashboards from governed metrics.
 
 See [PRODUCTION.md](PRODUCTION.md) for deployment setup and [SECURITY.md](SECURITY.md) for the security architecture.
 
@@ -24,7 +24,7 @@ See [PRODUCTION.md](PRODUCTION.md) for deployment setup and [SECURITY.md](SECURI
 
 ## Production
 
-Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web ingress, and a reachable ClamAV daemon (`clamd`) for uploads. Production startup migrates the schema and requires an explicitly bootstrapped tenant (`bun run db:bootstrap` or `bash deploy/kojo.sh bootstrap`), which provisions the first tenant, plant, admin, core toolkits, 5 built-in local connectors (`mcp://`), default topic (`plant-alerts`), and queue (`ops-dispatch`) without demo data. Demo seeding and demo sign-in are disabled in production. See the [production deployment guide](PRODUCTION.md).
+Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web ingress, and a reachable ClamAV daemon (`clamd`) for uploads. Production startup migrates the schema and requires an explicitly bootstrapped tenant (`bun run db:bootstrap` or `bash deploy/lutic.sh bootstrap`), which provisions the first tenant, plant, admin, core toolkits, 5 built-in local connectors (`mcp://`), default topic (`plant-alerts`), and queue (`ops-dispatch`) without demo data. Demo seeding and demo sign-in are disabled in production. See the [production deployment guide](PRODUCTION.md).
 
 ## Branch Topology
 
@@ -34,7 +34,7 @@ Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web
 
 ---
 
-## Demo Accounts (Dev Only — Password: `kojo-demo-password`)
+## Demo Accounts (Dev Only — Password: `lutic-demo-password`)
 
 | Role | Email | Authorized Plants | Capabilities |
 | --- | --- | --- | --- |
@@ -59,7 +59,7 @@ Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web
 | Agent Layer (packages/agent)                                            |
 |  Orchestrator (max 8 steps) -> 6-Step Policy Engine                      |
 |  Hybrid RAG (pgvector + tsvector + Exact Codes + RRF + Reranker)        |
-|  KojoLLMGateway (LiteLLM kojo-gateway | mock | anthropic | openai)     |
+|  LuticLLMGateway (LiteLLM lutic-gateway | mock | anthropic | openai)     |
 +------------------------------------+------------------------------------+
                                      | @modelcontextprotocol/sdk (InMemory/Stdio)
 +------------------------------------v------------------------------------+
@@ -91,6 +91,6 @@ Local verification covers typechecks, lint, PGlite-backed security/connector/Cod
 
 ## Integrations
 
-- **LiteLLM Proxy (`KOJO_AI_GATEWAY_URL`)**: Self-hosted in [docker-compose.yml](docker-compose.yml) using [deploy/litellm_config.yaml](deploy/litellm_config.yaml), routing `kojo-claude`, `kojo-gpt4o`, and `kojo-mini` through `KojoLLMGateway` alongside direct Anthropic/OpenAI keys.
-- **UTCP + Remote MCP + 1,000+ Ecosystem Connectors**: Built-in adapters (`kojo://` / `mcp://`), Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, and UTCP-MCP bridges), UTCP 1.0 / OpenAPI 3.x direct HTTP manuals (`utcp_http`), and authenticated UTCP manual export (`GET /api/connectors/utcp`).
-- **Kojo Code Mode** is available only for trusted development and test scripts. Production users can invoke individual connector tools.
+- **LiteLLM Proxy (`LUTIC_AI_GATEWAY_URL`)**: Self-hosted in [docker-compose.yml](docker-compose.yml) using [deploy/litellm_config.yaml](deploy/litellm_config.yaml), routing `lutic-claude`, `lutic-gpt4o`, and `lutic-mini` through `LuticLLMGateway` alongside direct Anthropic/OpenAI keys.
+- **UTCP + Remote MCP + 1,000+ Ecosystem Connectors**: Built-in adapters (`lutic://` / `mcp://`), Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, and UTCP-MCP bridges), UTCP 1.0 / OpenAPI 3.x direct HTTP manuals (`utcp_http`), and authenticated UTCP manual export (`GET /api/connectors/utcp`).
+- **Lutic Code Mode** is available only for trusted development and test scripts. Production users can invoke individual connector tools.

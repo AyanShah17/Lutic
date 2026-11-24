@@ -29,7 +29,7 @@ import {
   Sun,
   X
 } from "lucide-react";
-import { can } from "@kojo/core/rbac";
+import { can } from "@lutic/core/rbac";
 import { getNavGroupsForUser } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useAppContext } from "./providers";
@@ -142,7 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (active) return { group: group.label, item: item.label };
       }
     }
-    return { group: "Kojo", item: "Workspace" };
+    return { group: "Lutic", item: "Workspace" };
   })();
 
   const loadNotifications = async () => {
@@ -241,7 +241,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {!compact && (
             <div className="min-w-0 leading-tight">
               <div className="text-sm font-bold tracking-tight text-foreground">
-                Kojo
+                Lutic
               </div>
               <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 Industrial PaaS
@@ -493,7 +493,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <Factory className="h-4 w-4" />
                 </span>
-                <span className="text-base">Kojo</span>
+                <span className="text-base">Lutic</span>
               </Link>
             )}
           </div>

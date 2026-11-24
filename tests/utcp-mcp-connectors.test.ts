@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { assertSafeExternalUrl, ensureSchema, getDbConnection } from "@kojo/core";
+import { assertSafeExternalUrl, ensureSchema, getDbConnection } from "@lutic/core";
 import { bootstrapDatabase } from "../packages/core/src/db/bootstrap";
 import { POST as loginPost } from "../apps/web/src/app/api/auth/login/route";
 import { POST as connectorsPost } from "../apps/web/src/app/api/connectors/route";
@@ -27,7 +27,7 @@ beforeAll(async () => {
   vi.stubEnv("AUTH_SECRET", TEST_AUTH_SECRET);
   vi.stubEnv("CREDENTIAL_ENCRYPTION_KEY", TEST_ENCRYPTION_KEY);
   vi.stubEnv("LICENSE_ENFORCE", "false");
-  vi.stubEnv("KOJO_RUNTIME_DISABLED", "true");
+  vi.stubEnv("LUTIC_RUNTIME_DISABLED", "true");
 
   targetServer = http.createServer((req, res) => {
     if (req.method === "POST" && req.url === "/api/orders/ORD-X/hold") {
@@ -189,14 +189,14 @@ beforeAll(async () => {
   const conn = await getDbConnection();
   await ensureSchema(conn);
   await bootstrapDatabase(conn, {
-    KOJO_TENANT_NAME: "UTCP Tenant",
-    KOJO_PLANT_NAME: "UTCP Plant",
-    KOJO_ADMIN_EMAIL: ADMIN_EMAIL,
-    KOJO_ADMIN_PASSWORD: ADMIN_PASSWORD
+    LUTIC_TENANT_NAME: "UTCP Tenant",
+    LUTIC_PLANT_NAME: "UTCP Plant",
+    LUTIC_ADMIN_EMAIL: ADMIN_EMAIL,
+    LUTIC_ADMIN_PASSWORD: ADMIN_PASSWORD
   });
 
   const loginRes = await loginPost(
-    new Request("https://kojo.example/api/auth/login", {
+    new Request("https://lutic.example/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
@@ -217,7 +217,7 @@ afterAll(async () => {
 
 describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
   it("blocks private, loopback, metadata, and non-HTTPS URLs while allowing public HTTPS IPs", async () => {
-    vi.stubEnv("KOJO_ALLOW_PRIVATE_CONNECTOR_URLS", "false");
+    vi.stubEnv("LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS", "false");
     await expect(assertSafeExternalUrl("http://127.0.0.1:4000/mcp")).rejects.toThrow(/HTTPS/i);
     await expect(assertSafeExternalUrl("https://localhost/mcp")).rejects.toThrow(/internal hostname/i);
     await expect(assertSafeExternalUrl("https://169.254.169.254/latest")).rejects.toThrow(/private or reserved/i);
@@ -228,9 +228,9 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     });
   });
 
-  it("exports Kojo's UTCP 1.0 manual for the authenticated tenant", async () => {
+  it("exports Lutic's UTCP 1.0 manual for the authenticated tenant", async () => {
     const res = await utcpManualGet(
-      new Request("https://kojo.example/api/connectors/utcp", {
+      new Request("https://lutic.example/api/connectors/utcp", {
         headers: { Authorization: authHeader }
       })
     );
@@ -243,11 +243,11 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
   });
 
   it("registers, syncs, and invokes Remote MCP (Metorial) and UTCP HTTP connectors end-to-end", async () => {
-    vi.stubEnv("KOJO_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
+    vi.stubEnv("LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
 
     // 1. Remote MCP (Metorial)
     const createMcpRes = await connectorsPost(
-      new Request("https://kojo.example/api/connectors", {
+      new Request("https://lutic.example/api/connectors", {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -263,7 +263,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     expect(mcpConn.transport).toBe("remote_mcp");
 
     const syncMcpRes = await syncPost(
-      new Request(`https://kojo.example/api/connectors/${mcpConn.id}/sync`, {
+      new Request(`https://lutic.example/api/connectors/${mcpConn.id}/sync`, {
         method: "POST",
         headers: { Authorization: authHeader }
       }),
@@ -274,7 +274,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     expect(syncMcpData.tools.length).toBe(1);
 
     const invokeMcpRes = await invokePost(
-      new Request(`https://kojo.example/api/connectors/${mcpConn.id}/invoke`, {
+      new Request(`https://lutic.example/api/connectors/${mcpConn.id}/invoke`, {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -294,7 +294,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
 
     // 2. UTCP HTTP
     const createUtcpRes = await connectorsPost(
-      new Request("https://kojo.example/api/connectors", {
+      new Request("https://lutic.example/api/connectors", {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -310,7 +310,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     expect(utcpConn.transport).toBe("utcp_http");
 
     const syncUtcpRes = await syncPost(
-      new Request(`https://kojo.example/api/connectors/${utcpConn.id}/sync`, {
+      new Request(`https://lutic.example/api/connectors/${utcpConn.id}/sync`, {
         method: "POST",
         headers: { Authorization: authHeader }
       }),
@@ -320,7 +320,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     expect((await syncUtcpRes.json()).tools.length).toBe(1);
 
     const invokeUtcpRes = await invokePost(
-      new Request(`https://kojo.example/api/connectors/${utcpConn.id}/invoke`, {
+      new Request(`https://lutic.example/api/connectors/${utcpConn.id}/invoke`, {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -341,9 +341,9 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
   });
 
   it("does not forward connector credentials to a persisted cross-origin UTCP target", async () => {
-    vi.stubEnv("KOJO_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
+    vi.stubEnv("LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
     const createRes = await connectorsPost(
-      new Request("https://kojo.example/api/connectors", {
+      new Request("https://lutic.example/api/connectors", {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -362,7 +362,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     const { connector } = await createRes.json();
 
     const syncRes = await syncPost(
-      new Request(`https://kojo.example/api/connectors/${connector.id}/sync`, {
+      new Request(`https://lutic.example/api/connectors/${connector.id}/sync`, {
         method: "POST",
         headers: { Authorization: authHeader }
       }),
@@ -374,7 +374,7 @@ describe("UTCP & Remote MCP Connectors (Metorial / OpenConnectors)", () => {
     );
 
     const invokeRes = await invokePost(
-      new Request(`https://kojo.example/api/connectors/${connector.id}/invoke`, {
+      new Request(`https://lutic.example/api/connectors/${connector.id}/invoke`, {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ toolName: "cross_origin_hold", args: { orderId: "ORD-X" } })

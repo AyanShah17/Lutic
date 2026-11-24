@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import {
   assertSafeExternalUrl,
   auditLog,
-  buildKojoConnectorManual,
+  buildLuticConnectorManual,
   connectorConnections,
   connectorSyncLogs,
   createDbConnection,
@@ -16,18 +16,18 @@ import {
   withTenantScope,
   type DbConnection,
   type SessionUser
-} from "@kojo/core";
-import { McpToolRegistry, PAAS_CONNECTORS } from "@kojo/connectors";
+} from "@lutic/core";
+import { McpToolRegistry, PAAS_CONNECTORS } from "@lutic/connectors";
 import {
   createLLMProvider,
-  executeKojoConnectorCode,
+  executeLuticConnectorCode,
   executeToolWithPolicy,
   getAllowedToolsForUser,
-  KojoLLMGateway,
+  LuticLLMGateway,
   MockLLMProvider,
-  resolveKojoGatewayRoute,
+  resolveLuticGatewayRoute,
   runAgentTurn
-} from "@kojo/agent";
+} from "@lutic/agent";
 import { POST as invokeConnector } from "../apps/web/src/app/api/connectors/[id]/invoke/route";
 import { GET as getConnectors } from "../apps/web/src/app/api/connectors/route";
 import { GET as getUtcpManual } from "../apps/web/src/app/api/connectors/utcp/route";
@@ -86,7 +86,7 @@ afterAll(async () => {
   await state.conn?.close();
 });
 
-describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () => {
+describe("Lutic AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () => {
   it("enables Code Mode only for explicit trusted development and test runtimes", () => {
     expect(isCodeModeEnabled({ NODE_ENV: "development" })).toBe(true);
     expect(isCodeModeEnabled({ NODE_ENV: "test" })).toBe(true);
@@ -95,20 +95,20 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     expect(isCodeModeEnabled({ NODE_ENV: "staging" })).toBe(false);
   });
 
-  it("resolves Kojo-branded routes for LiteLLM / KOJO_AI_GATEWAY_URL, direct providers, and deterministic fallback", () => {
-    const gatewayRoute = resolveKojoGatewayRoute({
-      model: "kojo-claude",
+  it("resolves Lutic-branded routes for LiteLLM / LUTIC_AI_GATEWAY_URL, direct providers, and deterministic fallback", () => {
+    const gatewayRoute = resolveLuticGatewayRoute({
+      model: "lutic-claude",
       gatewayUrl: "http://litellm:4000/v1",
-      gatewayKey: "kojo-gw-secret"
+      gatewayKey: "lutic-gw-secret"
     });
     expect(gatewayRoute).toEqual({
-      routeType: "kojo-gateway",
-      brandedModel: "kojo/kojo-claude",
-      upstreamModel: "kojo-claude",
+      routeType: "lutic-gateway",
+      brandedModel: "lutic/lutic-claude",
+      upstreamModel: "lutic-claude",
       baseURL: "http://litellm:4000/v1"
     });
 
-    const openaiRoute = resolveKojoGatewayRoute({
+    const openaiRoute = resolveLuticGatewayRoute({
       model: "openai/gpt-4o-mini",
       gatewayUrl: "",
       gatewayKey: "",
@@ -117,52 +117,52 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     });
     expect(openaiRoute).toEqual({
       routeType: "openai",
-      brandedModel: "kojo/openai/gpt-4o-mini",
+      brandedModel: "lutic/openai/gpt-4o-mini",
       upstreamModel: "gpt-4o-mini"
     });
 
-    const fallbackRoute = resolveKojoGatewayRoute({
-      model: "kojo/claude-sonnet-4-6",
+    const fallbackRoute = resolveLuticGatewayRoute({
+      model: "lutic/claude-sonnet-4-6",
       gatewayUrl: "",
       gatewayKey: "",
       anthropicApiKey: "",
       openaiApiKey: ""
     });
     expect(fallbackRoute).toEqual({
-      routeType: "kojo-deterministic",
-      brandedModel: "kojo-deterministic-v1",
-      upstreamModel: "kojo-deterministic-v1"
+      routeType: "lutic-deterministic",
+      brandedModel: "lutic-deterministic-v1",
+      upstreamModel: "lutic-deterministic-v1"
     });
 
     vi.stubEnv("NODE_ENV", "development");
-    vi.stubEnv("LLM_PROVIDER", "kojo");
-    vi.stubEnv("LLM_MODEL", "kojo-claude");
-    vi.stubEnv("KOJO_AI_GATEWAY_URL", "http://litellm:4000/v1");
-    vi.stubEnv("KOJO_AI_GATEWAY_KEY", "kojo-gw-secret");
+    vi.stubEnv("LLM_PROVIDER", "lutic");
+    vi.stubEnv("LLM_MODEL", "lutic-claude");
+    vi.stubEnv("LUTIC_AI_GATEWAY_URL", "http://litellm:4000/v1");
+    vi.stubEnv("LUTIC_AI_GATEWAY_KEY", "lutic-gw-secret");
     const created = createLLMProvider();
-    expect(created).toBeInstanceOf(KojoLLMGateway);
-    expect(created.id).toBe("kojo-gateway");
-    expect(created.modelName).toBe("kojo/kojo-claude");
+    expect(created).toBeInstanceOf(LuticLLMGateway);
+    expect(created.id).toBe("lutic-gateway");
+    expect(created.modelName).toBe("lutic/lutic-claude");
   });
 
   it("executes multi-tool isolated Code Mode scripts with RBAC, plant scoping, and write confirmation", async () => {
-    const manual = buildKojoConnectorManual({
+    const manual = buildLuticConnectorManual({
       slug: "historian",
-      transport: "kojo_protocol",
-      endpointUrl: "kojo://historian",
+      transport: "lutic_protocol",
+      endpointUrl: "lutic://historian",
       discoveredTools: [{ name: "get_machine_status" }, { name: "get_active_alarms" }]
     });
-    expect(manual.protocol).toBe("kojo-connector-v1");
-    expect(manual.codeModeGlobal).toBe("kojo");
+    expect(manual.protocol).toBe("lutic-connector-v1");
+    expect(manual.codeModeGlobal).toBe("lutic");
 
     const adminTools = await getAllowedToolsForUser(state.conn!.db, adminUser, registry);
     expect(adminTools.some((t) => t.name === "execute_connector_code")).toBe(true);
 
-    const codeRes = await executeKojoConnectorCode({
+    const codeRes = await executeLuticConnectorCode({
       code: `
-        const status = await kojo.callTool("get_machine_status", { machineId: input.machineId });
-        const alarms = await kojo.tools.get_active_alarms({ machineId: input.machineId });
-        const wo = await kojo.connectors.cmms.get_work_orders({ machineId: input.machineId, limit: 3 });
+        const status = await lutic.callTool("get_machine_status", { machineId: input.machineId });
+        const alarms = await lutic.tools.get_active_alarms({ machineId: input.machineId });
+        const wo = await lutic.connectors.cmms.get_work_orders({ machineId: input.machineId, limit: 3 });
         console.log("checked", input.machineId);
         return { status, alarmsCount: alarms.alarms.length, woCount: wo.workOrders.length };
       `,
@@ -181,7 +181,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     // RBAC denial enforced on inner calls
     const rbacRes = await executeToolWithPolicy(
       "execute_connector_code",
-      { code: 'return await kojo.callTool("query_metric", { metric: "oee", range: "7d" });' },
+      { code: 'return await lutic.callTool("query_metric", { metric: "oee", range: "7d" });' },
       { db: state.conn!.db, user: detroitEngineer, requestId: "req-cm-rbac" },
       { registry }
     );
@@ -191,7 +191,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     // Plant scoping enforced on inner calls
     const scopeRes = await executeToolWithPolicy(
       "execute_connector_code",
-      { code: 'return await kojo.callTool("get_machine_status", { machineId: "mach-aus-comp-01" });' },
+      { code: 'return await lutic.callTool("get_machine_status", { machineId: "mach-aus-comp-01" });' },
       { db: state.conn!.db, user: detroitEngineer, requestId: "req-cm-scope" },
       { registry }
     );
@@ -203,8 +203,8 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
       "execute_connector_code",
       {
         code: `
-          await kojo.callTool("get_active_alarms", { machineId: "mach-l3-filler-01" });
-          return await kojo.callTool("draft_work_order", {
+          await lutic.callTool("get_active_alarms", { machineId: "mach-l3-filler-01" });
+          return await lutic.callTool("draft_work_order", {
             machineId: "mach-l3-filler-01",
             priority: "high",
             type: "corrective",
@@ -221,14 +221,14 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
   });
 
   it("isolates host secrets (empty child env) and forcefully kills post-await infinite CPU loops via SIGKILL", async () => {
-    vi.stubEnv("KOJO_SECRET_CANARY", "host-only-secret-xyz");
+    vi.stubEnv("LUTIC_SECRET_CANARY", "host-only-secret-xyz");
 
     // 1. Even with constructor chain access inside JS, child has empty env and no DB/secrets
-    const envProbe = await executeKojoConnectorCode({
+    const envProbe = await executeLuticConnectorCode({
       code: `
-        const fn = kojo.callTool["con" + "structor"];
+        const fn = lutic.callTool["con" + "structor"];
         const p = fn("return process")();
-        return { envKeys: Object.keys(p.env), canary: p.env.KOJO_SECRET_CANARY ?? null };
+        return { envKeys: Object.keys(p.env), canary: p.env.LUTIC_SECRET_CANARY ?? null };
       `,
       ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-env-iso" },
       options: { registry }
@@ -240,9 +240,9 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     // 2. Post-await infinite CPU loop is terminated by parent SIGKILL deadline
     const started = Date.now();
     await expect(
-      executeKojoConnectorCode({
+      executeLuticConnectorCode({
         code: `
-          await kojo.callTool("get_machine_status", { machineId: "mach-l3-filler-01" });
+          await lutic.callTool("get_machine_status", { machineId: "mach-l3-filler-01" });
           while (true) {}
         `,
         ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-loop" },
@@ -254,10 +254,10 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
 
     // 3. Call budget enforced
     await expect(
-      executeKojoConnectorCode({
+      executeLuticConnectorCode({
         code: `
-          await kojo.callTool("get_machine_status", { machineId: "mach-l3-filler-01" });
-          await kojo.callTool("get_active_alarms", { machineId: "mach-l3-filler-01" });
+          await lutic.callTool("get_machine_status", { machineId: "mach-l3-filler-01" });
+          await lutic.callTool("get_active_alarms", { machineId: "mach-l3-filler-01" });
           return true;
         `,
         ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-budget" },
@@ -268,8 +268,8 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
   });
 
   it("plans and executes Code Mode inside runAgentTurn and POST /api/connectors/[id]/invoke", async () => {
-    const gatewayProvider = new KojoLLMGateway({ allowMockFallback: true });
-    expect(gatewayProvider.modelName).toBe("kojo-deterministic-v1");
+    const gatewayProvider = new LuticLLMGateway({ allowMockFallback: true });
+    expect(gatewayProvider.modelName).toBe("lutic-deterministic-v1");
 
     const turn = await runAgentTurn({
       db: state.conn!.db,
@@ -281,7 +281,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     });
     expect(turn.toolCalls.some((t) => t.toolName === "execute_connector_code" && t.status === "allowed")).toBe(true);
     expect(turn.toolCalls.some((t) => t.toolName === "get_machine_status")).toBe(true);
-    expect(turn.answer).toContain("Kojo Code Mode Execution");
+    expect(turn.answer).toContain("Lutic Code Mode Execution");
 
     const req = new Request("http://localhost/api/connectors/conn-hub-historian/invoke", {
       method: "POST",
@@ -289,7 +289,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
       body: JSON.stringify({
         mode: "code",
         code: `
-          const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });
+          const st = await lutic.callTool("get_machine_status", { machineId: input.machineId });
           return { machineId: input.machineId, temp: st.status.temperature };
         `,
         args: { machineId: "mach-l3-filler-01" }
@@ -307,7 +307,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
       innerCalls: Array<{ toolName: string }>;
     };
     expect(body.ok).toBe(true);
-    expect(body.protocol).toBe("kojo-connector-v1");
+    expect(body.protocol).toBe("lutic-connector-v1");
     expect(body.mode).toBe("code");
     expect(body.result.machineId).toBe("mach-l3-filler-01");
     expect(typeof body.result.temp).toBe("number");
@@ -346,7 +346,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     expect(policyResult.status).toBe("denied");
     expect(policyResult.denialReason).toMatch(/not enabled/i);
 
-    await expect(executeKojoConnectorCode({
+    await expect(executeLuticConnectorCode({
       code: "return true;",
       ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-prod-direct" },
       options: { registry }
@@ -367,11 +367,11 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
     expect(invokeRes.status).toBe(501);
     expect(await invokeRes.json()).toMatchObject({
       title: "Code Mode Unavailable",
-      detail: "Kojo Code Mode is available only in trusted development and test runtimes."
+      detail: "Lutic Code Mode is available only in trusted development and test runtimes."
     });
   });
 
-  it("discovers and invokes Metorial/OpenConnectors Remote MCP, UTCP 1.0, OpenAPI 3.0, and Kojo UTCP export with SSRF guards", async () => {
+  it("discovers and invokes Metorial/OpenConnectors Remote MCP, UTCP 1.0, OpenAPI 3.0, and Lutic UTCP export with SSRF guards", async () => {
     await expect(assertSafeExternalUrl("http://169.254.169.254/latest/meta-data")).rejects.toThrow();
     await expect(assertSafeExternalUrl("http://127.0.0.1:4000/v1")).rejects.toThrow();
     await expect(assertSafeExternalUrl("https://localhost:3000/api")).rejects.toThrow();
@@ -490,14 +490,14 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
 
     try {
       vi.stubEnv("NODE_ENV", "production");
-      vi.stubEnv("KOJO_DEMO_MODE", "false");
-      vi.stubEnv("KOJO_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
+      vi.stubEnv("LUTIC_DEMO_MODE", "false");
+      vi.stubEnv("LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
       vi.stubEnv(
         "CREDENTIAL_ENCRYPTION_KEY",
         "c1d2e3f4a5b60718293a4b5c6d7e8f90c1d2e3f4a5b60718293a4b5c6d7e8f90"
       );
 
-      const { encryptCredentials } = await import("@kojo/core");
+      const { encryptCredentials } = await import("@lutic/core");
       await state.conn!.db.insert(connectorConnections).values([
         {
           id: "conn-metorial-test",
@@ -572,19 +572,19 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
         result: { orders: [{ id: "PO-901", plant: "detroit" }] }
       });
 
-      await expect(executeKojoConnectorCode({
+      await expect(executeLuticConnectorCode({
         code: "return true;",
         ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-hybrid-prod" },
         options: { registry }
       })).rejects.toThrow(/trusted development and test/i);
 
-      // Trusted test runtime can chain local Kojo MCP + Remote MCP + UTCP.
+      // Trusted test runtime can chain local Lutic MCP + Remote MCP + UTCP.
       vi.stubEnv("NODE_ENV", "test");
-      const chained = await executeKojoConnectorCode({
+      const chained = await executeLuticConnectorCode({
         code: `
-          const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });
-          const slack = await kojo.connectors.metorial.slack_post_message({ channel: "#ops", text: st.status.machineId });
-          const ticket = await kojo.connectors.tickets.update_ticket({ ticketId: "INC-42", status: "triaged" });
+          const st = await lutic.callTool("get_machine_status", { machineId: input.machineId });
+          const slack = await lutic.connectors.metorial.slack_post_message({ channel: "#ops", text: st.status.machineId });
+          const ticket = await lutic.connectors.tickets.update_ticket({ ticketId: "INC-42", status: "triaged" });
           return { machine: st.status.machineId, posted: slack.posted, ticketId: ticket.ticketId };
         `,
         input: { machineId: "mach-l3-filler-01" },
@@ -597,7 +597,7 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
         ticketId: "INC-42"
       });
 
-      // Authenticated Kojo UTCP 1.0 manual export combines local & registered remote tools
+      // Authenticated Lutic UTCP 1.0 manual export combines local & registered remote tools
       const utcpRes = await getUtcpManual(new Request("http://localhost/api/connectors/utcp"));
       expect(utcpRes.status).toBe(200);
       const utcpJson = (await utcpRes.json()) as { utcp_version: string; tools: Array<{ name: string }> };

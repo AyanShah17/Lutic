@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { sha256Hex } from "./crypto";
-import type { KojoDatabase } from "./db/client";
+import type { LuticDatabase } from "./db/client";
 import { logger } from "./logger";
 
 interface RateLimitBucket {
@@ -15,7 +15,7 @@ interface RateLimitBucket {
 export type RateLimitConsumer = (bucket: RateLimitBucket) => Promise<boolean>;
 
 export async function consumeRateLimit(
-  db: Pick<KojoDatabase, "execute">,
+  db: Pick<LuticDatabase, "execute">,
   bucket: RateLimitBucket
 ): Promise<boolean> {
   if (bucket.limit <= 0) return false;
@@ -43,7 +43,7 @@ export function createPostgresRateLimitConsumer(connectionString: string): RateL
   return (bucket) => consumeRateLimit(db, bucket);
 }
 
-export async function pruneExpiredRateLimits(db: KojoDatabase): Promise<void> {
+export async function pruneExpiredRateLimits(db: LuticDatabase): Promise<void> {
   await db.execute(sql`
     DELETE FROM rate_limits
     WHERE (scope, bucket_key) IN (

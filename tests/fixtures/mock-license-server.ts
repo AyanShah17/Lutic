@@ -20,7 +20,7 @@ export interface LicenseRecord {
   instances: Set<string>;
 }
 
-const DEFAULT_SIGNING_SECRET = "kojo-dev-license-signing-secret-2026";
+const DEFAULT_SIGNING_SECRET = "lutic-dev-license-signing-secret-2026";
 
 function getSigningSecret(): string {
   if (process.env.NODE_ENV === "production") {
@@ -35,28 +35,28 @@ export function resetLicenseStore(): void {
   licenseStore.clear();
   const seeds: Array<Omit<LicenseRecord, "instances">> = [
     {
-      key: "KOJO-DEV-VALID-0001",
+      key: "LUTIC-DEV-VALID-0001",
       plan: "enterprise",
       expiresAt: "2099-12-31T23:59:59.000Z",
       revoked: false,
       maxInstances: 100
     },
     {
-      key: "KOJO-PRO-VALID-2026",
+      key: "LUTIC-PRO-VALID-2026",
       plan: "pro",
       expiresAt: "2099-12-31T23:59:59.000Z",
       revoked: false,
       maxInstances: 10
     },
     {
-      key: "KOJO-EXP-0000-0001",
+      key: "LUTIC-EXP-0000-0001",
       plan: "pro",
       expiresAt: "2020-01-01T00:00:00.000Z",
       revoked: false,
       maxInstances: 5
     },
     {
-      key: "KOJO-REV-0000-0001",
+      key: "LUTIC-REV-0000-0001",
       plan: "pro",
       expiresAt: "2099-12-31T23:59:59.000Z",
       revoked: true,
@@ -163,7 +163,7 @@ export async function handleLicenseRequest(req: Request): Promise<Response> {
   const path = url.pathname;
 
   if (req.method === "GET" && path === "/health") {
-    return jsonResponse({ ok: true, service: "kojo-license-server" });
+    return jsonResponse({ ok: true, service: "lutic-license-server" });
   }
 
   if (req.method !== "POST") {

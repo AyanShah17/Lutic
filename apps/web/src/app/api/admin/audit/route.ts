@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, auditLog, authorize, desc, eq, gte, lte } from "@kojo/core";
+import { and, auditLog, authorize, desc, eq, gte, lte } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import { getSessionUser, handleApiError, problemResponse } from "@/lib/auth";
 
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
         return new Response(header + csvRows, {
           headers: {
             "Content-Type": "text/csv; charset=utf-8",
-            "Content-Disposition": 'attachment; filename="kojo-audit-log.csv"'
+            "Content-Disposition": 'attachment; filename="lutic-audit-log.csv"'
           }
         });
       }
