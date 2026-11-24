@@ -114,6 +114,11 @@ export function isDemoMode(): boolean {
   return process.env.NODE_ENV !== "production" && process.env.KOJO_DEMO_MODE !== "false";
 }
 
+/** Code Mode executes user-authored JavaScript and is restricted to trusted development and tests. */
+export function isCodeModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NODE_ENV === "development" || env.NODE_ENV === "test";
+}
+
 export function shouldSkipAutoRuntime(): boolean {
   if (process.env.KOJO_RUNTIME_DISABLED === "true") return true;
   if (process.env.VITEST === "true" || process.env.NODE_ENV === "test") return true;

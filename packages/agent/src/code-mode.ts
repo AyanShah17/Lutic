@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { isCodeModeEnabled } from "@kojo/core";
 import { defaultMcpRegistry, type ToolExecutionContext } from "@kojo/connectors";
 import {
   executeToolWithPolicy,
@@ -84,6 +85,9 @@ export async function executeKojoConnectorCode(params: {
   maxCalls?: number;
   timeoutMs?: number;
 }): Promise<KojoCodeModeResult> {
+  if (!isCodeModeEnabled()) {
+    throw new Error("Kojo Code Mode is available only in trusted development and test runtimes.");
+  }
   const started = Date.now();
   const code = params.code.trim();
   if (!code) {

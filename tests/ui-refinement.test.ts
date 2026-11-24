@@ -1589,7 +1589,8 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
                 }
               ],
               catalog: [],
-              logs: []
+              logs: [],
+              capabilities: { codeMode: false }
             }),
             { status: 200 }
           );
@@ -1616,7 +1617,8 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
         (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Kojo Code Mode"
       )[0];
       expect(codeModeBtn).toBeDefined();
-      expect(Boolean(codeModeBtn?.disabled || codeModeBtn?.attributes.disabled !== undefined)).toBe(false);
+      expect(Boolean(codeModeBtn?.disabled || codeModeBtn?.attributes.disabled !== undefined)).toBe(true);
+      expect(connContainer.textContent).toContain("Code Mode is available only in trusted development and tests");
       await act(async () => {
         connRoot.unmount();
       });

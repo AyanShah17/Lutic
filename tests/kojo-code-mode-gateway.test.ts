@@ -6,6 +6,7 @@ import {
   createDbConnection,
   desc,
   eq,
+  isCodeModeEnabled,
   seedDatabase,
   withTenantScope,
   type DbConnection,
@@ -23,6 +24,7 @@ import {
   runAgentTurn
 } from "@kojo/agent";
 import { POST as invokeConnector } from "../apps/web/src/app/api/connectors/[id]/invoke/route";
+import { GET as getConnectors } from "../apps/web/src/app/api/connectors/route";
 
 const state = vi.hoisted(() => ({ conn: undefined as DbConnection | undefined }));
 
@@ -79,6 +81,14 @@ afterAll(async () => {
 });
 
 describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () => {
+  it("enables Code Mode only for explicit trusted development and test runtimes", () => {
+    expect(isCodeModeEnabled({ NODE_ENV: "development" })).toBe(true);
+    expect(isCodeModeEnabled({ NODE_ENV: "test" })).toBe(true);
+    expect(isCodeModeEnabled({ NODE_ENV: "production" })).toBe(false);
+    expect(isCodeModeEnabled({})).toBe(false);
+    expect(isCodeModeEnabled({ NODE_ENV: "staging" })).toBe(false);
+  });
+
   it("resolves Kojo-branded routes for LiteLLM / KOJO_AI_GATEWAY_URL, direct providers, and deterministic fallback", () => {
     const gatewayRoute = resolveKojoGatewayRoute({
       model: "kojo-claude",
@@ -313,5 +323,45 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
       .limit(1);
     expect(latestAudit?.toolName).toBe("execute_connector_code");
     expect(latestAudit?.status).toBe("allowed");
+  });
+
+  it("fails closed across policy, direct execution, API capability, and invoke route in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const allowed = await getAllowedToolsForUser(state.conn!.db, adminUser, registry);
+    expect(allowed.some((tool) => tool.name === "execute_connector_code")).toBe(false);
+
+    const policyResult = await executeToolWithPolicy(
+      "execute_connector_code",
+      { code: "return true;" },
+      { db: state.conn!.db, user: adminUser, requestId: "req-cm-prod" },
+      { registry }
+    );
+    expect(policyResult.status).toBe("denied");
+    expect(policyResult.denialReason).toMatch(/not enabled/i);
+
+    await expect(executeKojoConnectorCode({
+      code: "return true;",
+      ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-prod-direct" },
+      options: { registry }
+    })).rejects.toThrow(/trusted development and test/i);
+
+    const listRes = await getConnectors(new Request("http://localhost/api/connectors"));
+    expect(listRes.status).toBe(200);
+    expect((await listRes.json()).capabilities).toEqual({ codeMode: false });
+
+    const invokeRes = await invokeConnector(new Request(
+      "http://localhost/api/connectors/conn-hub-historian/invoke",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ mode: "code", code: "return true;" })
+      }
+    ), { params: Promise.resolve({ id: "conn-hub-historian" }) });
+    expect(invokeRes.status).toBe(501);
+    expect(await invokeRes.json()).toMatchObject({
+      title: "Code Mode Unavailable",
+      detail: "Kojo Code Mode is available only in trusted development and test runtimes."
+    });
   });
 });

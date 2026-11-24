@@ -6,6 +6,7 @@ import {
   authorize,
   consumeRateLimit,
   eq,
+  isCodeModeEnabled,
   pendingActions,
   roleToolkits,
   sha256Hex,
@@ -91,7 +92,10 @@ export async function getAllowedToolsForUser(
 
   return registry
     .listToolDefinitions()
-    .filter((def) => enabledNames.has(def.name));
+    .filter(
+      (def) => enabledNames.has(def.name) &&
+        (def.name !== "execute_connector_code" || isCodeModeEnabled())
+    );
 }
 
 async function writeAuditEntry(

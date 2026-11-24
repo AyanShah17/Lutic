@@ -10,6 +10,7 @@ import {
   connectorSyncLogs,
   eq,
   getLocalConnectorKind,
+  isCodeModeEnabled,
   isDemoMode,
   sha256Hex
 } from "@kojo/core";
@@ -44,6 +45,10 @@ export async function POST(
     if (!user) return problemResponse(401, "Unauthorized", "Please sign in.");
     authorize(user, "connector:write", { tenantId: user.tenantId });
 
+    const body = InvokeSchema.parse(await req.json());
+    if ((body.mode === "code" || typeof body.code === "string") && !isCodeModeEnabled()) {
+      return problemResponse(501, "Code Mode Unavailable", "Kojo Code Mode is available only in trusted development and test runtimes.");
+    }
     const params = await context.params;
     return await withWebTenantDb(user.tenantId, async (db) => {
       const rows = await db
@@ -62,7 +67,6 @@ export async function POST(
         return problemResponse(404, "Not Found", "Connector not found.");
       }
 
-      const body = InvokeSchema.parse(await req.json());
       const args = body.args ?? body.input ?? {};
       const started = Date.now();
 
