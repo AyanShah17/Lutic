@@ -1,0 +1,158 @@
+name: Kojo CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: kojo_ci
+          POSTGRES_PASSWORD: isolated-ci-password
+          POSTGRES_DB: kojo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kojo_ci -d kojo_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_TEST_URL: postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci
+      DATABASE_URL: memory://
+      LICENSE_ENFORCE: "false"
+      KOJO_RUNTIME_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+      - run: bun audit --audit-level=high
+
+  container-smoke:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: kojo_ci
+          POSTGRES_PASSWORD: isolated-ci-password
+          POSTGRES_DB: kojo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kojo_ci -d kojo_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build Kojo runtime container
+        run: docker build --target runtime -t kojo-smoke:ci .
+      - name: Bootstrap production schema and first tenant
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL=postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci \
+            -e AUTH_SECRET=ci-smoke-auth-secret-with-sufficient-entropy-0123456789 \
+            -e CREDENTIAL_ENCRYPTION_KEY=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 \
+            -e LICENSE_ENFORCE=false \
+            -e KOJO_DEMO_MODE=false \
+            -e KOJO_ADMIN_EMAIL=pilot.admin@smoke.example \
+            -e KOJO_ADMIN_PASSWORD=PilotSmokePassword!2026 \
+            -e KOJO_TENANT_NAME="CI Smoke Manufacturing" \
+            -e KOJO_PLANT_NAME="CI Smoke Plant" \
+            kojo-smoke:ci bun packages/core/src/db/bootstrap.ts
+      - name: Start container and run production smoke + restart recovery checks
+        run: |
+          set -euo pipefail
+          docker run -d --name kojo-smoke-web --network host \
+            -e PORT=3100 \
+            -e HOSTNAME=127.0.0.1 \
+            -e DATABASE_URL=postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci \
+            -e AUTH_SECRET=ci-smoke-auth-secret-with-sufficient-entropy-0123456789 \
+            -e CREDENTIAL_ENCRYPTION_KEY=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 \
+            -e LICENSE_ENFORCE=false \
+            -e KOJO_DEMO_MODE=false \
+            -e COOKIE_SECURE=false \
+            kojo-smoke:ci
+
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3100/api/health/live >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3100/api/health/live
+          curl -fsS http://127.0.0.1:3100/api/health
+
+          # Demo switcher must be unavailable in production mode
+          demo_code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3100/api/auth/demo-switch -H 'content-type: application/json' -d '{"email":"admin@acme.demo"}')
+          test "$demo_code" = "404"
+
+          # Login as bootstrap administrator
+          login_json=$(curl -fsS -X POST http://127.0.0.1:3100/api/auth/login \
+            -H 'content-type: application/json' \
+            -d '{"email":"pilot.admin@smoke.example","password":"PilotSmokePassword!2026"}')
+          ADMIN_TOKEN=$(echo "$login_json" | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); process.stdout.write(d.token ?? '')")
+          PLANT_ID=$(echo "$login_json" | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); process.stdout.write(d.user?.plantIds?.[0] ?? '')")
+          test -n "$ADMIN_TOKEN" && test -n "$PLANT_ID"
+
+          # Create line + machine and issue gateway ingestion token
+          line_json=$(curl -fsS -X POST http://127.0.0.1:3100/api/admin/assets \
+            -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+            -d "{\"type\":\"line\",\"plantId\":\"$PLANT_ID\",\"name\":\"Smoke Line 1\"}")
+          LINE_ID=$(echo "$line_json" | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); process.stdout.write(d.asset?.id ?? '')")
+
+          mach_json=$(curl -fsS -X POST http://127.0.0.1:3100/api/admin/assets \
+            -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+            -d "{\"type\":\"machine\",\"plantId\":\"$PLANT_ID\",\"parentId\":\"$LINE_ID\",\"name\":\"Smoke CNC 1\"}")
+          MACH_ID=$(echo "$mach_json" | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); process.stdout.write(d.asset?.id ?? '')")
+
+          tok_json=$(curl -fsS -X POST http://127.0.0.1:3100/api/admin/ingestion-tokens \
+            -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+            -d "{\"plantId\":\"$PLANT_ID\",\"name\":\"Smoke Gateway\"}")
+          INGEST_TOKEN=$(echo "$tok_json" | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); process.stdout.write(d.token ?? '')")
+
+          TS_NOW=$(date -u -d '10 seconds ago' +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
+          curl -fsS -X POST http://127.0.0.1:3100/api/telemetry \
+            -H "Authorization: Bearer $INGEST_TOKEN" -H 'content-type: application/json' \
+            -d "{\"samples\":[{\"sampleId\":\"smoke-1\",\"machineId\":\"$MACH_ID\",\"recordedAt\":\"$TS_NOW\",\"status\":\"running\",\"temperature\":44.5,\"vibration\":1.4,\"pressure\":6.1,\"currentSpeed\":88}]}"
+
+          # Unsupported external connector health check must fail explicitly with 501
+          conn_json=$(curl -fsS -X POST http://127.0.0.1:3100/api/connectors \
+            -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+            -d '{"name":"Smoke External HTTP","kind":"http","endpointUrl":"https://external.example.invalid","credentials":{"apiKey":"smoke-key-v1"}}')
+          CONN_ID=$(echo "$conn_json" | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); process.stdout.write(d.id ?? '')")
+          ext_code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:3100/api/connectors/$CONN_ID/test" -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d '{}')
+          test "$ext_code" = "501"
+
+          # Restart container and verify persistence & diagnostics
+          docker restart kojo-smoke-web
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3100/api/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:3100/api/machines | grep -q "$MACH_ID"
+          curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:3100/api/admin/diagnostics | grep -q '"currentVersion":2'
+
+          # Exercise credential key rotation inside the runtime image
+          rot_json=$(docker run --rm --network host \
+            -e NODE_ENV=production \
+            -e DATABASE_URL=postgres://kojo_ci:isolated-ci-password@127.0.0.1:5432/kojo_ci \
+            -e CREDENTIAL_ENCRYPTION_KEY=b1c2d3e4f5061728394a5b6c7d8e9f01b1c2d3e4f5061728394a5b6c7d8e9f01 \
+            -e CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS=a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 \
+            kojo-smoke:ci bun packages/core/src/db/rotate-keys.ts)
+          echo "$rot_json" | grep -q '"connectionsRotated":1'
+      - name: Cleanup smoke container
+        if: always()
+        run: |
+          docker logs kojo-smoke-web || true
+          docker rm -f kojo-smoke-web || true

@@ -1,0 +1,764 @@
+"use client";
+
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  ChevronRight,
+  Cpu,
+  Factory,
+  GitBranch,
+  Globe,
+  Home,
+  KeyRound,
+  Layers,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Monitor,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plug,
+  Search,
+  ShieldCheck,
+  Sun,
+  X
+} from "lucide-react";
+import { can } from "@kojo/core/rbac";
+import { getNavGroupsForUser } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
+import { useAppContext } from "./providers";
+import { CommandSearch } from "./command-search";
+import { Badge } from "./ui/badge";
+import { Button, buttonVariants } from "./ui/button";
+import { Dialog } from "./ui/dialog";
+import { Input } from "./ui/input";
+
+const DEMO_ACCOUNTS = [
+  { email: "engineer@acme.demo", label: "Engineer (Detroit)" },
+  { email: "austin.engineer@acme.demo", label: "Engineer (Austin)" },
+  { email: "analyst@acme.demo", label: "Analyst (All Plants)" },
+  { email: "manager@acme.demo", label: "Manager (All Plants)" },
+  { email: "admin@acme.demo", label: "Admin (OT/IT)" }
+];
+
+const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  overview: Home,
+  chat: MessageSquare,
+  machines: Cpu,
+  monitoring: Activity,
+  dashboards: BarChart3,
+  workflows: GitBranch,
+  connectors: Plug,
+  notifications: Bell,
+  queues: Layers,
+  admin: ShieldCheck,
+  activate: KeyRound
+};
+
+interface NavNotification {
+  id: string;
+  title: string;
+  body: string;
+  severity: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, locale, setLocale, t, refreshSession, setUser, demoEnabled } = useAppContext();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const [switching, setSwitching] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const [notifs, setNotifs] = useState<NavNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [licenseStatus, setLicenseStatus] = useState<{
+    active: boolean;
+    status: string;
+    enforced: boolean;
+  } | null>(null);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      } else if (e.key === "Escape" && bellOpen) {
+        setBellOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bellOpen]);
+
+  useEffect(() => {
+    if (!bellOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [bellOpen]);
+
+  const activeTheme = mounted ? (theme ?? "light") : "light";
+  const navGroups = getNavGroupsForUser(user, t);
+  const canManageLicense = Boolean(user && can(user, "license:manage"));
+
+  const activeEntry = (() => {
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        const active =
+          item.href === "/"
+            ? pathname === "/"
+            : pathname === item.href ||
+              pathname.startsWith(`${item.href}/`) ||
+              (item.id === "machines" && pathname.startsWith("/m/"));
+        if (active) return { group: group.label, item: item.label };
+      }
+    }
+    return { group: "Kojo", item: "Workspace" };
+  })();
+
+  const loadNotifications = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch("/api/notifications", { cache: "no-store" });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          notifications: NavNotification[];
+          unreadCount: number;
+        };
+        setNotifs(data.notifications.slice(0, 8));
+        setUnreadCount(data.unreadCount);
+      }
+    } catch {
+      // ignore transient poll failures
+    }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setNotifs([]);
+      setUnreadCount(0);
+      return;
+    }
+    void loadNotifications();
+    fetch("/api/license", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setLicenseStatus(d);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId, user?.role]);
+
+  const markAllRead = async () => {
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markAll: true, read: true })
+    });
+    if (res.ok) {
+      await loadNotifications();
+    }
+  };
+
+  const handleDemoSwitch = async (email: string) => {
+    if (!email) return;
+    setSwitching(true);
+    try {
+      const res = await fetch("/api/auth/demo-switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        await refreshSession();
+        router.refresh();
+      }
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    setMobileOpen(false);
+    router.push("/login");
+    router.refresh();
+  };
+
+  const cycleTheme = () => {
+    const next =
+      activeTheme === "light"
+        ? "dark"
+        : activeTheme === "dark"
+          ? "high-contrast"
+          : "light";
+    setTheme(next);
+  };
+
+  const isAuthPage = pathname === "/login" && !user;
+
+  const renderSidebarNav = (onNavigate?: () => void, compact = false) => (
+    <div className="flex flex-col h-full">
+      <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 shrink-0">
+        <Link
+          href="/"
+          onClick={onNavigate}
+          className="flex items-center gap-2.5 min-w-0"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
+            <Factory className="h-4 w-4" />
+          </span>
+          {!compact && (
+            <div className="min-w-0 leading-tight">
+              <div className="text-sm font-bold tracking-tight text-foreground">
+                Kojo
+              </div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Industrial PaaS
+              </div>
+            </div>
+          )}
+        </Link>
+        {!compact && onNavigate && (
+          <button
+            type="button"
+            onClick={onNavigate}
+            aria-label="Close navigation menu"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted lg:hidden"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      <nav
+        aria-label="Main navigation"
+        className="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-3"
+      >
+        {navGroups.map((group) => (
+          <div key={group.id} className="space-y-1">
+            {!compact && (
+              <div className="px-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.label}
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = NAV_ICONS[item.id] ?? Home;
+                const active =
+                  item.href === "/"
+                    ? pathname === "/"
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`) ||
+                      (item.id === "machines" && pathname.startsWith("/m/"));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    title={compact ? item.label : undefined}
+                    className={cn(
+                      "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors min-h-[32px]",
+                      compact && "justify-center px-0",
+                      active
+                        ? "bg-card text-foreground shadow-sm border border-border"
+                        : "text-sidebar-foreground/80 hover:bg-card/70 hover:text-foreground border border-transparent"
+                    )}
+                  >
+                    {active && !compact && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary"
+                      />
+                    )}
+                    <Icon
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors",
+                        active
+                          ? "text-primary"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      )}
+                    />
+                    {!compact && <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {user && (
+        <div className="border-t border-sidebar-border p-3 space-y-2.5 shrink-0">
+          {!compact && licenseStatus && (
+            canManageLicense ? (
+              <Link
+                href="/activate"
+                onClick={onNavigate}
+                className="flex items-center justify-between rounded-md border border-border bg-card px-2.5 py-1.5 text-[11px] hover:border-primary/40 transition-colors"
+              >
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <KeyRound className="h-3 w-3" />
+                  <span>License</span>
+                </span>
+                <Badge
+                  variant={licenseStatus.active ? "success" : "warning"}
+                  className="capitalize text-[10px]"
+                >
+                  {licenseStatus.status}
+                </Badge>
+              </Link>
+            ) : (
+              <div className="flex items-center justify-between rounded-md border border-border bg-card/60 px-2.5 py-1.5 text-[11px]">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <KeyRound className="h-3 w-3" />
+                  <span>License</span>
+                </span>
+                <Badge
+                  variant={licenseStatus.active ? "success" : "warning"}
+                  className="capitalize text-[10px]"
+                >
+                  {licenseStatus.status}
+                </Badge>
+              </div>
+            )
+          )}
+
+          {!compact && demoEnabled && (
+            <select
+              aria-label={onNavigate ? "Mobile demo role switcher" : "Demo role switcher"}
+              value={user.email}
+              disabled={switching}
+              onChange={(e) => handleDemoSwitch(e.target.value)}
+              className="h-8 w-full rounded-md border border-border bg-card px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {DEMO_ACCOUNTS.map((acc) => (
+                <option key={acc.email} value={acc.email}>
+                  {acc.label}
+                </option>
+              ))}
+              {!DEMO_ACCOUNTS.some((a) => a.email === user.email) && (
+                <option value={user.email}>
+                  {user.name} ({user.role})
+                </option>
+              )}
+            </select>
+          )}
+
+          <div
+            className={cn(
+              "flex items-center gap-2 px-0.5",
+              compact ? "justify-center" : "justify-between"
+            )}
+          >
+            {!compact && (
+              <div className="min-w-0">
+                <div className="text-xs font-semibold truncate">{user.name}</div>
+                <div className="text-[11px] text-muted-foreground truncate">
+                  <span className="uppercase font-semibold">{user.role}</span> ·{" "}
+                  {user.plantIds.join(", ")}
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate?.();
+                  setPwError(null);
+                  setPwSuccess(null);
+                  setPwOpen(true);
+                }}
+                title="Change password"
+                aria-label="Change password"
+                className="rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Sign out"
+                aria-label="Sign out"
+                className="rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen flex bg-background text-foreground">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-primary-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
+      {!isAuthPage && (
+        <aside
+          className={cn(
+            "no-print hidden lg:flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-150 sticky top-0 h-screen",
+            collapsed ? "w-16" : "w-60"
+          )}
+        >
+          {renderSidebarNav(undefined, collapsed)}
+        </aside>
+      )}
+
+      {!isAuthPage && (
+        <Dialog
+          open={mobileOpen}
+          onOpenChange={setMobileOpen}
+          variant="drawer-left"
+          ariaLabel="Navigation menu"
+          className="no-print lg:hidden bg-sidebar p-0"
+        >
+          {renderSidebarNav(() => setMobileOpen(false), false)}
+        </Dialog>
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="no-print sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur px-3 sm:px-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {!isAuthPage ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(true)}
+                  aria-label="Toggle mobile menu"
+                  className="lg:hidden inline-flex items-center justify-center rounded-md border border-border p-2 hover:bg-muted min-h-[36px] min-w-[36px]"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollapsed((v) => !v)}
+                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  className="hidden lg:inline-flex items-center justify-center rounded-md border border-border p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  {collapsed ? (
+                    <PanelLeftOpen className="h-4 w-4" />
+                  ) : (
+                    <PanelLeftClose className="h-4 w-4" />
+                  )}
+                </button>
+                <div className="flex items-center gap-1.5 text-xs min-w-0">
+                  <span className="text-muted-foreground hidden sm:inline">
+                    {activeEntry.group}
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline shrink-0" />
+                  <span className="font-semibold text-foreground truncate">
+                    {activeEntry.item}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <Factory className="h-4 w-4" />
+                </span>
+                <span className="text-base">Kojo</span>
+              </Link>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {!isAuthPage && (
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Open global search"
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 min-h-[34px]"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Search workspace...</span>
+                <kbd className="hidden sm:inline rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none">
+                  Cmd+K
+                </kbd>
+              </button>
+            )}
+
+            {user && (
+              <div ref={bellRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !bellOpen;
+                    setBellOpen(next);
+                    if (next) void loadNotifications();
+                  }}
+                  aria-expanded={bellOpen}
+                  aria-label="Toggle notifications"
+                  className="relative inline-flex items-center justify-center rounded-md border border-border bg-background p-2 hover:bg-muted min-h-[34px] min-w-[34px]"
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive-foreground tabular-nums">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                {bellOpen && (
+                  <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-xl z-50 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span>Notifications ({unreadCount} unread)</span>
+                      <button
+                        type="button"
+                        onClick={markAllRead}
+                        className="text-primary hover:underline text-[11px] font-medium"
+                      >
+                        Mark all read
+                      </button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto space-y-1.5">
+                      {notifs.length === 0 ? (
+                        <div className="text-xs text-muted-foreground py-4 text-center">
+                          No notifications yet.
+                        </div>
+                      ) : (
+                        notifs.map((n) => (
+                          <div
+                            key={n.id}
+                            className={cn(
+                              "rounded-md border p-2.5 text-xs space-y-0.5",
+                              n.read
+                                ? "border-border/60 opacity-75"
+                                : "border-primary/40 bg-primary/5"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold truncate">{n.title}</span>
+                              <Badge variant="outline" className="text-[10px] uppercase">
+                                {n.severity}
+                              </Badge>
+                            </div>
+                            <div className="text-muted-foreground line-clamp-2">{n.body}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <Link
+                      href="/notifications"
+                      onClick={() => setBellOpen(false)}
+                      className="block w-full rounded-md border border-border bg-muted/60 py-1.5 text-center text-xs font-medium hover:bg-muted"
+                    >
+                      Open Notifications &amp; Queues
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={cycleTheme}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted min-h-[34px]"
+              title="Switch theme (Light / Dark / High-Contrast)"
+              aria-label="Switch display theme"
+            >
+              {activeTheme === "dark" ? (
+                <Moon className="h-3.5 w-3.5" />
+              ) : activeTheme === "high-contrast" ? (
+                <Monitor className="h-3.5 w-3.5" />
+              ) : (
+                <Sun className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden xl:inline capitalize">{activeTheme}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLocale(locale === "en" ? "es" : "en")}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs font-semibold hover:bg-muted min-h-[34px]"
+              aria-label="Toggle language"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              <span>{locale.toUpperCase()}</span>
+            </button>
+
+            {user ? (
+              <Badge variant="secondary" className="uppercase hidden sm:inline-flex">
+                {user.role}
+              </Badge>
+            ) : (
+              pathname !== "/login" && (
+                <Link href="/login" className={buttonVariants({ size: "sm" })}>
+                  Sign in
+                </Link>
+              )
+            )}
+          </div>
+        </header>
+
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 focus:outline-none">
+          {children}
+        </main>
+      </div>
+
+      <CommandSearch open={searchOpen} onOpenChange={setSearchOpen} />
+
+      <Dialog
+        open={pwOpen}
+        onOpenChange={(open) => {
+          setPwOpen(open);
+          if (!open) {
+            setCurrentPw("");
+            setNewPw("");
+            setConfirmPw("");
+            setPwError(null);
+            setPwSuccess(null);
+          }
+        }}
+        ariaLabel="Change account password"
+        className="max-w-sm p-5 space-y-4"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Change Password</h2>
+            <p className="text-xs text-muted-foreground">
+              Updating your password revokes all prior sessions for your account.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPwOpen(false)}
+            aria-label="Close change password dialog"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setPwError(null);
+            setPwSuccess(null);
+            if (newPw !== confirmPw) {
+              setPwError("New password confirmation does not match.");
+              return;
+            }
+            setPwSaving(true);
+            try {
+              const res = await fetch("/api/auth/change-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw })
+              });
+              const data = (await res.json()) as { detail?: string };
+              if (!res.ok) {
+                setPwError(data.detail ?? "Password change failed.");
+                return;
+              }
+              setCurrentPw("");
+              setNewPw("");
+              setConfirmPw("");
+              setPwSuccess("Password updated. Existing sessions were revoked.");
+              await refreshSession();
+            } catch {
+              setPwError("Unable to change password right now.");
+            } finally {
+              setPwSaving(false);
+            }
+          }}
+          className="space-y-3"
+        >
+          {pwError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {pwError}
+            </div>
+          )}
+          {pwSuccess && (
+            <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
+              {pwSuccess}
+            </div>
+          )}
+          <div className="space-y-1">
+            <label className="text-xs font-medium" htmlFor="app-shell-current-pw">
+              Current Password
+            </label>
+            <Input
+              id="app-shell-current-pw"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium" htmlFor="app-shell-new-pw">
+              New Password (min 12 chars)
+            </label>
+            <Input
+              id="app-shell-new-pw"
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium" htmlFor="app-shell-confirm-pw">
+              Confirm New Password
+            </label>
+            <Input
+              id="app-shell-confirm-pw"
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => setPwOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={pwSaving}>
+              {pwSaving ? "Updating..." : "Update Password"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+    </div>
+  );
+}

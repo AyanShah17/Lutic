@@ -1,0 +1,36 @@
+{
+  "name": "@kojo/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rbac": "./src/rbac.ts",
+    "./db": "./src/db/index.ts",
+    "./semantic": "./src/semantic/index.ts",
+    "./metrics": "./src/semantic/registry.ts",
+    "./dashboard": "./src/dashboard/schema.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "db:migrate": "bun src/db/migrate.ts",
+    "db:seed": "bun src/db/seed.ts",
+    "sim": "bun src/db/sim.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.2.15",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "0.45.4",
+    "jose": "^5.9.6",
+    "pg": "^8.13.1",
+    "pino": "^9.6.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.3"
+  }
+}

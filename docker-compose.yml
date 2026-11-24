@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kojo}
+      POSTGRES_PASSWORD:
+      POSTGRES_DB: ${POSTGRES_DB:-kojo}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - kojo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  clamd:
+    image: clamav/clamav:1.5.4
+    restart: unless-stopped
+    volumes:
+      - clamav_signatures:/var/lib/clamav
+      - ./deploy/clamd.conf:/etc/clamav/clamd.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$$(echo PING | nc 127.0.0.1 3310)\" = PONG"]
+      interval: 30s
+      timeout: 10s
+      start_period: 180s
+      retries: 5
+
+  kojo-paas:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:${KOJO_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL:
+      KOJO_INSTANCE_ID: ${KOJO_INSTANCE_ID:-}
+      KOJO_LICENSE_KEY:
+      LICENSE_SERVER_URL: ${LICENSE_SERVER_URL:-}
+      LICENSE_ENFORCE: ${LICENSE_ENFORCE:-true}
+      LICENSE_SIGNING_SECRET:
+      AUTH_SECRET:
+      AUTH_SECRET_PREVIOUS: ${AUTH_SECRET_PREVIOUS:-}
+      CREDENTIAL_ENCRYPTION_KEY:
+      CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS: ${CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS:-}
+      DATA_RETENTION_DAYS: ${DATA_RETENTION_DAYS:-90}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      CLAMAV_HOST: ${CLAMAV_HOST:-clamd}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      LLM_PROVIDER:
+      LLM_MODEL:
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      ANTHROPIC_API_KEY:
+      OPENAI_API_KEY:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clamd:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "const r = await fetch('http://127.0.0.1:3000/api/health'); if (!r.ok) process.exit(1);"]
+      interval: 15s
+      timeout: 5s
+      start_period: 25s
+      retries: 5
+
+volumes:
+  kojo_pgdata:
+  clamav_signatures:

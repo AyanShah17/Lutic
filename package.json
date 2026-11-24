@@ -1,0 +1,30 @@
+{
+  "name": "kojo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter @kojo/web dev",
+    "build": "bun --filter @kojo/core build && bun --filter @kojo/connectors build && bun --filter @kojo/agent build && bun --filter @kojo/web build",
+    "typecheck": "bun --filter '*' typecheck",
+    "lint": "bun --filter '*' lint",
+    "test": "vitest run",
+    "db:migrate": "bun --filter @kojo/core db:migrate",
+    "db:seed": "bun --filter @kojo/core db:seed",
+    "sim": "bun --filter @kojo/core sim"
+  },
+  "overrides": {
+    "postcss": "8.5.33",
+    "decode-uri-component": "0.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.3.0",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.7.3",
+    "vitest": "4.1.12"
+  }
+}
