@@ -4,18 +4,15 @@
 
 Lutic enforces authorization, tenant isolation, and tool access in server-side code. Production deployment calls for PostgreSQL with `pgvector`, TLS at the web ingress, unique secrets, and ClamAV for uploads. See the [production deployment guide](PRODUCTION.md).
 
-```
-[Browser UI] ──(HTTPS + CSRF/Origin check + Signed JWT Cookie)──▶ [Next.js API Route]
-                                                                        │
-                                                                 authorize(user, perm, resource)
-                                                                        │
-                                                                 [Agent Orchestrator]
-                                                                        │
-                                                            6-Step Policy Engine Gate
-                                                                        │
-                                                            [MCP Client ──▶ MCP Server]
-                                                                        │
-                                                      Scoped SQL + Postgres RLS (tenant_id)
+```mermaid
+flowchart TD
+  Browser["Browser UI (apps/web)"] -->|"HTTPS + Origin/CSRF + Signed lutic_session Cookie"| API["Next.js API Route Handler"]
+  API -->|"authorize(user, perm, resource)"| Orch["Agent Orchestrator (max 8 steps default)"]
+  Orch -->|"Tool Call Request"| Policy["6-Step Policy Engine (Toolkit, RBAC, Plant Scope, Zod, Rate Limit, Confirm)"]
+  Policy -->|"InMemory MCP"| LocalMCP["5 Core Local MCP Hubs (docs, historian, cmms, parts-erp, mes)"]
+  Policy -->|"HTTPS + SSRF IP Check + No Redirects + Same-Origin Creds"| Ext["Remote MCP & UTCP/OpenAPI Bridges"]
+  LocalMCP -->|"withTenantScope (lutic_app)"| DB["PostgreSQL 16 + pgvector Row-Level Security (tenant_id)"]
+  API -->|"withTenantScope (lutic_app)"| DB
 ```
 
 ## 2. Threat Model & Mitigations
@@ -38,7 +35,7 @@ Tenant routes and server pages use a transaction under the restricted applicatio
 
 Agent work-order and part-reservation tools first create a pending action. Confirmation verifies the user and uses an idempotency key. Authorized workflow steps can create local work orders, in-app notifications, and queue messages. Remote MCP (`remote_mcp`) and UTCP/OpenAPI (`utcp_http`) bridges enforce HTTPS-only endpoints (unless `LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true`), private/loopback/metadata IP blocking (including post-DNS lookup checks), disabled redirects, timeouts, and 1 MiB response limits. Raw HTTP/webhook/AI workflow stubs remain unavailable in production (`HTTP 501`).
 
-Production disables Code Mode at the shared executor. The development/test subprocess shares the app's filesystem and network permissions, so only run trusted scripts there. UTCP/OpenAPI attaches stored connector credentials only to requests on the configured origin, including calls made from previously discovered tool definitions.
+Production disables Code Mode (`isCodeModeEnabled()` in `packages/core/src/runtime.ts`) fail-closed across the shared executor (`packages/agent/src/code-mode.ts`), policy engine tool list (`packages/agent/src/policy.ts`), capability API (`/api/connectors`), and `POST /api/connectors/[id]/invoke` (`HTTP 501`). The development/test subprocess shares the app's filesystem and network permissions, so only run trusted scripts there. UTCP/OpenAPI (`packages/core/src/external-connectors.ts`) attaches stored connector credentials only when the resolved post-substitution target matches the configured connector origin (`targetUrl.origin === connectorUrl.origin`).
 
 ### E. Credential Protection, Rate Limiting & Uploads
 
@@ -49,4 +46,4 @@ Production disables Code Mode at the shared executor. The development/test subpr
 
 ## Verification and Dependency Status
 
-Local tests exercise tenant isolation, request authorization, session invalidation, ClamAV protocol handling, SSRF/UTCP/Remote MCP bridge behavior, and the production Code Mode guard and development/test worker timeout. Native PostgreSQL integration tests (`tests/postgres-integration.test.ts`), Docker `container-smoke`, live `clamd`, and live LiteLLM/upstream LLM calls run in CI or target staging environments.
+Across `19` Vitest suites (`128` total tests), `121` tests run locally (`18` files covering tenant isolation, request authorization, session invalidation, ClamAV protocol handling, SSRF/same-origin UTCP/Remote MCP bridges, and fail-closed production Code Mode guards + dev/test `SIGKILL` timeout), and `7` native PostgreSQL multi-connection RLS tests (`tests/postgres-integration.test.ts`, skipped locally without `POSTGRES_TEST_URL`) plus Docker `container-smoke` run in GitHub CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)). Live HTTPS TLS termination, live `clamd` uploads, live LiteLLM/upstream LLM calls, and encrypted backup restores remain to be verified on target staging before client rollout.
