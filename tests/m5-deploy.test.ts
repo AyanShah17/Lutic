@@ -27,16 +27,20 @@ describe("Milestone 5 — Client Docker Container & Linux Deployment CLI", () =>
     const compose = fs.readFileSync(path.join(ROOT, "docker-compose.yml"), "utf-8");
     expect(compose).toContain("services:");
     expect(compose).toContain("pgvector/pgvector:pg16");
+    expect(compose).toContain("litellm:");
     expect(compose).toContain("kojo-paas:");
+    expect(compose).toContain("KOJO_AI_GATEWAY_URL");
     expect(compose).toContain("KOJO_LICENSE_KEY");
     expect(compose).toContain("LICENSE_SERVER_URL");
     expect(compose).toContain("DATABASE_URL");
     expect(compose).toContain("/api/health");
+    expect(fs.existsSync(path.join(ROOT, "deploy/litellm_config.yaml"))).toBe(true);
 
     const envExample = fs.readFileSync(
       path.join(ROOT, "deploy/kojo.env.example"),
       "utf-8"
     );
+    expect(envExample).toContain("KOJO_AI_GATEWAY_URL=");
     expect(envExample).toContain("KOJO_LICENSE_KEY=");
     expect(envExample).toContain("LICENSE_SERVER_URL=");
   });
