@@ -6,14 +6,18 @@ import { useTheme } from "next-themes";
 import {
   ArrowRight,
   BookOpen,
+  Bot,
   CheckCircle2,
   Clock,
+  Cpu,
   Factory,
+  Kanban,
   Layers,
   LineChart,
   Moon,
   ShieldCheck,
   Sun,
+  Workflow,
   Wrench,
   XCircle
 } from "lucide-react";
@@ -153,6 +157,57 @@ const TEAM_PROFILES: TeamProfile[] = [
   }
 ];
 
+const PLATFORM_PRODUCTS: Array<{
+  title: string;
+  tag: string;
+  summary: string;
+  outcomes: string[];
+  Icon: React.ComponentType<{ className?: string }>;
+}> = [
+  {
+    title: "AI Automations",
+    tag: "Cross-System Execution",
+    summary:
+      "Replace manual ticket handoffs and swivel-chair updates with visual multi-step workflows across SAP, ServiceNow, AWS, and operations teams.",
+    outcomes: ["Event-driven triggers & approvals", "Complete audit history on every run"],
+    Icon: Workflow
+  },
+  {
+    title: "Agentic Dashboards",
+    tag: "Decision Intelligence",
+    summary:
+      "Live operational and executive scorecards that surface anomalies automatically, explain what shifted, and answer follow-up questions in plain language.",
+    outcomes: ["Zero spreadsheet reconciliation", "Scoped views per plant, site, or team"],
+    Icon: LineChart
+  },
+  {
+    title: "Autonomous Multi-Agent Systems",
+    tag: "Governed Agent Swarms",
+    summary:
+      "Specialist agents collaborate across diagnostics, spare-parts checks, IT service desks, and planning while enforcing role permissions and human sign-off.",
+    outcomes: ["Role-governed tool boundaries", "Safe escalation with full reasoning trail"],
+    Icon: Bot
+  },
+  {
+    title: "Lutic Industrial Operations",
+    tag: "Flagship Platform",
+    summary:
+      "Unify shop-floor alerts, OEM manuals, PLC/sensor streams, and Kanban/List execution boards to turn stoppages into verified fixes fast.",
+    outcomes: ["Plant floor to boardroom visibility", "Built-in execution board & native connectors"],
+    Icon: Factory
+  }
+];
+
+const ECOSYSTEM_ITEMS = [
+  "SAP S/4HANA PM · MM · PP · QM",
+  "AWS IoT SiteWise · S3 · CloudWatch",
+  "ServiceNow ITSM & Incidents",
+  "MQTT Sparkplug B",
+  "OPC-UA Servers",
+  "Modbus TCP / RTU",
+  "Linear & Jira-Style Boards"
+];
+
 export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -187,6 +242,9 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
           </Link>
 
           <nav aria-label="Landing sections" className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+            <a href="#platform" className="hover:text-foreground transition-colors">
+              Platform Suite
+            </a>
             <a href="#how-it-works" className="hover:text-foreground transition-colors">
               How It Works
             </a>
@@ -214,6 +272,9 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
                 <Sun className="h-4 w-4" />
               )}
             </button>
+            <Link href="/signup" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <span>Start Free</span>
+            </Link>
             <Link href="/login" className={buttonVariants({ size: "sm" })}>
               <span>Sign in</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -243,9 +304,12 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
               <span>{demoMode ? "Explore Interactive Demo" : "Sign in"}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
+            <Link href="/signup" className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <span>Get Started Free</span>
+            </Link>
             <a
               href="#how-it-works"
-              className={buttonVariants({ variant: "outline", size: "lg" })}
+              className={buttonVariants({ variant: "ghost", size: "lg" })}
             >
               <span>See How Lutic Works</span>
             </a>
@@ -410,6 +474,92 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
         </div>
       </section>
 
+      {/* Lutic Multi-Product Suite & Ecosystem */}
+      <section id="platform" className="border-t border-border bg-muted/15 py-14 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 space-y-8">
+          <div className="max-w-2xl space-y-1.5">
+            <div className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Lutic Product Suite
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              AI Systems Built to Run Real Work Across Every Team
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Beyond industrial operations, Lutic delivers governed AI automations, agentic dashboards, autonomous multi-agent systems, and connected execution boards tailored to your stack.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {PLATFORM_PRODUCTS.map((prod) => {
+              const Icon = prod.Icon;
+              return (
+                <Card key={prod.title} className="p-5 flex flex-col justify-between gap-4 hover:border-primary/50 transition-colors">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {prod.tag}
+                      </Badge>
+                    </div>
+                    <h3 className="text-base font-semibold text-foreground">{prod.title}</h3>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{prod.summary}</p>
+                  </div>
+                  <div className="space-y-1.5 border-t border-border pt-2.5">
+                    {prod.outcomes.map((out) => (
+                      <div key={out} className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+                        <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />
+                        <span>{out}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          <Card className="p-4 sm:p-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between bg-card">
+            <div className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
+              <Cpu className="h-4 w-4 text-primary" />
+              <span>Ready-Made Ecosystem</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ECOSYSTEM_ITEMS.map((item) => (
+                <Badge key={item} variant="secondary" className="text-[11px] font-medium">
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="p-5 flex items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                <Kanban className="h-4 w-4" />
+              </span>
+              <div className="space-y-1">
+                <div className="text-sm font-semibold">Free &amp; Individual Workspaces</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Sign up with Google, Microsoft, or email and launch your own workspace with starter workflows, connectors, and execution board immediately.
+                </p>
+              </div>
+            </Card>
+            <Card className="p-5 flex items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                <ShieldCheck className="h-4 w-4" />
+              </span>
+              <div className="space-y-1">
+                <div className="text-sm font-semibold">Enterprise Managed Deployments</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Admin-invited access controls, strict facility boundaries, SAP &amp; AWS connectors, and dedicated multi-agent governance under your domain.
+                </p>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Interactive Team Benefits */}
       <section id="teams" className="border-t border-border bg-muted/20 py-14 sm:py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 space-y-6">
@@ -502,7 +652,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
             <Factory className="h-3.5 w-3.5 text-primary" />
             <span>Lutic · lutic.app</span>
           </div>
-          <div>Role-governed industrial operations platform for manufacturing teams.</div>
+          <div>Autonomous AI systems, automations, agentic dashboards, and industrial operations.</div>
         </div>
       </footer>
     </div>

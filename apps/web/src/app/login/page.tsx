@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Factory, KeyRound, ShieldCheck } from "lucide-react";
 import { useAppContext } from "@/components/providers";
+import { LuticAuthCard } from "@/components/auth-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,7 @@ const PERSONA_GROUPS = [
         email: "admin@acme.demo",
         role: "admin",
         plant: "All Plants",
-        desc: "Users, RBAC matrix, MCP connectors, knowledge revisions, license."
+        desc: "Users, RBAC matrix, system connectors, knowledge revisions, license."
       }
     ]
   }
@@ -60,7 +61,7 @@ const PERSONA_GROUPS = [
 
 export default function LoginPage() {
   const router = useRouter();
-  const { refreshSession, demoEnabled } = useAppContext();
+  const { refreshSession, demoEnabled, clerkEnabled } = useAppContext();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +139,11 @@ export default function LoginPage() {
       </div>
 
       <div className={demoEnabled ? "grid gap-6 lg:grid-cols-12 items-start" : "mx-auto max-w-md"}>
+        {clerkEnabled ? (
+          <div className={demoEnabled ? "lg:col-span-5" : ""}>
+            <LuticAuthCard mode="sign-in" />
+          </div>
+        ) : (
         <Card className={demoEnabled ? "lg:col-span-5" : ""}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -201,6 +207,7 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
+        )}
 
         {demoEnabled && <Card className="lg:col-span-7">
           <CardHeader>

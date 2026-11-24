@@ -27,6 +27,13 @@ const NAV_GROUPS: NavGroupConfig[] = [
         groupId: "operations"
       },
       {
+        id: "board",
+        href: "/board",
+        labelKey: "nav.board",
+        keywords: ["board", "jira", "linear", "kanban", "issues", "tasks", "sprint"],
+        groupId: "operations"
+      },
+      {
         id: "chat",
         href: "/chat",
         labelKey: "nav.chat",
@@ -122,6 +129,8 @@ export function isNavItemVisible(user: SessionUser | null, id: string): boolean 
   switch (id) {
     case "overview":
       return true;
+    case "board":
+      return !user || can(user, "workorder:read");
     case "chat":
       return !user || can(user, "docs:read") || can(user, "machine:read");
     case "machines":

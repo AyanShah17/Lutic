@@ -17,6 +17,7 @@ import {
   type SessionUser
 } from "@lutic/core";
 import { resolveCorsOrigin } from "./cors";
+import { getClerkServerSessionUser, isClerkEnabled } from "./clerk";
 import { withWebTenantDb } from "./db";
 
 export const SESSION_COOKIE_NAME = "lutic_session";
@@ -81,8 +82,24 @@ export async function getSessionToken(req?: Request): Promise<string | null> {
 }
 
 export async function getSessionUser(req?: Request): Promise<SessionUser | null> {
+  let hasBearerHeader = false;
+  if (req) {
+    hasBearerHeader = /^Bearer\s*/i.test(req.headers.get("authorization") ?? "");
+  } else {
+    try {
+      hasBearerHeader = /^Bearer\s*/i.test((await headers()).get("authorization") ?? "");
+    } catch {
+      hasBearerHeader = false;
+    }
+  }
+
   const token = await getSessionToken(req);
-  if (!token) return null;
+  if (!token) {
+    if (!hasBearerHeader && isClerkEnabled()) {
+      return getClerkServerSessionUser();
+    }
+    return null;
+  }
   const claims = await verifySessionToken(token);
   if (!claims) return null;
 

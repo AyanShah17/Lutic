@@ -129,9 +129,13 @@ export async function POST(req: Request) {
       | "webhook"
       | "simulated" =
       body.transport ??
-      (kind === "metorial" || kind === "open-connector" || kind === "remote_mcp"
+      (kind === "lutic-cloud" ||
+      kind === "lutic-bridge" ||
+      kind === "metorial" ||
+      kind === "open-connector" ||
+      kind === "remote_mcp"
         ? "remote_mcp"
-        : kind === "utcp" || kind === "utcp-http" || kind === "utcp_http"
+        : kind === "lutic-api" || kind === "utcp" || kind === "utcp-http" || kind === "utcp_http"
           ? "utcp_http"
           : endpointUrl.startsWith("lutic://")
             ? "lutic_protocol"
@@ -139,9 +143,16 @@ export async function POST(req: Request) {
               ? "in_memory_mcp"
               : endpointUrl.startsWith("mock://") || endpointUrl.startsWith("sim://")
                 ? "simulated"
-                : category === "http"
-                  ? "http"
-                  : "simulated");
+                : kind.startsWith("sap-") ||
+                    kind.startsWith("aws-") ||
+                    kind === "servicenow" ||
+                    kind === "mqtt-broker" ||
+                    kind === "opc-ua" ||
+                    kind === "modbus-tcp"
+                  ? "simulated"
+                  : category === "http"
+                    ? "http"
+                    : "simulated");
 
     const encryptedCredentials = body.credentials
       ? encryptCredentials(body.credentials)

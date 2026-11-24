@@ -14,6 +14,7 @@ import {
   GitBranch,
   Globe,
   Home,
+  Kanban,
   KeyRound,
   Layers,
   LogOut,
@@ -49,6 +50,7 @@ const DEMO_ACCOUNTS = [
 
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   overview: Home,
+  board: Kanban,
   chat: MessageSquare,
   machines: Cpu,
   monitoring: Activity,
@@ -73,7 +75,7 @@ interface NavNotification {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, locale, setLocale, t, refreshSession, setUser, demoEnabled } = useAppContext();
+  const { user, locale, setLocale, t, refreshSession, setUser, demoEnabled, signOutExternal } = useAppContext();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -208,6 +210,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const handleLogout = async () => {
+    try {
+      await signOutExternal();
+    } catch {
+      // Ignore external sign-out errors so local cleanup always runs.
+    }
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     setMobileOpen(false);
@@ -225,7 +232,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setTheme(next);
   };
 
-  const isAuthPage = pathname === "/login" && !user;
+  const isAuthPage =
+    (pathname === "/login" || pathname === "/signup" || pathname === "/sso-callback") &&
+    !user;
 
   if (pathname === "/" && !user) {
     return (

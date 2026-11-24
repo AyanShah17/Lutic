@@ -2038,19 +2038,19 @@ export function AdminConsole() {
                       <div className="text-[11px] text-muted-foreground mt-1">
                         {diagnosticsData.database.pool
                           ? `Pool ${diagnosticsData.database.pool.totalCount ?? 0} total / ${diagnosticsData.database.pool.waitingCount ?? 0} waiting`
-                          : "Embedded PGlite driver"}
+                          : "Local storage engine"}
                       </div>
                     </Card>
 
                     <Card className="p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Malware Scanner (ClamAV)
+                        Lutic Security Scanner
                       </div>
                       <div className="text-lg font-bold font-mono mt-1 uppercase">
                         {diagnosticsData.scanner.status}
                       </div>
                       <div className="text-[11px] text-muted-foreground mt-1 truncate">
-                        {diagnosticsData.scanner.version ?? diagnosticsData.scanner.detail ?? "Check CLAMAV_HOST"}
+                        {diagnosticsData.scanner.version ?? diagnosticsData.scanner.detail ?? "Check scanner service configuration"}
                       </div>
                     </Card>
 

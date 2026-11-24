@@ -7,6 +7,7 @@ import {
   Bell,
   Cpu,
   GitBranch,
+  Kanban,
   KeyRound,
   Layers,
   MessageSquare,
@@ -176,12 +177,21 @@ export default async function HomePage() {
       subtitle: "Diagnostics, equipment health, and threshold alerting",
       items: [
         {
+          id: "board",
+          href: "/board",
+          title: "Operations & AI Board",
+          description:
+            "Track incidents, SAP/ServiceNow escalations, AI automations, and plant tasks across Backlog to Done.",
+          tag: "Kanban + List",
+          Icon: Kanban
+        },
+        {
           id: "chat",
           href: "/chat",
           title: "Unified AI Chat",
           description:
             "Multimodal diagnostics across plant manuals, machine telemetry, workflows, and queues.",
-          tag: "RAG + MCP",
+          tag: "Lutic AI",
           Icon: MessageSquare
         },
         {
@@ -232,7 +242,7 @@ export default async function HomePage() {
           href: "/connectors",
           title: "Connectors Hub",
           description:
-            "Unified UTCP/MCP hub (Metorial & OpenConnectors), LiteLLM gateway, and governed tool execution.",
+            "Unified Lutic Connector Hub (SAP, AWS, ServiceNow, MQTT, OPC-UA, Modbus), Lutic AI Gateway, and governed tool execution.",
           tag: "Lutic Protocol",
           Icon: Plug
         }

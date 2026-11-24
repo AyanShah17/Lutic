@@ -31,6 +31,7 @@ export const tenants = pgTable("tenants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  plan: text("plan").$type<"free" | "individual" | "enterprise">().notNull().default("free"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 
@@ -64,11 +65,13 @@ export const users = pgTable(
     active: boolean("active").notNull().default(true),
     tokenVersion: integer("token_version").notNull().default(1),
     passwordUpdatedAt: timestamp("password_updated_at", { withTimezone: true }),
+    externalAuthId: text("external_auth_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   (t) => [
     uniqueIndex("users_tenant_email_idx").on(t.tenantId, t.email),
-    index("users_email_idx").on(t.email)
+    index("users_email_idx").on(t.email),
+    uniqueIndex("users_external_auth_id_idx").on(t.externalAuthId)
   ]
 );
 
@@ -1095,5 +1098,43 @@ export const ingestionTokens = pgTable(
   (t) => [
     uniqueIndex("ingestion_tokens_hash_idx").on(t.tokenHash),
     index("ingestion_tokens_tenant_plant_idx").on(t.tenantId, t.plantId)
+  ]
+);
+
+// 14. Operations & Project Execution Board
+export const boardIssues = pgTable(
+  "board_issues",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    plantId: text("plant_id").references(() => plants.id, { onDelete: "set null" }),
+    identifier: text("identifier").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status")
+      .$type<"backlog" | "todo" | "in_progress" | "in_review" | "done" | "canceled">()
+      .notNull()
+      .default("todo"),
+    priority: text("priority")
+      .$type<"urgent" | "high" | "medium" | "low">()
+      .notNull()
+      .default("medium"),
+    category: text("category")
+      .$type<"operations" | "automation" | "incident" | "connector" | "agent">()
+      .notNull()
+      .default("operations"),
+    assigneeName: text("assignee_name").notNull().default(""),
+    labels: jsonb("labels").$type<string[]>().notNull().default([]),
+    sourceRef: text("source_ref").notNull().default(""),
+    dueDate: text("due_date").notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (t) => [
+    uniqueIndex("board_issues_tenant_identifier_idx").on(t.tenantId, t.identifier),
+    index("board_issues_tenant_status_idx").on(t.tenantId, t.status)
   ]
 );

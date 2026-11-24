@@ -141,7 +141,7 @@ jobs:
             sleep 1
           done
           curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:3100/api/machines | grep -q "$MACH_ID"
-          curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:3100/api/admin/diagnostics | grep -q '"currentVersion":2'
+          curl -fsS -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:3100/api/admin/diagnostics | grep -q '"currentVersion":3'
 
           # Exercise credential key rotation inside the runtime image
           rot_json=$(docker run --rm --network host \

@@ -10,6 +10,7 @@
     "lint": "eslint --ext .ts,.tsx src"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.12.0",
     "@electric-sql/pglite": "^0.2.15",
     "@lutic/agent": "workspace:*",
     "@lutic/connectors": "workspace:*",

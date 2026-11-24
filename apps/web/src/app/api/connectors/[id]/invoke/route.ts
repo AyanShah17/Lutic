@@ -35,6 +35,68 @@ const InvokeSchema = z.object({
   confirmWrite: z.boolean().optional()
 });
 
+function buildConnectorSimulationResult(
+  conn: { id: string; slug: string },
+  toolName: string,
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  const nowIso = new Date().toISOString();
+  if (toolName.startsWith("sap_")) {
+    return {
+      simulated: true,
+      system: "SAP S/4HANA",
+      module: conn.slug.toUpperCase(),
+      toolName,
+      records: [
+        { documentNumber: "4000812", plant: "DET-01", equipment: "L3-FILLER-E42", status: "REL", stockAvailable: 6 },
+        { documentNumber: "4000819", plant: "AUS-02", equipment: "CNC-01", status: "CRTD", stockAvailable: 12 }
+      ],
+      args,
+      respondedAt: nowIso
+    };
+  }
+  if (toolName.startsWith("aws_")) {
+    return {
+      simulated: true,
+      system: "AWS Operations",
+      service: conn.slug,
+      region: "us-east-1",
+      toolName,
+      metrics: { assetPropertyValue: 64.2, unit: "degC", quality: "GOOD", alarmsActive: 1 },
+      args,
+      respondedAt: nowIso
+    };
+  }
+  if (toolName.startsWith("snow_")) {
+    return {
+      simulated: true,
+      system: "ServiceNow ITSM",
+      toolName,
+      ticket: { number: "INC004192", state: "In Progress", priority: "2 - High", ci: "L3-FILLER-E42" },
+      args,
+      respondedAt: nowIso
+    };
+  }
+  if (toolName.startsWith("mqtt_") || toolName.startsWith("opcua_") || toolName.startsWith("modbus_")) {
+    return {
+      simulated: true,
+      protocol: conn.slug.toUpperCase(),
+      toolName,
+      telemetry: { node: "ns=2;s=Line3.FillerE42.VibrationRMS", value: 4.18, unit: "mm/s", quality: "Good" },
+      args,
+      respondedAt: nowIso
+    };
+  }
+  return {
+    simulated: true,
+    connectorId: conn.id,
+    slug: conn.slug,
+    toolName,
+    args,
+    respondedAt: nowIso
+  };
+}
+
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -236,14 +298,7 @@ export async function POST(
           }
         );
       } else {
-        result = {
-          simulated: true,
-          connectorId: conn.id,
-          slug: conn.slug,
-          toolName,
-          args,
-          respondedAt: new Date().toISOString()
-        };
+        result = buildConnectorSimulationResult(conn, toolName, args);
       }
 
       const latencyMs = Math.max(1, Date.now() - started);

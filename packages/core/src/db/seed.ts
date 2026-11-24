@@ -1457,6 +1457,319 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       });
     }
   }
+
+  // 17. Enterprise & Industrial Connectors + Operations Board Seed (idempotent)
+  const enterpriseConnSeeds = [
+    {
+      id: "conn-hub-sap-pm",
+      slug: "sap-pm",
+      name: "SAP S/4HANA PM (Plant Maintenance)",
+      category: "erp" as const,
+      transport: "simulated" as const,
+      endpointUrl: "sap://s4hana-prd.acme.internal/sap/opu/odata/sap/API_MAINTORDER",
+      creds: { client: "300", apiKey: "sap-pm-demo-secret" },
+      tools: [
+        { name: "sap_pm_list_notifications", description: "List open SAP PM M2 notifications" },
+        { name: "sap_pm_create_order", description: "Create SAP PM corrective order" },
+        { name: "sap_pm_confirm_operation", description: "Post completion hours to SAP PM" }
+      ]
+    },
+    {
+      id: "conn-hub-sap-mm",
+      slug: "sap-mm",
+      name: "SAP S/4HANA MM (Materials & Spares)",
+      category: "erp" as const,
+      transport: "simulated" as const,
+      endpointUrl: "sap://s4hana-prd.acme.internal/sap/opu/odata/sap/API_MATERIAL_STOCK_SRV",
+      creds: { client: "300", apiKey: "sap-mm-demo-secret" },
+      tools: [
+        { name: "sap_mm_check_stock", description: "Query plant warehouse stock in SAP MM" },
+        { name: "sap_mm_create_purchase_req", description: "Raise SAP MM purchase requisition" },
+        { name: "sap_mm_reserve_material", description: "Reserve spare material for order" }
+      ]
+    },
+    {
+      id: "conn-hub-sap-pp",
+      slug: "sap-pp",
+      name: "SAP S/4HANA PP (Production Planning)",
+      category: "erp" as const,
+      transport: "simulated" as const,
+      endpointUrl: "sap://s4hana-prd.acme.internal/sap/opu/odata/sap/API_PRODUCTION_ORDER_2_SRV",
+      creds: { client: "300", apiKey: "sap-pp-demo-secret" },
+      tools: [
+        { name: "sap_pp_list_orders", description: "List scheduled production orders" },
+        { name: "sap_pp_confirm_yield", description: "Post line yield and scrap to SAP PP" }
+      ]
+    },
+    {
+      id: "conn-hub-sap-qm",
+      slug: "sap-qm",
+      name: "SAP S/4HANA QM (Quality Management)",
+      category: "erp" as const,
+      transport: "simulated" as const,
+      endpointUrl: "sap://s4hana-prd.acme.internal/sap/opu/odata/sap/API_INSPECTIONLOT_SRV",
+      creds: { client: "300", apiKey: "sap-qm-demo-secret" },
+      tools: [
+        { name: "sap_qm_list_inspection_lots", description: "List active inspection lots" },
+        { name: "sap_qm_record_usage_decision", description: "Record lot usage decision in SAP QM" }
+      ]
+    },
+    {
+      id: "conn-hub-aws-iot",
+      slug: "aws-iot",
+      name: "AWS IoT SiteWise & IoT Core",
+      category: "scada" as const,
+      transport: "simulated" as const,
+      endpointUrl: "https://data.iotsitewise.us-east-1.amazonaws.com",
+      creds: { roleArn: "arn:aws:iam::123456789012:role/lutic-iot", apiKey: "aws-iot-demo-token" },
+      tools: [
+        { name: "aws_iot_get_asset_property", description: "Fetch live AWS IoT SiteWise asset value" },
+        { name: "aws_iot_query_aggregates", description: "Query time-windowed IoT aggregates" }
+      ]
+    },
+    {
+      id: "conn-hub-aws-s3",
+      slug: "aws-s3",
+      name: "AWS S3 Operational Data Lake",
+      category: "http" as const,
+      transport: "simulated" as const,
+      endpointUrl: "https://acme-plant-datalake.s3.us-east-1.amazonaws.com",
+      creds: { bucket: "acme-plant-datalake", apiKey: "aws-s3-demo-token" },
+      tools: [
+        { name: "aws_s3_list_objects", description: "List archived shift telemetry objects" },
+        { name: "aws_s3_put_report_snapshot", description: "Archive report bundle to S3" }
+      ]
+    },
+    {
+      id: "conn-hub-servicenow",
+      slug: "servicenow",
+      name: "ServiceNow ITSM & OT Incident Bridge",
+      category: "messaging" as const,
+      transport: "simulated" as const,
+      endpointUrl: "https://acme.service-now.com/api/now",
+      creds: { instance: "acme", apiKey: "snow-demo-bearer-token" },
+      tools: [
+        { name: "snow_list_incidents", description: "Query active ServiceNow OT/IT incidents" },
+        { name: "snow_create_incident", description: "Create high-priority ServiceNow incident" }
+      ]
+    },
+    {
+      id: "conn-hub-mqtt",
+      slug: "mqtt-broker",
+      name: "MQTT Broker (Sparkplug B / Telemetry)",
+      category: "scada" as const,
+      transport: "simulated" as const,
+      endpointUrl: "mqtts://broker.detroit.local:8883",
+      creds: { clientId: "lutic-edge-detroit", apiKey: "mqtt-demo-secret" },
+      tools: [
+        { name: "mqtt_list_active_topics", description: "List active Sparkplug B topics" },
+        { name: "mqtt_read_topic_snapshot", description: "Read latest retained topic message" },
+        { name: "mqtt_publish_payload", description: "Publish governed status payload" }
+      ]
+    },
+    {
+      id: "conn-hub-opcua",
+      slug: "opc-ua",
+      name: "OPC-UA Industrial Server (PLC / CNC)",
+      category: "scada" as const,
+      transport: "simulated" as const,
+      endpointUrl: "opc.tcp://plc-line3.detroit.local:4840",
+      creds: { securityPolicy: "Basic256Sha256", apiKey: "opcua-demo-cert-key" },
+      tools: [
+        { name: "opcua_browse_namespace", description: "Browse PLC OPC-UA namespace" },
+        { name: "opcua_read_nodes", description: "Read live PLC node tag values" },
+        { name: "opcua_write_setpoint", description: "Write approved PLC setpoint" }
+      ]
+    },
+    {
+      id: "conn-hub-modbus",
+      slug: "modbus-tcp",
+      name: "Modbus TCP / RTU Fieldbus Gateway",
+      category: "scada" as const,
+      transport: "simulated" as const,
+      endpointUrl: "modbus://gateway-l3.detroit.local:502",
+      creds: { unitId: "1", apiKey: "modbus-demo-token" },
+      tools: [
+        { name: "modbus_read_holding_registers", description: "Read 16-bit Modbus holding registers" },
+        { name: "modbus_read_input_registers", description: "Sample sensor analog input registers" },
+        { name: "modbus_write_coil", description: "Toggle governed Modbus output coil" }
+      ]
+    }
+  ];
+
+  const existingConns = await db
+    .select({ id: schema.connectorConnections.id })
+    .from(schema.connectorConnections)
+    .where(eq(schema.connectorConnections.tenantId, "tenant-acme"));
+  const existingConnIds = new Set(existingConns.map((c) => c.id));
+  const missingConns = enterpriseConnSeeds.filter((c) => !existingConnIds.has(c.id));
+  if (missingConns.length > 0) {
+    const connNow = new Date();
+    await db.insert(schema.connectorConnections).values(
+      missingConns.map((c) => ({
+        id: c.id,
+        tenantId: "tenant-acme",
+        slug: c.slug,
+        name: c.name,
+        category: c.category,
+        transport: c.transport,
+        endpointUrl: c.endpointUrl,
+        status: "connected" as const,
+        encryptedCredentials: encryptCredentials(c.creds),
+        config: { mode: "managed", syncIntervalSec: 60 },
+        discoveredTools: c.tools,
+        lastSyncAt: connNow,
+        lastError: null
+      }))
+    );
+  }
+
+  const existingBoardRows = await db
+    .select({ id: schema.boardIssues.id })
+    .from(schema.boardIssues)
+    .where(eq(schema.boardIssues.tenantId, "tenant-acme"))
+    .limit(1);
+
+  if (existingBoardRows.length === 0) {
+    await db.insert(schema.boardIssues).values([
+      {
+        id: "brd-lut-101",
+        tenantId: "tenant-acme",
+        plantId: "plant-detroit",
+        identifier: "LUT-101",
+        title: "Investigate Line 3 Filler E42 bearing vibration spike (OPC-UA)",
+        description:
+          "OPC-UA node ns=2;s=Line3.FillerE42.VibrationRMS crossed 6.2 mm/s. Multi-agent triage linked OEM bearing spec and drafted maintenance order.",
+        status: "in_progress",
+        priority: "urgent",
+        category: "incident",
+        assigneeName: "Marcus Rivera",
+        labels: ["opc-ua", "line-3", "safety"],
+        sourceRef: "SAP PM #4000812",
+        dueDate: "2026-11-26",
+        createdBy: "usr-eng-detroit"
+      },
+      {
+        id: "brd-lut-102",
+        tenantId: "tenant-acme",
+        plantId: "plant-detroit",
+        identifier: "LUT-102",
+        title: "Reserve 2x SKF-6208 seal kits in SAP MM before shift handover",
+        description:
+          "Confirm stock in Detroit warehouse SLOC 0001 and hold 2 units against corrective work order WO-104.",
+        status: "todo",
+        priority: "high",
+        category: "operations",
+        assigneeName: "Elena Park",
+        labels: ["sap-mm", "spares"],
+        sourceRef: "SAP MM #1009482",
+        dueDate: "2026-11-26",
+        createdBy: "usr-manager"
+      },
+      {
+        id: "brd-lut-103",
+        tenantId: "tenant-acme",
+        plantId: "plant-detroit",
+        identifier: "LUT-103",
+        title: "Automate ServiceNow P2 ticket creation on CNC thermal alarm",
+        description:
+          "Workflow rule publishes alert event and opens ServiceNow CMDB-linked incident with operator approval trace.",
+        status: "in_review",
+        priority: "high",
+        category: "automation",
+        assigneeName: "Priya Nair",
+        labels: ["servicenow", "workflow"],
+        sourceRef: "ServiceNow INC004192",
+        dueDate: "2026-11-27",
+        createdBy: "usr-analyst"
+      },
+      {
+        id: "brd-lut-104",
+        tenantId: "tenant-acme",
+        plantId: "plant-detroit",
+        identifier: "LUT-104",
+        title: "Calibrate Modbus TCP chiller gateway registers on Austin bay",
+        description:
+          "Validate holding registers 40001-40012 scaling factor after firmware patch and verify zero packet loss in MQTT broker.",
+        status: "todo",
+        priority: "medium",
+        category: "connector",
+        assigneeName: "Austin Crew",
+        labels: ["modbus", "mqtt"],
+        sourceRef: "Modbus GW-02",
+        dueDate: "2026-11-28",
+        createdBy: "usr-eng-austin"
+      },
+      {
+        id: "brd-lut-105",
+        tenantId: "tenant-acme",
+        plantId: null,
+        identifier: "LUT-105",
+        title: "Enable executive weekly OEE anomaly summary to AWS S3 data lake",
+        description:
+          "Schedule Agentic Dashboard snapshot export and compliance manifest archiving to S3 every Friday.",
+        status: "backlog",
+        priority: "low",
+        category: "agent",
+        assigneeName: "Priya Nair",
+        labels: ["aws-s3", "dashboards"],
+        sourceRef: "Executive Board",
+        dueDate: "2026-12-01",
+        createdBy: "usr-analyst"
+      },
+      {
+        id: "brd-lut-106",
+        tenantId: "tenant-acme",
+        plantId: "plant-detroit",
+        identifier: "LUT-106",
+        title: "Configure AWS IoT SiteWise property rollup for Detroit Line 3",
+        description:
+          "Stream 1-minute temperature and vibration aggregates into semantic KPI board metrics.",
+        status: "done",
+        priority: "medium",
+        category: "connector",
+        assigneeName: "David Kim",
+        labels: ["aws-iot", "telemetry"],
+        sourceRef: "AWS SiteWise",
+        dueDate: "2026-11-24",
+        createdBy: "usr-admin"
+      },
+      {
+        id: "brd-lut-107",
+        tenantId: "tenant-acme",
+        plantId: "plant-austin",
+        identifier: "LUT-107",
+        title: "Sync SAP QM inspection lot hold alerts to Autonomous Triage Agent",
+        description:
+          "Correlate quality hold lots in Austin Press #2 with upstream torque drift readings.",
+        status: "backlog",
+        priority: "medium",
+        category: "agent",
+        assigneeName: "Elena Park",
+        labels: ["sap-qm", "multi-agent"],
+        sourceRef: "SAP QM #8900012",
+        dueDate: "2026-11-29",
+        createdBy: "usr-manager"
+      },
+      {
+        id: "brd-lut-108",
+        tenantId: "tenant-acme",
+        plantId: null,
+        identifier: "LUT-108",
+        title: "Roll out Google & Microsoft login for plant supervisors",
+        description:
+          "Verify Clerk custom domain routing and enterprise invite-only access controls.",
+        status: "done",
+        priority: "high",
+        category: "operations",
+        assigneeName: "David Kim",
+        labels: ["auth", "governance"],
+        sourceRef: "Lutic IAM",
+        dueDate: "2026-11-25",
+        createdBy: "usr-admin"
+      }
+    ]);
+  }
 }
 
 const isCli =

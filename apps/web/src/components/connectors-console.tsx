@@ -66,6 +66,25 @@ function statusBadgeVariant(status: string): "success" | "warning" | "destructiv
   return "outline";
 }
 
+function formatTransportLabel(transport: string): string {
+  switch (transport) {
+    case "remote_mcp":
+      return "Lutic Cloud";
+    case "utcp_http":
+      return "Lutic Direct API";
+    case "in_memory_mcp":
+      return "Lutic Native";
+    case "lutic_protocol":
+      return "Lutic Protocol";
+    case "simulated":
+      return "Managed Adapter";
+    case "http":
+      return "HTTPS";
+    default:
+      return transport;
+  }
+}
+
 export function isConnectorSupportedInRuntime(
   connector: { transport: string; endpointUrl: string },
   demoEnabled: boolean
@@ -288,7 +307,7 @@ export function ConnectorsConsole() {
 
       {!demoEnabled && (
         <div className="rounded-md border border-border bg-muted/40 px-3.5 py-2 text-xs text-muted-foreground">
-          Production mode: local <code className="font-mono">mcp://</code> / <code className="font-mono">lutic://</code> adapters, <code className="font-mono">remote_mcp</code> (Metorial, OpenConnectors, UTCP-MCP), and <code className="font-mono">utcp_http</code> (UTCP / OpenAPI over HTTPS) execute live tool discovery and invocations. Unimplemented raw HTTP/SCADA/ERP/webhook entries store configuration only and return HTTP 501.
+          Production mode: native Lutic adapters (<code className="font-mono">lutic://</code>), Lutic Cloud / Enterprise Bridge connectors, and Lutic Direct API specs over HTTPS execute live tool discovery and invocations. Unimplemented raw HTTP/SCADA/ERP/webhook entries store configuration only and return HTTP 501.
         </div>
       )}
 
@@ -380,7 +399,7 @@ export function ConnectorsConsole() {
                           <div>
                             <div className="font-semibold text-sm">{c.name}</div>
                             <div className="text-[11px] text-muted-foreground font-mono">
-                              {c.slug} · {c.transport}
+                              {c.slug} · {formatTransportLabel(c.transport)}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
@@ -598,7 +617,7 @@ export function ConnectorsConsole() {
                     </div>
                     {playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled) && (
                       <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
-                        External runtime unavailable in production mode. Use <code className="font-mono">remote_mcp</code>, <code className="font-mono">utcp_http</code> (HTTPS), or local <code className="font-mono">lutic://</code>/<code className="font-mono">mcp://</code> connectors.
+                        External runtime unavailable in production mode. Use Lutic Cloud, Lutic Direct API (HTTPS), or native <code className="font-mono">lutic://</code> connectors.
                       </div>
                     )}
                     {!codeModeEnabled && (
@@ -660,8 +679,8 @@ export function ConnectorsConsole() {
                       </div>
                       {!demoEnabled && (
                         <p className="text-[11px] text-muted-foreground">
-                          Non-demo mode stores external HTTP, webhook, SCADA, and ERP configuration only; use an{" "}
-                          <code className="font-mono">mcp://</code> endpoint for local tool execution.
+                          Non-demo mode stores external HTTP, webhook, SCADA, and ERP configuration only; use a native{" "}
+                          <code className="font-mono">lutic://</code> or Lutic Cloud HTTPS endpoint for live execution.
                         </p>
                       )}
                       <Input
@@ -677,13 +696,24 @@ export function ConnectorsConsole() {
                           onChange={(e) => setForm({ ...form, kind: e.target.value })}
                           aria-label="Connector kind"
                         >
-                          <option value="metorial">metorial (Remote MCP)</option>
-                          <option value="open-connector">open-connector (Remote MCP)</option>
-                          <option value="utcp-http">utcp-http (UTCP / OpenAPI)</option>
-                          <option value="http">http</option>
-                          <option value="webhook">webhook</option>
-                          <option value="scada">scada</option>
-                          <option value="erp">erp</option>
+                          <option value="lutic-cloud">Lutic Cloud Connectors</option>
+                          <option value="lutic-bridge">Lutic Enterprise Bridge</option>
+                          <option value="lutic-api">Lutic Direct API (OpenAPI)</option>
+                          <option value="sap-pm">SAP S/4HANA PM</option>
+                          <option value="sap-mm">SAP S/4HANA MM</option>
+                          <option value="sap-pp">SAP S/4HANA PP</option>
+                          <option value="sap-qm">SAP S/4HANA QM</option>
+                          <option value="aws-iot">AWS IoT SiteWise / Core</option>
+                          <option value="aws-s3">AWS S3 Data Lake</option>
+                          <option value="aws-cloudwatch">AWS CloudWatch / Timestream</option>
+                          <option value="servicenow">ServiceNow ITSM</option>
+                          <option value="mqtt-broker">MQTT Broker (Sparkplug B)</option>
+                          <option value="opc-ua">OPC-UA Server</option>
+                          <option value="modbus-tcp">Modbus TCP / RTU</option>
+                          <option value="http">HTTP / REST</option>
+                          <option value="webhook">Webhook</option>
+                          <option value="scada">SCADA</option>
+                          <option value="erp">ERP</option>
                         </Select>
                         <Input
                           type="password"
@@ -729,7 +759,7 @@ export function ConnectorsConsole() {
                         </Badge>
                       </div>
                       <div className="text-[11px] font-mono text-muted-foreground">
-                        {cat.slug} · {cat.transport}
+                        {cat.slug} · {formatTransportLabel(cat.transport)}
                       </div>
                       <p className="text-xs text-muted-foreground pt-1">{cat.description}</p>
                     </div>
@@ -738,16 +768,29 @@ export function ConnectorsConsole() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
+                          const directKindSlugs = new Set([
+                            "lutic-cloud",
+                            "lutic-bridge",
+                            "lutic-api",
+                            "sap-pm",
+                            "sap-mm",
+                            "sap-pp",
+                            "sap-qm",
+                            "aws-iot",
+                            "aws-s3",
+                            "aws-cloudwatch",
+                            "servicenow",
+                            "mqtt-broker",
+                            "opc-ua",
+                            "modbus-tcp"
+                          ]);
                           setForm({
                             name: cat.name,
-                            kind:
-                              cat.slug === "metorial" ||
-                              cat.slug === "open-connector" ||
-                              cat.slug === "utcp-http"
-                                ? cat.slug
-                                : cat.category === "scada" || cat.category === "erp"
-                                  ? cat.category
-                                  : "http",
+                            kind: directKindSlugs.has(cat.slug)
+                              ? cat.slug
+                              : cat.category === "scada" || cat.category === "erp"
+                                ? cat.category
+                                : "http",
                             endpointUrl: cat.credentialFields?.find((field) => field.key === "endpoint" || field.key === "endpointUrl")?.defaultValue ?? "",
                             apiKey: ""
                           });

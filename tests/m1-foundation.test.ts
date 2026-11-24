@@ -653,7 +653,7 @@ describe("M1 Feature 6: Self-Contained Background Runtime", () => {
 
     expect(summary1.telemetryUpdated).toBeGreaterThan(0);
     expect(summary1.alertsTriggered).toBeGreaterThanOrEqual(1);
-    expect(summary1.connectorsSynced).toBe(6);
+    expect(summary1.connectorsSynced).toBe(16);
     expect(summary1.triggersFired).toBe(2);
     expect(summary1.queueMessagesRequeued).toBe(1);
     expect(summary1.queueMessagesDeadLettered).toBe(1);

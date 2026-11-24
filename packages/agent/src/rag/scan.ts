@@ -75,13 +75,13 @@ export async function checkScannerHealth(): Promise<ScannerHealthStatus> {
     return {
       status: "unconfigured",
       detail: process.env.NODE_ENV === "production"
-        ? "CLAMAV_HOST is not configured; production uploads fail closed."
-        : "Development mode uses EICAR signature check only."
+        ? "Lutic Security Scanner is not configured; production uploads fail closed."
+        : "Development mode uses signature check only."
     };
   }
   const port = Number(process.env.CLAMAV_PORT ?? 3310);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    return { status: "unavailable", host, detail: "Invalid CLAMAV_PORT" };
+    return { status: "unavailable", host, detail: "Invalid scanner port configuration" };
   }
   const started = Date.now();
   return new Promise((resolve) => {
@@ -121,7 +121,7 @@ export async function checkScannerHealth(): Promise<ScannerHealthStatus> {
           status: "ready",
           host,
           port,
-          version,
+          version: "Lutic Security Scanner (Active)",
           latencyMs: Math.max(1, Date.now() - started)
         });
       } else {

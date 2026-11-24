@@ -725,7 +725,8 @@ const TENANT_RLS_TABLES = [
   "notifications",
   "alert_rules",
   "alert_events",
-  "ingestion_tokens"
+  "ingestion_tokens",
+  "board_issues"
 ];
 
 const MIGRATION_0002_SQL = `
@@ -752,9 +753,38 @@ CREATE UNIQUE INDEX IF NOT EXISTS ingestion_tokens_hash_idx ON ingestion_tokens(
 CREATE INDEX IF NOT EXISTS ingestion_tokens_tenant_plant_idx ON ingestion_tokens(tenant_id, plant_id);
 `;
 
+const MIGRATION_0003_SQL = `
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS external_auth_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_external_auth_id_idx
+  ON users(external_auth_id) WHERE external_auth_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS board_issues (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  plant_id TEXT REFERENCES plants(id) ON DELETE SET NULL,
+  identifier TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'todo',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  category TEXT NOT NULL DEFAULT 'operations',
+  assignee_name TEXT NOT NULL DEFAULT '',
+  labels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  source_ref TEXT NOT NULL DEFAULT '',
+  due_date TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS board_issues_tenant_identifier_idx ON board_issues(tenant_id, identifier);
+CREATE INDEX IF NOT EXISTS board_issues_tenant_status_idx ON board_issues(tenant_id, status);
+`;
+
 export const MIGRATIONS: ReadonlyArray<MigrationDefinition> = [
   { version: 1, name: "0001_baseline_schema", sql: SCHEMA_SQL },
-  { version: 2, name: "0002_account_lifecycle_and_ingestion_tokens", sql: MIGRATION_0002_SQL }
+  { version: 2, name: "0002_account_lifecycle_and_ingestion_tokens", sql: MIGRATION_0002_SQL },
+  { version: 3, name: "0003_clerk_identity_and_board_issues", sql: MIGRATION_0003_SQL }
 ];
 
 function migrationChecksum(sqlText: string): string {
