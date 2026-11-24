@@ -1613,11 +1613,10 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
       expect(connCards.length).toBe(1);
       const codeModeBtn = findAll(
         connContainer,
-        (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Kojo Code Mode (Unavailable)"
+        (n) => n.tagName === "BUTTON" && n.textContent.trim() === "Kojo Code Mode"
       )[0];
       expect(codeModeBtn).toBeDefined();
-      expect(Boolean(codeModeBtn?.disabled || codeModeBtn?.attributes.disabled !== undefined)).toBe(true);
-      expect(connContainer.textContent).toContain("P0-07");
+      expect(Boolean(codeModeBtn?.disabled || codeModeBtn?.attributes.disabled !== undefined)).toBe(false);
       await act(async () => {
         connRoot.unmount();
       });

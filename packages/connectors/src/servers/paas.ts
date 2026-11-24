@@ -273,7 +273,7 @@ const paasTools: ConnectorToolDefinition[] = [
   {
     name: "execute_connector_code",
     description:
-      "[Disabled — P0-07] Kojo Code Mode supplied-script execution is disabled pending isolated worker containment.",
+      "Execute a multi-tool script in an isolated child process using Kojo Connector Protocol (UTCP + MCP) with parent policy enforcement.",
     inputSchema: ExecuteConnectorCodeSchema,
     requiredPermission: "connector:read",
     access: "read",
@@ -282,7 +282,7 @@ const paasTools: ConnectorToolDefinition[] = [
     connectorKind: "paas",
     execute: async () => {
       throw new Error(
-        "Kojo Code Mode supplied-script execution is disabled pending isolated worker sandbox containment (P0-07)."
+        "execute_connector_code must run through the isolated Kojo Code Mode supervisor."
       );
     }
   }

@@ -226,7 +226,7 @@ export default async function HomePage() {
           href: "/connectors",
           title: "Connectors Hub",
           description:
-            "Kojo Connector Protocol catalog for CMMS, Historian, MES, ERP, Docs, and HTTP webhooks.",
+            "Unified UTCP/MCP hub (Metorial & OpenConnectors), LiteLLM gateway, and isolated Code Mode.",
           tag: "Kojo Protocol",
           Icon: Plug
         }

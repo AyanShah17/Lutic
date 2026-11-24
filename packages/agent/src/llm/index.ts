@@ -187,6 +187,7 @@ export class MockLLMProvider implements LLMProvider {
     const hasWorkflowIntent = /\bworkflows?\b/i.test(prompt);
     const hasAlertIntent = /\bmonitoring\b|\balert\s*(rules?|events?|feed)?\b|\balerts\b/i.test(prompt);
     const hasQueueTopicIntent = /\bqueues?\b|\btopics?\b|\bnotifications?\b/i.test(prompt);
+    const hasCodeModeIntent = /\bcode\s*mode\b|\bconnector\s*script\b|\brun\s+script\b/i.test(prompt);
 
     // Step 0: Plan real MCP tool calls
     if (input.stepIndex === 0) {
@@ -220,6 +221,20 @@ export class MockLLMProvider implements LLMProvider {
           pushCall("get_active_alarms", { plantId: requestedPlant });
         }
         return { toolCalls: calls, promptTokens: 240, completionTokens: 40, model: this.modelName };
+      }
+
+      // Isolated Kojo Code Mode multi-tool scripting intent
+      if (hasCodeModeIntent && allowedSet.has("execute_connector_code")) {
+        const mId = targetMachineId ?? "mach-l3-filler-01";
+        pushCall("execute_connector_code", {
+          code: `
+const status = await kojo.callTool("get_machine_status", { machineId: input.machineId });
+const alarms = await kojo.callTool("get_active_alarms", { machineId: input.machineId });
+return { machineId: input.machineId, status: status.status, alarmCount: Array.isArray(alarms.alarms) ? alarms.alarms.length : 0 };
+`.trim(),
+          input: { machineId: mId }
+        });
+        return { toolCalls: calls, promptTokens: 250, completionTokens: 70, model: this.modelName };
       }
 
       // Write actions (go through Policy Engine Step 5 confirmation gate)
@@ -806,6 +821,19 @@ export class MockLLMProvider implements LLMProvider {
       );
       sections.push(
         `### Messaging: Kojo Topics & Dispatch Queues\n${[...tLines, ...qLines].join("\n") || "- No topics or queues configured."}`
+      );
+    }
+
+    const codeModeObs = input.observations.find(
+      (o) => o.toolName === "execute_connector_code" && o.status === "allowed"
+    );
+    if (codeModeObs?.data) {
+      const inner = Array.isArray(codeModeObs.data.innerCalls)
+        ? (codeModeObs.data.innerCalls as Array<{ toolName: string; status: string }>)
+        : [];
+      const summaryLines = inner.map((c) => `- \`${c.toolName}\` -> ${c.status}`);
+      sections.push(
+        `### Kojo Code Mode Execution\nRan isolated script across **${inner.length} governed tool call(s)**:\n${summaryLines.join("\n")}\n\n\`\`\`json\n${JSON.stringify(codeModeObs.data.result ?? {}, null, 2)}\n\`\`\``
       );
     }
 

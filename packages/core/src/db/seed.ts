@@ -1441,6 +1441,21 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
 
   if (existingPaasToolkit.length === 0) {
     await installPaasToolkit(db, "tenant-acme");
+  } else {
+    const existingCodeModeTool = await db
+      .select({ id: schema.toolkitTools.id })
+      .from(schema.toolkitTools)
+      .where(eq(schema.toolkitTools.id, "tt-paas-execute_connector_code"))
+      .limit(1);
+    if (existingCodeModeTool.length === 0) {
+      await db.insert(schema.toolkitTools).values({
+        id: "tt-paas-execute_connector_code",
+        tenantId: "tenant-acme",
+        toolkitId: "tk-paas",
+        toolName: "execute_connector_code",
+        enabled: true
+      });
+    }
   }
 }
 
