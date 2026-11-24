@@ -13,6 +13,7 @@
     "lint": "bun --filter '*' lint",
     "test": "vitest run",
     "db:migrate": "bun --filter @kojo/core db:migrate",
+    "db:bootstrap": "bun --filter @kojo/core db:bootstrap",
     "db:seed": "bun --filter @kojo/core db:seed",
     "sim": "bun --filter @kojo/core sim"
   },

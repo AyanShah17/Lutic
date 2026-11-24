@@ -100,6 +100,27 @@ describe("production deployment", () => {
         expect.objectContaining({ tenantId: tenant.id, name: "knowledge" }),
         expect.objectContaining({ tenantId: tenant.id, name: "paas" })
       ]));
+      const bootstrappedConnectors = await conn.db.query.connectorConnections.findMany();
+      expect(bootstrappedConnectors.map((c) => c.slug).sort()).toEqual([
+        "cmms",
+        "docs",
+        "historian",
+        "mes",
+        "parts-erp"
+      ]);
+      for (const c of bootstrappedConnectors) {
+        expect(c.tenantId).toBe(tenant.id);
+        expect(c.transport).toBe("in_memory_mcp");
+        expect(c.endpointUrl).toBe(`mcp://${c.slug}`);
+        expect(c.encryptedCredentials).toBe("");
+        expect(c.discoveredTools.length).toBeGreaterThan(0);
+      }
+      await expect(conn.db.query.topics.findMany()).resolves.toEqual([
+        expect.objectContaining({ tenantId: tenant.id, name: "plant-alerts" })
+      ]);
+      await expect(conn.db.query.queues.findMany()).resolves.toEqual([
+        expect.objectContaining({ tenantId: tenant.id, name: "ops-dispatch" })
+      ]);
       await expect(conn.db.query.assets.findMany()).resolves.toEqual([]);
       await expect(conn.db.query.connectors.findMany()).resolves.toEqual([]);
     } finally {
@@ -107,11 +128,12 @@ describe("production deployment", () => {
     }
   });
 
-  it("creates mode-0600 deployment configuration and preserves its contents on repeat", () => {
+  it("creates mode-0600 deployment configuration, preserves it, and supports bootstrap --dry-run", () => {
     const dir = mkdtempSync(join(tmpdir(), "kojo-prod-env-"));
     try {
       const envFile = join(dir, "production.env");
-      const command = [resolve(__dirname, "../deploy/kojo.sh"), "prepare", "--env-file", envFile];
+      const cli = resolve(__dirname, "../deploy/kojo.sh");
+      const command = [cli, "prepare", "--env-file", envFile];
       execFileSync("bash", command);
       const original = readFileSync(envFile, "utf8");
       expect(statSync(envFile).mode & 0o777).toBe(0o600);
@@ -123,6 +145,14 @@ describe("production deployment", () => {
 
       execFileSync("bash", command);
       expect(readFileSync(envFile, "utf8")).toBe(original);
+
+      const deployScript = resolve(__dirname, "../deploy/kojo-linux-deploy.sh");
+      execFileSync("bash", ["-n", deployScript]);
+      const dryRun = execFileSync("bash", [cli, "bootstrap", "--dry-run", "--env-file", envFile], {
+        encoding: "utf8"
+      });
+      expect(dryRun).toContain("[dry-run] bootstrap");
+      expect(dryRun).toContain("packages/core/src/db/bootstrap.ts");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
