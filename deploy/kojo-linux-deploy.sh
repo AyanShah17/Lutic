@@ -17,6 +17,7 @@ Usage: bash deploy/kojo.sh [command] [options]
 
   prepare    Create a private production env file with generated secrets
   activate   Check a license with its issuer
+  bootstrap  Initialize the first tenant, plant, and administrator account
   up         Start the configured stack and verify /api/health (default)
   status     Show containers and check /api/health
   logs       Tail the application logs
@@ -37,7 +38,7 @@ fail() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    prepare|activate|up|status|logs|down) ACTION="$1"; shift ;;
+    prepare|activate|bootstrap|up|status|logs|down) ACTION="$1"; shift ;;
     --license-key|--license-server|--env-file)
       [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || fail "Missing value for $1"
       case "$1" in
@@ -76,13 +77,14 @@ prepare_env() {
   command -v openssl >/dev/null || fail "OpenSSL is required to generate deployment secrets"
   (
     umask 077
-    local tmp pg_password auth_secret credential_key instance_id
+    local tmp pg_password auth_secret credential_key instance_id gateway_key
     tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
     trap 'rm -f "$tmp"' EXIT
     pg_password="$(openssl rand -hex 32)"
     auth_secret="$(openssl rand -hex 32)"
     credential_key="$(openssl rand -hex 32)"
     instance_id="$(openssl rand -hex 16)"
+    gateway_key="sk-kojo-$(openssl rand -hex 32)"
     while IFS= read -r line; do
       case "$line" in
         POSTGRES_PASSWORD=*) printf 'POSTGRES_PASSWORD=%s\n' "$pg_password" ;;
@@ -90,6 +92,8 @@ prepare_env() {
         AUTH_SECRET=*) printf 'AUTH_SECRET=%s\n' "$auth_secret" ;;
         CREDENTIAL_ENCRYPTION_KEY=*) printf 'CREDENTIAL_ENCRYPTION_KEY=%s\n' "$credential_key" ;;
         KOJO_INSTANCE_ID=*) printf 'KOJO_INSTANCE_ID=kojo-%s\n' "$instance_id" ;;
+        LITELLM_MASTER_KEY=*) printf 'LITELLM_MASTER_KEY=%s\n' "$gateway_key" ;;
+        KOJO_AI_GATEWAY_KEY=*) printf 'KOJO_AI_GATEWAY_KEY=%s\n' "$gateway_key" ;;
         *) printf '%s\n' "$line" ;;
       esac
     done < "${SCRIPT_DIR}/kojo.env.example" > "$tmp"
@@ -160,6 +164,9 @@ if [[ "$DRY_RUN" == true ]]; then
   if [[ "$ACTION" == activate || ( "$ACTION" == up && "$LICENSE_ENFORCE" == true ) ]]; then
     printf '[dry-run] Would check the configured license at %s/api/licenses/activate\n' "$(host_license_url)"
   fi
+  if [[ "$ACTION" == bootstrap ]]; then
+    printf '[dry-run] Would run kojo-paas bootstrap (packages/core/src/db/bootstrap.ts)\n'
+  fi
   if [[ "$ACTION" == up || "$ACTION" == status ]]; then
     printf '[dry-run] Would check %s\n' "$HEALTH_URL"
   fi
@@ -172,6 +179,11 @@ case "$ACTION" in
   *)
     [[ -f "$ENV_FILE" ]] || fail "Deployment configuration is missing. Run bash deploy/kojo.sh prepare."
     case "$ACTION" in
+      bootstrap)
+        compose_cmd run --rm -T \
+          -e KOJO_TENANT_NAME -e KOJO_PLANT_NAME -e KOJO_ADMIN_EMAIL -e KOJO_ADMIN_PASSWORD \
+          kojo-paas bun packages/core/src/db/bootstrap.ts
+        ;;
       up)
         if [[ "$LICENSE_ENFORCE" == true ]]; then
           verify_license_online
