@@ -29,7 +29,7 @@ const CreateConnectorSchema = z.object({
     .enum(["mcp", "http", "scada", "erp", "messaging", "custom"])
     .optional(),
   transport: z
-    .enum(["in_memory_mcp", "kojo_protocol", "http", "webhook", "simulated"])
+    .enum(["in_memory_mcp", "kojo_protocol", "remote_mcp", "utcp_http", "http", "webhook", "simulated"])
     .optional(),
   baseUrl: z.string().optional(),
   endpoint: z.string().optional(),
@@ -56,13 +56,22 @@ export async function GET(req: Request) {
       ]);
 
       const catalog = isDemoMode() ? CONNECTOR_CATALOG : CONNECTOR_CATALOG
-        .filter((entry) => entry.transport === "in_memory_mcp" || entry.transport === "kojo_protocol")
-        .map((entry) => ({
-          ...entry,
-          name: `Kojo Local ${entry.slug} adapter`,
-          description: `Read or manage Kojo database records with the local ${entry.slug} connector adapter.`,
-          credentialFields: [{ key: "endpoint", label: "Kojo Protocol endpoint", defaultValue: `mcp://${entry.slug}` }]
-        }));
+        .filter((entry) =>
+          entry.transport === "in_memory_mcp" ||
+          entry.transport === "kojo_protocol" ||
+          entry.transport === "remote_mcp" ||
+          entry.transport === "utcp_http"
+        )
+        .map((entry) =>
+          entry.transport === "remote_mcp" || entry.transport === "utcp_http"
+            ? entry
+            : {
+                ...entry,
+                name: `Kojo Local ${entry.slug} adapter`,
+                description: `Read or manage Kojo database records with the local ${entry.slug} connector adapter.`,
+                credentialFields: [{ key: "endpoint", label: "Kojo Protocol endpoint", defaultValue: `mcp://${entry.slug}` }]
+              }
+        );
       return NextResponse.json({
         connectors: rows.map(sanitizeConnector),
         catalog,
@@ -109,17 +118,28 @@ export async function POST(req: Request) {
       ? "mock://custom.local"
       : catalogMatch?.transport === "in_memory_mcp" ? `mcp://${catalogMatch.slug}` : "";
     const endpointUrl = body.endpointUrl ?? body.baseUrl ?? body.endpoint ?? defaultEndpoint;
-    const transport: "in_memory_mcp" | "kojo_protocol" | "http" | "webhook" | "simulated" =
+    const transport:
+      | "in_memory_mcp"
+      | "kojo_protocol"
+      | "remote_mcp"
+      | "utcp_http"
+      | "http"
+      | "webhook"
+      | "simulated" =
       body.transport ??
-      (endpointUrl.startsWith("kojo://")
-        ? "kojo_protocol"
-        : endpointUrl.startsWith("mcp://")
-          ? "in_memory_mcp"
-          : endpointUrl.startsWith("mock://") || endpointUrl.startsWith("sim://")
-            ? "simulated"
-            : category === "http"
-              ? "http"
-              : "simulated");
+      (kind === "metorial" || kind === "open-connector" || kind === "remote_mcp"
+        ? "remote_mcp"
+        : kind === "utcp" || kind === "utcp-http" || kind === "utcp_http"
+          ? "utcp_http"
+          : endpointUrl.startsWith("kojo://")
+            ? "kojo_protocol"
+            : endpointUrl.startsWith("mcp://")
+              ? "in_memory_mcp"
+              : endpointUrl.startsWith("mock://") || endpointUrl.startsWith("sim://")
+                ? "simulated"
+                : category === "http"
+                  ? "http"
+                  : "simulated");
 
     const encryptedCredentials = body.credentials
       ? encryptCredentials(body.credentials)

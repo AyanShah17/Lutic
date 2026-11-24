@@ -71,6 +71,9 @@ export function isConnectorSupportedInRuntime(
   demoEnabled: boolean
 ): boolean {
   if (demoEnabled) return true;
+  if (connector.transport === "remote_mcp" || connector.transport === "utcp_http") {
+    return /^https:\/\//i.test(connector.endpointUrl.trim());
+  }
   return (
     (connector.transport === "in_memory_mcp" || connector.transport === "kojo_protocol") &&
     /^(?:kojo|mcp):\/\/([a-z-]+)$/.test(connector.endpointUrl.trim())
@@ -278,7 +281,7 @@ export function ConnectorsConsole() {
 
       {!demoEnabled && (
         <div className="rounded-md border border-border bg-muted/40 px-3.5 py-2 text-xs text-muted-foreground">
-          Production mode: local <code className="font-mono">mcp://</code> connectors execute against tenant records. External HTTP, SCADA, ERP, and webhook connectors store configuration only and return HTTP 501 for health test, sync, and tool invocation outside demo mode.
+          Production mode: local <code className="font-mono">mcp://</code> / <code className="font-mono">kojo://</code> adapters, <code className="font-mono">remote_mcp</code> (Metorial, OpenConnectors, UTCP-MCP), and <code className="font-mono">utcp_http</code> (UTCP / OpenAPI over HTTPS) execute live tool discovery and invocations. Unimplemented raw HTTP/SCADA/ERP/webhook entries store configuration only and return HTTP 501.
         </div>
       )}
 
@@ -564,7 +567,7 @@ export function ConnectorsConsole() {
                     </div>
                     {!isConnectorSupportedInRuntime(selected, demoEnabled) && (
                       <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
-                        External runtime unavailable in production mode. Only <code className="font-mono">kojo://</code> and <code className="font-mono">mcp://</code> connectors execute tool calls directly.
+                        External runtime unavailable in production mode. Use <code className="font-mono">remote_mcp</code>, <code className="font-mono">utcp_http</code> (HTTPS), or local <code className="font-mono">kojo://</code>/<code className="font-mono">mcp://</code> connectors.
                       </div>
                     )}
                     <Button
@@ -631,6 +634,9 @@ export function ConnectorsConsole() {
                           onChange={(e) => setForm({ ...form, kind: e.target.value })}
                           aria-label="Connector kind"
                         >
+                          <option value="metorial">metorial (Remote MCP)</option>
+                          <option value="open-connector">open-connector (Remote MCP)</option>
+                          <option value="utcp-http">utcp-http (UTCP / OpenAPI)</option>
                           <option value="http">http</option>
                           <option value="webhook">webhook</option>
                           <option value="scada">scada</option>
@@ -692,9 +698,13 @@ export function ConnectorsConsole() {
                           setForm({
                             name: cat.name,
                             kind:
-                              cat.category === "scada" || cat.category === "erp"
-                                ? cat.category
-                                : "http",
+                              cat.slug === "metorial" ||
+                              cat.slug === "open-connector" ||
+                              cat.slug === "utcp-http"
+                                ? cat.slug
+                                : cat.category === "scada" || cat.category === "erp"
+                                  ? cat.category
+                                  : "http",
                             endpointUrl: cat.credentialFields?.find((field) => field.key === "endpoint" || field.key === "endpointUrl")?.defaultValue ?? "",
                             apiKey: ""
                           });

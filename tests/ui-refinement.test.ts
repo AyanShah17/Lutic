@@ -1052,6 +1052,9 @@ describe("Kojo UI Refinement — Categorized Navigation, Search, Shadcn/Vengeanc
     expect(isConnectorSupportedInRuntime({ transport: "http", endpointUrl: "mcp://cmms" }, false)).toBe(false);
     expect(isConnectorSupportedInRuntime({ transport: "in_memory_mcp", endpointUrl: "mcp://foo/bar" }, false)).toBe(false);
     expect(isConnectorSupportedInRuntime({ transport: "in_memory_mcp", endpointUrl: "mcp://cmms" }, false)).toBe(true);
+    expect(isConnectorSupportedInRuntime({ transport: "remote_mcp", endpointUrl: "https://mcp.metorial.example/mcp" }, false)).toBe(true);
+    expect(isConnectorSupportedInRuntime({ transport: "utcp_http", endpointUrl: "https://api.example.com/utcp.json" }, false)).toBe(true);
+    expect(isConnectorSupportedInRuntime({ transport: "remote_mcp", endpointUrl: "http://127.0.0.1:4000/mcp" }, false)).toBe(false);
 
     expect(isWorkflowNodeSupportedInRuntime({ type: "ai", config: {} }, true)).toBe(true);
     expect(isWorkflowNodeSupportedInRuntime({ type: "ai", config: {} }, false)).toBe(false);
