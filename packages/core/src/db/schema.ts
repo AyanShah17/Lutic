@@ -808,7 +808,7 @@ export const connectorConnections = pgTable(
       .notNull()
       .default("custom"),
     transport: text("transport")
-      .$type<"in_memory_mcp" | "kojo_protocol" | "http" | "webhook" | "simulated">()
+      .$type<"in_memory_mcp" | "kojo_protocol" | "remote_mcp" | "utcp_http" | "http" | "webhook" | "simulated">()
       .notNull()
       .default("simulated"),
     endpointUrl: text("endpoint_url").notNull().default(""),

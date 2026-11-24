@@ -10,6 +10,7 @@ import {
   connectorSyncLogs,
   eq,
   getLocalConnectorKind,
+  invokeExternalConnectorTool,
   isDemoMode,
   sha256Hex
 } from "@kojo/core";
@@ -89,13 +90,14 @@ export async function POST(
         return problemResponse(400, "Validation Error", "toolName is required.");
       }
 
-      const mcpDef = defaultMcpRegistry.getToolDefinition(toolName);
+      const isRemoteBridge = conn.transport === "remote_mcp" || conn.transport === "utcp_http";
+      const mcpDef = isRemoteBridge ? undefined : defaultMcpRegistry.getToolDefinition(toolName);
       let result: Record<string, unknown>;
-      if (!isDemoMode() && (!mcpDef || mcpDef.connectorKind !== getLocalConnectorKind(conn))) {
+      if (isRemoteBridge) {
+        result = await invokeExternalConnectorTool(db, conn, toolName, args);
+      } else if (!isDemoMode() && (!mcpDef || mcpDef.connectorKind !== getLocalConnectorKind(conn))) {
         return problemResponse(501, "Connector invocation unavailable", "This tool is unavailable for the configured connector.");
-      }
-
-      if (mcpDef) {
+      } else if (mcpDef) {
         authorize(user, mcpDef.requiredPermission, { tenantId: user.tenantId });
 
         const filtersObj =

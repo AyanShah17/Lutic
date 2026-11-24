@@ -49,7 +49,9 @@ export async function POST(
         params.id,
         (kind) => defaultMcpRegistry.discoverMcpTools(kind)
       );
-      if (!result.ok) return problemResponse(501, "Connector sync unavailable", result.message);
+      if (!result.ok) {
+        return problemResponse(result.supported === false ? 501 : 422, "Connector sync unavailable", result.message);
+      }
       return NextResponse.json(result);
     });
   } catch (err) {
