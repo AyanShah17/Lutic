@@ -1,17 +1,17 @@
-# Lutic — Industrial Operations Platform (`lutic.app`)
+# Lutic — AI Systems & Industrial Operations Platform (`lutic.app`)
 
-Lutic ([lutic.app](https://lutic.app)) is a multi-tenant industrial operations platform for role-governed access to plant manuals, live machine telemetry, alarms, work orders, external SaaS/API connectors (Remote MCP & UTCP/OpenAPI), messaging queues, and operational dashboards.
+Lutic ([lutic.app](https://lutic.app)) is a multi-tenant AI systems and industrial operations platform built for **AI Automations**, **Agentic Dashboards**, **Autonomous Multi-Agent Systems**, **Linear/Jira-Style Execution Boards**, and role-governed shop-floor intelligence across manuals, live telemetry, alarms, work orders, external SaaS/ERP/OT connectors, and messaging queues.
 
-See [PRODUCTION.md](PRODUCTION.md) for deployment, bootstrap, backups, and staging verification, and [SECURITY.md](SECURITY.md) for the threat model and security controls.
+See [PRODUCTION.md](PRODUCTION.md) for deployment, Clerk custom-domain configuration, bootstrap, backups, and staging verification, and [SECURITY.md](SECURITY.md) for the threat model and security controls.
 
 ---
 
 ## Platform Overview
 
 - **Workspaces (`4` packages)**: `@lutic/core`, `@lutic/connectors`, `@lutic/agent`, `@lutic/web`
-- **Web & API Surface (`apps/web`)**: `16` App Router pages and `76` API route handlers backed by Next.js 15 (`lutic_session` cookies, CSRF/Origin guards, and scoped `CORS_ORIGINS`)
-- **Data & Semantic Layer (`packages/core`)**: `49` Drizzle ORM tables on PostgreSQL 16 + `pgvector`, `lutic_app` row-level security (`withTenantScope`), `12` governed semantic metrics (`oee`, `availability`, `performance`, `quality`, `downtime_minutes`, `scrap_rate`, `throughput`, `mtbf`, `mttr`, `energy_kwh`, `open_work_orders`, `parts_below_min_stock`), AES-256-GCM encrypted connector credentials, and `kjt_` telemetry ingestion tokens
-- **AI, Connectors & Bridges (`packages/agent` & `packages/connectors`)**: Orchestrator (default `8` steps, max `12`) feeding a 6-step Policy Engine, Hybrid RAG (64-dim deterministic local embeddings + full-text search + fault-code boost), `5` local MCP hubs (`docs`, `historian`, `cmms`, `parts-erp`, `mes`), SSRF-checked Streamable HTTP Remote MCP (`remote_mcp`) and UTCP 1.0 / OpenAPI 3.x (`utcp_http`) bridges, and `LuticLLMGateway`
+- **Web & API Surface (`apps/web`)**: `19` App Router pages (including multi-product landing `/`, white-labeled `/login`, `/signup`, `/sso-callback`, and Kanban/List execution `/board`) and `78` API route handlers backed by Next.js 15 (`lutic_session` cookies, optional Clerk Free Tier Email + Google/Microsoft auth, CSRF/Origin guards, and scoped `CORS_ORIGINS`)
+- **Data & Semantic Layer (`packages/core`)**: `50` Drizzle ORM tables across `3` versioned migrations (`0001` baseline, `0002` account lifecycle & ingestion tokens, `0003` Clerk identity linking, `tenants.plan`, and `board_issues`), PostgreSQL 16 + `pgvector` with `lutic_app` row-level security (`withTenantScope`), `12` governed semantic metrics (`oee`, `availability`, `performance`, `quality`, `downtime_minutes`, `scrap_rate`, `throughput`, `mtbf`, `mttr`, `energy_kwh`, `open_work_orders`, `parts_below_min_stock`), AES-256-GCM encrypted connector credentials, and `kjt_` telemetry ingestion tokens
+- **AI, White-Labeling & `2,118` Connectors (`packages/agent` & `packages/connectors` & `packages/core`)**: Orchestrator (default `8` steps, max `12`) feeding a 6-step Policy Engine, Hybrid RAG (64-dim deterministic local embeddings + full-text search + fault-code boost), `5` built-in local hubs (`docs`, `historian`, `cmms`, `parts-erp`, `mes`), `11` SAP S/4HANA (`sap-pm`, `sap-mm`, `sap-pp`, `sap-qm`), AWS (`aws-iot`, `aws-s3`, `aws-cloudwatch`), ServiceNow, MQTT, OPC-UA, and Modbus catalog templates, `3` SSRF-checked HTTPS cloud/API bridges (`lutic-cloud`, `lutic-bridge`, `lutic-api`), `2,098` deduplicated white-labeled connectors generated into [connector-catalog.generated.json](packages/core/src/connector-catalog.generated.json), sanitized **Lutic Security Scanner** diagnostics, and **Lutic AI Gateway** routing
 
 ---
 
@@ -21,45 +21,45 @@ See [PRODUCTION.md](PRODUCTION.md) for deployment, bootstrap, backups, and stagi
 
 ```mermaid
 flowchart LR
-  User["Operators, Engineers, Analysts & Admins"] --> Web["apps/web - Next.js 15 UI & 76 API Routes"]
-  Web --> Agent["packages/agent - Orchestrator, Hybrid RAG & 6-Step Policy Engine"]
-  Agent --> Gateway["LuticLLMGateway - LiteLLM Proxy or Direct Anthropic/OpenAI"]
-  Agent --> LocalMCP["packages/connectors - 5 Built-in Local MCP Hubs"]
-  Agent --> ExtBridge["packages/core - Remote MCP & UTCP/OpenAPI Bridges"]
-  LocalMCP --> DB["PostgreSQL 16 + pgvector - lutic_app RLS & 49 Tables"]
+  User["Operators, Engineers, Analysts & Admins"] --> Web["apps/web - 19 Pages, Board, 78 API Routes"]
+  Web --> Auth["Dual Auth: Clerk Free Tier (Google/Microsoft/Email) or JWT"]
+  Web --> Agent["packages/agent - Orchestrator, Hybrid RAG & 6-Step Policy"]
+  Agent --> Gateway["Lutic AI Gateway (Internal Model Aliases / Direct Providers)"]
+  Agent --> LocalMCP["packages/connectors - 5 Built-in Native Hubs"]
+  Agent --> Catalog["packages/core - 2,118 White-Labeled Connectors & HTTPS Bridges"]
+  LocalMCP --> DB["PostgreSQL 16 + pgvector - 50 Tables, 3 Migrations, lutic_app RLS"]
   Web --> DB
 ```
 
-### 2. Detailed Request, Governance & Execution Flow
+### 2. Detailed Auth, Provisioning, Governance & Execution Flow
 
 ```mermaid
 sequenceDiagram
   autonumber
-  actor Op as Plant User
-  participant Web as apps/web API & Auth
+  actor User as Platform User
+  participant AuthUI as Lutic UI (/login, /signup, Google, Microsoft)
+  participant Web as apps/web API & getSessionUser()
   participant Agent as Orchestrator & 6-Step Policy
-  participant GW as LiteLLM / LLM Provider
-  participant MCP as Local MCP Hubs
-  participant Ext as Remote MCP / UTCP Bridge
-  participant DB as PostgreSQL - lutic_app RLS
+  participant GW as Lutic AI Gateway
+  participant Hub as Connectors & Bridges (2,118 Catalog)
+  participant DB as PostgreSQL 16 - lutic_app RLS (50 Tables)
 
-  Op->>Web: Request over HTTPS with lutic_session & Origin check
-  Web->>DB: Reload user, role & plant assignments (withTenantScope)
-  Web->>Agent: Run turn or connector invocation
-  Agent->>DB: Hybrid RAG search (vector + full-text + fault codes)
-  Agent->>GW: Prompt + delimited retrieval context + allowed tool schemas
-  GW-->>Agent: Tool calls or cited operational response
-  Agent->>Agent: Policy Gate (Toolkit, RBAC, Plant Scope, Zod, Rate Limit, Confirm Gate)
-  alt Built-in industrial tool
-    Agent->>MCP: Call docs / historian / cmms / parts-erp / mes over InMemory MCP
-    MCP->>DB: Scoped query or pending confirmation write inside lutic_app RLS
-    MCP-->>Agent: Structured tool result
-  else External connector (remote_mcp or utcp_http)
-    Agent->>Ext: Validate HTTPS + public DNS IP, disable redirects, check same-origin creds
-    Ext-->>Agent: Bounded JSON response (max 1 MiB, 15s timeout)
+  User->>AuthUI: Sign in / Sign up via Clerk Free Tier or Local Credentials
+  AuthUI->>Web: Request with Bearer token, lutic_session, or Clerk session
+  Web->>DB: Match external_auth_id or verified email (resolveClerkSessionUser)
+  alt New user & Free / Individual plan
+    Web->>DB: Auto-provision personal tenant, Primary Plant & starter /board items
+  else New user & Active Enterprise plan
+    Web-->>User: Return Access Pending screen until Admin invite exists
   end
-  Agent->>DB: Record tool call & result hash in audit_log
-  Agent-->>Web: Verified response & 'What I Checked' trace
+  Web->>Agent: Execute AI turn, board workflow, or connector tool call
+  Agent->>DB: Hybrid RAG search (vector + full-text + fault codes)
+  Agent->>GW: Delimited prompt + allowed tool schemas
+  GW-->>Agent: Tool calls or cited response
+  Agent->>Agent: Policy Gate (Toolkit, RBAC, Plant Scope, Zod, Rate Limit, Confirm)
+  Agent->>Hub: Native adapter or HTTPS bridge (SSRF IP check, no redirects, same-origin creds)
+  Hub->>DB: Scoped query / confirmation write under lutic_app RLS
+  Agent-->>Web: Verified answer, board update & audit trail
 ```
 
 ### 3. Production Deployment Topology
@@ -68,10 +68,11 @@ sequenceDiagram
 flowchart TD
   Client["Client Browser / Gateway Agent"] -->|"HTTPS / TLS"| Proxy["Host Reverse Proxy (Caddy / Nginx)"]
   Proxy -->|"127.0.0.1:3000"| App["lutic-paas (Next.js Standalone on Bun 1.4.2)"]
-  App -->|"SQL + pgvector + RLS"| PG["postgres (pgvector/pg16 on lutic_pgdata)"]
-  App -->|"zINSTREAM File Scan (3310)"| Clam["clamd (clamav/clamav:1.5.4 private network)"]
-  App -->|"LUTIC_AI_GATEWAY_URL (4000)"| LiteLLM["litellm (ghcr.io/berriai/litellm)"]
-  LiteLLM -->|"Model Aliases: lutic-claude, lutic-gpt4o, lutic-mini"| Upstream["Upstream Anthropic / OpenAI APIs"]
+  App -.->|"Optional Clerk Auth (clerk.lutic.app / accounts.lutic.app)"| Clerk["Clerk Free Tier (Email, Google, Microsoft)"]
+  App -->|"SQL + pgvector + RLS (50 Tables)"| PG["postgres (pgvector/pg16 on lutic_pgdata)"]
+  App -->|"zINSTREAM Scan -> Lutic Security Scanner"| Scanner["clamd (private network :3310)"]
+  App -->|"LUTIC_AI_GATEWAY_URL (:4000)"| Gateway["Lutic AI Gateway Proxy (litellm service)"]
+  Gateway -->|"Aliases: lutic-claude, lutic-gpt4o, lutic-mini"| Upstream["Upstream Model Providers"]
   Ops["deploy/lutic.sh (prepare, bootstrap, up, status, down)"] -.->|"Mode 0600 .env.production & keys"| App
   Backup["deploy/backup-restore.sh (AES-256-CBC dump & restore-verify)"] -.->|"Isolated PG drill"| PG
 ```
@@ -85,24 +86,28 @@ flowchart LR
   Base --> FL["feat/litellm-gateway"]
   Base --> FU["feat/utcp-mcp-connectors"]
   Base --> FC["feat/code-mode"]
-  FB --> Prod["prod (Client-ready release - Code Mode disabled in prod)"]
+  FB --> Prod["prod (Current Release - Code Mode disabled in prod)"]
   FL --> Prod
   FU --> Prod
   FC --> Prod
-  Prod --> Landing["landing-ui (Lutic public business site & isometric plant anatomy)"]
+  Prod --> Landing["landing-ui (Multi-product site & anatomy)"]
+  Landing --> AuthWL["feat/clerk-auth-whitelabel (Clerk auth, white-label, /board, SAP/AWS/OT)"]
+  AuthWL --> Prod
+  Prod --> Conn["connectors (2,118 deduplicated white-labeled catalog)"]
+  Conn --> Prod
 ```
 
 | Branch | Purpose |
 | --- | --- |
-| `base` | Clean core Lutic platform (Playwright, mobile, evals, license-server fixture, and internal dev plans removed). |
-| `feat/bootstrap` | Production self-bootstrap (`db:bootstrap`, `deploy/lutic.sh bootstrap`), auto-generated gateway keys, built-in `mcp://` connections, default topic & queue. |
-| `feat/litellm-gateway` | Self-hosted LiteLLM Compose service ([docker-compose.yml](docker-compose.yml)) and [deploy/litellm_config.yaml](deploy/litellm_config.yaml). |
-| `feat/utcp-mcp-connectors` | Streamable HTTP Remote MCP (`remote_mcp`), UTCP 1.0 / OpenAPI 3.x HTTP bridges (`utcp_http`), same-origin credential guard, and `GET /api/connectors/utcp`. |
+| `base` | Clean core platform (Playwright, mobile, evals, license-server fixture, and internal dev plans removed). |
+| `feat/bootstrap` | Production self-bootstrap (`db:bootstrap`, `deploy/lutic.sh bootstrap`), auto-generated gateway keys, built-in adapters, default topic & queue. |
+| `feat/litellm-gateway` | Self-hosted AI gateway Compose service ([docker-compose.yml](docker-compose.yml)) and [deploy/litellm_config.yaml](deploy/litellm_config.yaml). |
+| `feat/utcp-mcp-connectors` | Streamable HTTPS connector bridges (`remote_mcp`, `utcp_http`), same-origin credential guard, and manifest export (`GET /api/connectors/utcp`). |
 | `feat/code-mode` | Isolated subprocess Code Mode worker and playground UI (gated to `development` and `test` via `isCodeModeEnabled()`). |
-| `prod` | Integrated client release combining all `feat/*` branches with production Code Mode fail-closed guards. |
-| `landing-ui` | Public business-facing landing page & interactive isometric plant anatomy branched from `prod`. |
-
-*(Note: `main`, `base`, and `feat/*` branch histories retain earlier commits from before the `prod` rename to `lutic.app`; `prod` and `landing-ui` carry the full `Lutic` rename.)*
+| `landing-ui` | Public multi-product `lutic.app` website covering AI Automations, Agentic Dashboards, Multi-Agent Systems, Industrial Ops, and isometric plant anatomy. |
+| `feat/clerk-auth-whitelabel` | Migration `v3`, Clerk Free Tier Email/Google/Microsoft custom UI, Free auto-provisioning vs Enterprise invite-only mode, full white-labeling, SAP/AWS/ServiceNow/OT connectors, and Kanban/List `/board`. |
+| `connectors` | Deduplicated catalog generator ([sync-connector-catalog.ts](packages/core/scripts/sync-connector-catalog.ts)) importing `2,098` unique integrations (`2,118` total) with paginated Catalog UI (`60`/page). |
+| `prod` | Integrated client release combining all branches with production Code Mode fail-closed guards (`597e574` + current docs sync). |
 
 ---
 
@@ -114,38 +119,40 @@ flowchart LR
    ```bash
    bun install --frozen-lockfile
    ```
-2. Optionally copy `.env.example` to `.env`. Local defaults run embedded PGlite with `pgvector` at `.data/pglite`, deterministic local embeddings, and an offline `mock` chat provider (no external API keys required).
-3. Seed the two synthetic plants (`plant-detroit`, `plant-austin`) and start the dev server:
+2. Optionally copy `.env.example` to `.env`. Local defaults run an embedded storage engine with `pgvector` at `.data/pglite`, deterministic local embeddings, an offline `mock` chat provider, seeded SAP/AWS/ServiceNow/MQTT/OPC-UA/Modbus connectors, and `8` seeded `/board` issues (`LUT-101`..`LUT-108`).
+3. To test **Clerk Free Tier (Email/Password + Google + Microsoft)** locally, set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_OAUTH_PROVIDERS=google,microsoft`, and `LUTIC_DEPLOYMENT_PLAN=free` (or `enterprise` for invite-only verification) in `.env.local`. Leaving those blank keeps built-in password + dev persona switching active.
+4. Start the server (auto-seeds on first dev request, or run `bun run db:seed` explicitly):
    ```bash
    bun run db:seed
    bun run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) and run `bun run sim` in a second terminal to stream simulated telemetry and alarms.
+   Open [http://localhost:3000](http://localhost:3000) and optionally run `bun run sim` in a second terminal to stream simulated telemetry and alarms.
 
 #### Dev-Only Demo Accounts (Password: `lutic-demo-password`)
 
 | Role | Email | Authorized Plants | Capabilities |
 | --- | --- | --- | --- |
-| `engineer` | `engineer@acme.demo` | Detroit (`plant-detroit`) | Manuals, alarms, telemetry, work orders, parts, confirmed drafts. No analytics/dashboard edits. |
-| `engineer` | `austin.engineer@acme.demo` | Austin (`plant-austin`) | Strictly scoped to Austin assets, alarms, and spare parts. |
+| `engineer` | `engineer@acme.demo` | Detroit (`plant-detroit`) | Manuals, alarms, telemetry, work orders, `/board`, parts, confirmed drafts. |
+| `engineer` | `austin.engineer@acme.demo` | Austin (`plant-austin`) | Strictly scoped to Austin assets, `/board` plant items, alarms, and spare parts. |
 | `analyst` | `analyst@acme.demo` | Detroit & Austin | Engineer reads + 12 semantic metrics + dashboard builder & sharing. |
-| `manager` | `manager@acme.demo` | Detroit & Austin | Read-only access to chat, metrics, and shared dashboards. |
-| `admin` | `admin@acme.demo` | Detroit & Austin | Full platform + `/admin` (users, encrypted connectors, toolkits, knowledge ingestion, audit CSV, assets/QR). |
+| `manager` | `manager@acme.demo` | Detroit & Austin | Multi-plant views, alerts, notifications, and `/board` read access. |
+| `admin` | `admin@acme.demo` | Detroit & Austin | Full platform + `/admin` (users, `2,118` connectors catalog, toolkits, knowledge ingestion, audit CSV, assets/QR). |
 
 ### Production Bootstrap & Startup
 
-Production refuses `db:seed` and demo sign-in. Provision PostgreSQL 16 + `pgvector`, generate secrets (`bash deploy/lutic.sh prepare`), bootstrap the first tenant/plant/admin (`bash deploy/lutic.sh bootstrap` or `bun run db:bootstrap`), and launch Compose (`bash deploy/lutic.sh up`). Bootstrap initializes core toolkits, the `5` built-in local `mcp://` connectors (without demo credentials), the `plant-alerts` topic, and the `ops-dispatch` queue without inserting synthetic assets or telemetry. See [PRODUCTION.md](PRODUCTION.md).
+Production refuses `db:seed` and demo sign-in. Provision PostgreSQL 16 + `pgvector`, generate secrets (`bash deploy/lutic.sh prepare`), bootstrap the first tenant/plant/admin (`bash deploy/lutic.sh bootstrap` or `bun run db:bootstrap`), and launch Compose (`bash deploy/lutic.sh up`). Bootstrap initializes core toolkits, the `5` built-in adapters (without demo credentials), the `plant-alerts` topic, and the `ops-dispatch` queue without inserting synthetic assets or telemetry. See [PRODUCTION.md](PRODUCTION.md).
 
 ---
 
 ## Integrations & Production Boundaries
 
-- **LiteLLM Proxy (`LUTIC_AI_GATEWAY_URL`)**: Configured in [docker-compose.yml](docker-compose.yml) via [deploy/litellm_config.yaml](deploy/litellm_config.yaml) routing `lutic-claude`, `lutic-gpt4o`, and `lutic-mini` through `LuticLLMGateway`, with direct Anthropic and OpenAI fallback support.
-- **Remote MCP & UTCP / OpenAPI Connectors**: Built-in local hubs (`lutic://` / `mcp://`), Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, UTCP-MCP), UTCP 1.0 & OpenAPI 3.x HTTP manuals (`utcp_http`), and tenant UTCP export (`GET /api/connectors/utcp`). All external requests enforce HTTPS (unless `LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true` in test), private/loopback/metadata IP blocking (including post-DNS resolution checks), disabled redirects, 1 MiB response caps, 15s timeouts, and **same-origin credential scoping** (`external-connectors.ts`).
-- **Telemetry Ingestion (`POST /api/telemetry`)**: Accepts batches of 1–100 snapshots authenticated by plant-scoped gateway tokens (`kjt_...`).
+- **Auth & Provisioning**: [auth.ts](apps/web/src/lib/auth.ts) checks explicit `Authorization: Bearer ...` and `lutic_session` tokens first, falling back to `getClerkServerSessionUser()` ([clerk.ts](apps/web/src/lib/clerk.ts)) when Clerk keys are configured. New verified Clerk sign-ups receive a personal Free workspace (`tenants.plan = 'free'`, starter `Primary Plant`, and `3` starter `/board` items) when Free/Individual is active, or see **Access Pending** if `LUTIC_DEPLOYMENT_PLAN=enterprise` / an active Enterprise license is present without an invited user row.
+- **White-Labeled Security Scanner & AI Gateway**: All user-facing diagnostics report **Lutic Security Scanner** ([scan.ts](packages/agent/src/rag/scan.ts)) and **Lutic AI Gateway** without exposing internal vendor names (`ClamAV`, `LiteLLM`, `Metorial`, `OpenConnectors`, `UTCP`, `PGlite`).
+- **`2,118` Connectors & Bridges**: Combines `5` native hubs, `3` HTTPS cloud/API bridges (`lutic-cloud`, `lutic-bridge`, `lutic-api` — also accepting legacy `metorial`, `open-connector`, `utcp-http` aliases in `POST /api/connectors`), `11` SAP/AWS/ServiceNow/MQTT/OPC-UA/Modbus catalog templates, and `2,098` deduplicated white-labeled catalog connectors (`2,118` total). All external `remote_mcp` / `utcp_http` calls enforce HTTPS, post-DNS private/loopback/metadata IP blocking, disabled redirects, 1 MiB response caps, 15s timeouts, and **same-origin credential scoping** ([external-connectors.ts](packages/core/src/external-connectors.ts)).
+- **Operations & Execution Board (`/board`)**: Multi-tenant Kanban & List board backed by `board_issues` (`50` tables under `lutic_app` RLS) via [api/board/route.ts](apps/web/src/app/api/board/route.ts) and [api/board/[id]/route.ts](apps/web/src/app/api/board/[id]/route.ts) with sequential `LUT-XXX` keys, drag-and-drop status changes, priority/workstream filtering, and plant-scoped RBAC (`workorder:read` / `workorder:write`).
 - **Production Boundaries & Disabled Paths**:
-  - **Lutic Code Mode (`isCodeModeEnabled()`)**: Restricted strictly to `NODE_ENV=development` and `test`; disabled fail-closed across UI (`capabilities.codeMode: false`), API (`HTTP 501`), policy (`getAllowedToolsForUser`), and shared executor (`executeLuticConnectorCode`) in production.
-  - **HTTP 501 Unimplemented Stubs**: Raw `http`/`webhook` test/sync/invoke paths, webhook pub/sub delivery (`subscriptions`), and workflow AI nodes store configuration cleanly or reject with `HTTP 501` in production.
+  - **Lutic Code Mode (`isCodeModeEnabled()`)**: Restricted strictly to `NODE_ENV=development` and `test`; disabled fail-closed in production (`HTTP 501`).
+  - **Simulated Catalog Templates & HTTP 501 Stubs**: The `2,098` generated + `11` SAP/AWS/ServiceNow/OT templates execute demo simulation tools out of the box and store configuration in non-demo production (returning `HTTP 501` unless bridged via live HTTPS `lutic-cloud` / `lutic-api` endpoints). Raw `http`/`webhook` stubs and webhook pub/sub delivery also return `HTTP 501` in production.
   - **Embeddings & PDFs**: Embeddings are deterministic 64-dimensional local vectors; PDF manuals must contain extractable text (OCR is not built in).
 
 ---
@@ -153,14 +160,14 @@ Production refuses `db:seed` and demo sign-in. Provision PostgreSQL 16 + `pgvect
 ## Scripts & Verification
 
 ```bash
-bun run db:migrate  # Apply versioned schema migrations under advisory lock
+bun run db:migrate   # Apply versioned schema migrations (v1..v3) under advisory lock
 bun run db:bootstrap # Idempotent clean production tenant/plant/admin setup
-bun run db:seed     # Dev-only synthetic plant seed (rejected in production)
-bun run sim         # Dev-only telemetry & alarm simulator
-bun run typecheck   # Strict TypeScript check across all 4 packages
-bun run lint        # ESLint (@lutic/web) + tsc --noEmit (core/connectors/agent)
-bun run test        # Vitest suite (19 test files, 128 total tests)
-bun run build       # Production Next.js build + workspace TypeScript checks
+bun run db:seed      # Dev-only synthetic plant, connector & board seed (rejected in production)
+bun run sim          # Dev-only telemetry & alarm simulator
+bun run typecheck    # Strict TypeScript check across all 4 packages
+bun run lint         # ESLint (@lutic/web) + tsc --noEmit (core/connectors/agent)
+bun run test         # Vitest suite (20 test files, 132 total tests)
+bun run build        # Production Next.js build + workspace TypeScript checks
 ```
 
-Locally on `prod`, `db:seed`, `bun install --frozen-lockfile --dry-run`, `typecheck`, `lint`, `build`, and `121` PGlite/unit/security/UTCP-MCP/Code Mode/deploy tests (`18` files) passed (`tests/postgres-integration.test.ts` skips `7` tests locally when `POSTGRES_TEST_URL` is unset). GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all `128` tests (including native `pgvector/pg16`), dependency audit, and Docker `container-smoke`; live HTTPS TLS termination, real `clamd` uploads, live LiteLLM upstream calls, and off-host backup restores remain pending private-staging verification.
+Locally on `prod`, `typecheck`, `lint`, `build`, `bun audit --audit-level=high` (`0` vulnerabilities across `768` packages), `125` Vitest tests across `19` runnable files (`tests/postgres-integration.test.ts` skips `7` tests locally when `POSTGRES_TEST_URL` is unset), and a live browser check (`landing`, `/login`, `/board`, `/connectors`) all passed. GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all `132` tests (including native `pgvector/pg16`), dependency audit, and Docker `container-smoke` (verifying `"currentVersion":3`); live HTTPS TLS termination, live Clerk OAuth/custom domain `lutic.app` CNAMEs, live scanner uploads, live AI Gateway upstream calls, and off-host backup restores remain pending target private-staging verification.
