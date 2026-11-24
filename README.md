@@ -1,6 +1,8 @@
 # Kojo — Industrial Operations AI Platform
 
-Kojo is a multi-tenant industrial operations platform for role-governed access to plant manuals, machine telemetry, alarms, and work orders. Analysts can build operational dashboards from governed metrics.
+Kojo is a multi-tenant industrial operations platform for role-governed access to plant manuals, machine telemetry, alarms, work orders, external SaaS/API connectors (Remote MCP & UTCP), and LiteLLM-routed AI chat. Analysts can build operational dashboards from governed metrics.
+
+See [PRODUCTION.md](PRODUCTION.md) for deployment setup and [SECURITY.md](SECURITY.md) for the security architecture.
 
 ---
 
@@ -22,7 +24,13 @@ Kojo is a multi-tenant industrial operations platform for role-governed access t
 
 ## Production
 
-Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web ingress, and a reachable ClamAV daemon (`clamd`) for uploads. Production startup migrates the schema and requires an explicitly bootstrapped tenant. Demo seeding and demo sign-in are disabled in production. See the [production deployment guide](PRODUCTION.md).
+Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web ingress, and a reachable ClamAV daemon (`clamd`) for uploads. Production startup migrates the schema and requires an explicitly bootstrapped tenant (`bun run db:bootstrap` or `bash deploy/kojo.sh bootstrap`), which provisions the first tenant, plant, admin, core toolkits, 5 built-in local connectors (`mcp://`), default topic (`plant-alerts`), and queue (`ops-dispatch`) without demo data. Demo seeding and demo sign-in are disabled in production. See the [production deployment guide](PRODUCTION.md).
+
+## Branch Topology
+
+- `base`: Clean core platform (no Playwright, `e2e-paas`, `packages/evals`, `apps/mobile`, `apps/license-server`, or standalone feature integrations).
+- `feat/bootstrap`, `feat/litellm-gateway`, `feat/utcp-mcp-connectors`, `feat/code-mode`: Standalone upgradeable feature branches rooted on `base`.
+- `prod`: Client-ready product integrating all feature branches with end-to-end Code Mode + Remote MCP/UTCP + LiteLLM wiring. (`main` retains the original pre-cleanup workspace snapshot.)
 
 ---
 
@@ -49,9 +57,9 @@ Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web
                                      | authorize(user, perm, resource)
 +------------------------------------v------------------------------------+
 | Agent Layer (packages/agent)                                            |
-|  Orchestrator (max 8 steps) -> 6-Step Policy Engine                       |
+|  Orchestrator (max 8 steps) + Isolated Code Mode -> 6-Step Policy Engine  |
 |  Hybrid RAG (pgvector + tsvector + Exact Codes + RRF + Reranker)        |
-|  KojoLLMGateway (kojo-gateway | mock | anthropic | openai)               |
+|  KojoLLMGateway (LiteLLM kojo-gateway | mock | anthropic | openai)     |
 +------------------------------------+------------------------------------+
                                      | @modelcontextprotocol/sdk (InMemory/Stdio)
 +------------------------------------v------------------------------------+
@@ -73,16 +81,16 @@ Deploy with PostgreSQL and `pgvector`, unique deployment secrets, TLS at the web
 ```bash
 bun run typecheck   # Strict TypeScript check across all workspace packages
 bun run lint        # ESLint + TypeScript lint across packages and Next.js
-bun run test        # Vitest unit & security test suite (RBAC, Policy Engine, RAG, RLS, Encryption)
-bun run build       # Production build verification across all packages and apps/web
+bun run test        # Vitest unit, security, UTCP/MCP, Code Mode & deployment suite
+bun run build       # Production build verification across deployable packages and apps/web
 ```
 
-Local verification covered the build and PGlite-backed Vitest suites. CI is configured to run a separate PostgreSQL integration suite. Docker deployment, native PostgreSQL, and live LLM calls were outside the local verification run.
+Local verification covers typechecks, lint, PGlite-backed security/connector/Code Mode tests, and the Next.js production build. CI runs native PostgreSQL integration tests and Docker container smoke checks.
 
 ---
 
 ## Integrations
 
-The built-in Kojo connector protocol (`kojo://` / `mcp://`) executes standard governed tool calls against data in Kojo; supplied-script execution ("Kojo Code Mode", `execute_connector_code`) is disabled (`HTTP 501` / P0-07). Administrators can load manuals and ingest machine snapshots through the telemetry API. Local workflow conditions, notifications, queues, and work-order steps are available. External connector invocation and sync, webhook delivery, and workflow AI steps are unavailable in production.
-
-Chat supports `KojoLLMGateway` (`LLM_PROVIDER=kojo` with `KOJO_AI_GATEWAY_URL` + `KOJO_AI_GATEWAY_KEY`, or Anthropic/OpenAI providers) via `LLM_PROVIDER`. Retrieval uses local deterministic embeddings with any configured chat provider.
+- **LiteLLM Proxy (`KOJO_AI_GATEWAY_URL`)**: Self-hosted in [docker-compose.yml](docker-compose.yml) using [deploy/litellm_config.yaml](deploy/litellm_config.yaml), routing `kojo-claude`, `kojo-gpt4o`, and `kojo-mini` through `KojoLLMGateway` alongside direct Anthropic/OpenAI keys.
+- **UTCP + Remote MCP + 1,000+ Ecosystem Connectors**: Built-in adapters (`kojo://` / `mcp://`), Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, and UTCP-MCP bridges), UTCP 1.0 / OpenAPI 3.x direct HTTP manuals (`utcp_http`), and authenticated UTCP manual export (`GET /api/connectors/utcp`).
+- **Isolated Kojo Code Mode (`execute_connector_code`)**: Executes LLM or playground multi-tool TypeScript scripts in an ephemeral child process (`env: {}`, hard OS `SIGKILL` timeout) with every tool call routed through the 6-step policy engine.

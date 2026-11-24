@@ -1,12 +1,17 @@
+import http from "node:http";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
+  assertSafeExternalUrl,
   auditLog,
   buildKojoConnectorManual,
+  connectorConnections,
   connectorSyncLogs,
   createDbConnection,
   desc,
   eq,
   seedDatabase,
+  syncConnectorConnection,
+  testConnectorConnection,
   withTenantScope,
   type DbConnection,
   type SessionUser
@@ -23,6 +28,7 @@ import {
   runAgentTurn
 } from "@kojo/agent";
 import { POST as invokeConnector } from "../apps/web/src/app/api/connectors/[id]/invoke/route";
+import { GET as getUtcpManual } from "../apps/web/src/app/api/connectors/utcp/route";
 
 const state = vi.hoisted(() => ({ conn: undefined as DbConnection | undefined }));
 
@@ -313,5 +319,238 @@ describe("Kojo AI Gateway (LiteLLM), UTCP/MCP Bridges & Isolated Code Mode", () 
       .limit(1);
     expect(latestAudit?.toolName).toBe("execute_connector_code");
     expect(latestAudit?.status).toBe("allowed");
+  });
+
+  it("discovers and invokes Metorial/OpenConnectors Remote MCP, UTCP 1.0, OpenAPI 3.0, and Kojo UTCP export with SSRF guards", async () => {
+    await expect(assertSafeExternalUrl("http://169.254.169.254/latest/meta-data")).rejects.toThrow();
+    await expect(assertSafeExternalUrl("http://127.0.0.1:4000/v1")).rejects.toThrow();
+    await expect(assertSafeExternalUrl("https://localhost:3000/api")).rejects.toThrow();
+    await expect(assertSafeExternalUrl("https://10.0.0.15/mcp")).rejects.toThrow();
+
+    let baseUrl = "";
+    const server = http.createServer(async (req, res) => {
+      const reqUrl = new URL(req.url ?? "/", baseUrl || "http://127.0.0.1");
+      const chunks: Buffer[] = [];
+      for await (const ch of req) chunks.push(Buffer.isBuffer(ch) ? ch : Buffer.from(ch));
+      const bodyStr = Buffer.concat(chunks).toString("utf8");
+
+      if (reqUrl.pathname === "/mcp" && req.method === "POST") {
+        if (req.headers.authorization !== "Bearer metorial-test-key") {
+          res.writeHead(401).end("Unauthorized");
+          return;
+        }
+        const rpc = JSON.parse(bodyStr) as { id: string; method: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Mcp-Session-Id", "sess-remote-1");
+        if (rpc.method === "initialize") {
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: "2024-11-05" } }));
+          return;
+        }
+        if (rpc.method === "tools/list") {
+          res.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: rpc.id,
+              result: {
+                tools: [{ name: "slack_post_message", description: "Post Slack alert via Metorial" }]
+              }
+            })
+          );
+          return;
+        }
+        if (rpc.method === "tools/call") {
+          res.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: rpc.id,
+              result: {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({ posted: true, tool: rpc.params?.name, args: rpc.params?.arguments })
+                  }
+                ]
+              }
+            })
+          );
+          return;
+        }
+      }
+
+      if (reqUrl.pathname === "/utcp.json") {
+        res.setHeader("Content-Type", "application/json");
+        res.end(
+          JSON.stringify({
+            manual_version: "1.0.0",
+            tools: [
+              {
+                name: "update_ticket",
+                description: "Update external ticket status via UTCP",
+                tool_call_template: {
+                  call_template_type: "http",
+                  http_method: "POST",
+                  url: `${baseUrl}/api/tickets/{ticketId}`
+                }
+              }
+            ]
+          })
+        );
+        return;
+      }
+
+      if (reqUrl.pathname.startsWith("/api/tickets/") && req.method === "POST") {
+        const ticketId = reqUrl.pathname.split("/").pop();
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ updated: true, ticketId, payload: JSON.parse(bodyStr || "{}") }));
+        return;
+      }
+
+      if (reqUrl.pathname === "/openapi.json") {
+        res.setHeader("Content-Type", "application/json");
+        res.end(
+          JSON.stringify({
+            openapi: "3.0.3",
+            servers: [{ url: baseUrl }],
+            paths: {
+              "/api/orders": {
+                get: {
+                  operationId: "list_erp_orders",
+                  summary: "List ERP maintenance orders",
+                  parameters: [{ name: "plant", schema: { type: "string" } }]
+                }
+              }
+            }
+          })
+        );
+        return;
+      }
+
+      if (reqUrl.pathname === "/api/orders" && req.method === "GET") {
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ orders: [{ id: "PO-901", plant: reqUrl.searchParams.get("plant") }] }));
+        return;
+      }
+
+      res.writeHead(404).end("Not Found");
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const addr = server.address() as { port: number };
+    baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    try {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("KOJO_DEMO_MODE", "false");
+      vi.stubEnv("KOJO_ALLOW_PRIVATE_CONNECTOR_URLS", "true");
+      vi.stubEnv(
+        "CREDENTIAL_ENCRYPTION_KEY",
+        "c1d2e3f4a5b60718293a4b5c6d7e8f90c1d2e3f4a5b60718293a4b5c6d7e8f90"
+      );
+
+      const { encryptCredentials } = await import("@kojo/core");
+      await state.conn!.db.insert(connectorConnections).values([
+        {
+          id: "conn-metorial-test",
+          tenantId: "tenant-acme",
+          slug: "metorial",
+          name: "Metorial Test MCP",
+          category: "mcp",
+          transport: "remote_mcp",
+          endpointUrl: `${baseUrl}/mcp`,
+          encryptedCredentials: encryptCredentials({ token: "metorial-test-key" }),
+          status: "disconnected"
+        },
+        {
+          id: "conn-utcp-test",
+          tenantId: "tenant-acme",
+          slug: "tickets",
+          name: "UTCP Tickets API",
+          category: "http",
+          transport: "utcp_http",
+          endpointUrl: `${baseUrl}/utcp.json`,
+          status: "disconnected"
+        },
+        {
+          id: "conn-openapi-test",
+          tenantId: "tenant-acme",
+          slug: "erp-oa",
+          name: "OpenAPI ERP Bridge",
+          category: "erp",
+          transport: "utcp_http",
+          endpointUrl: `${baseUrl}/openapi.json`,
+          status: "disconnected"
+        }
+      ]);
+
+      expect(await testConnectorConnection(state.conn!.db, "tenant-acme", "conn-metorial-test")).toMatchObject({
+        ok: true,
+        supported: true
+      });
+      const mcpSync = await syncConnectorConnection(state.conn!.db, "tenant-acme", "conn-metorial-test");
+      expect(mcpSync.ok).toBe(true);
+      expect(mcpSync.tools.map((t) => t.name)).toContain("slack_post_message");
+
+      expect((await syncConnectorConnection(state.conn!.db, "tenant-acme", "conn-utcp-test")).tools.map((t) => t.name)).toContain("update_ticket");
+      expect((await syncConnectorConnection(state.conn!.db, "tenant-acme", "conn-openapi-test")).tools.map((t) => t.name)).toContain("list_erp_orders");
+
+      // Invoke Remote MCP directly & OpenAPI GET with query params
+      const mcpInvoke = await invokeConnector(
+        new Request("http://localhost/api/connectors/conn-metorial-test/invoke", {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: "http://localhost" },
+          body: JSON.stringify({ toolName: "slack_post_message", args: { channel: "#line3", text: "E42" } })
+        }),
+        { params: Promise.resolve({ id: "conn-metorial-test" }) }
+      );
+      expect(mcpInvoke.status).toBe(200);
+      expect(await mcpInvoke.json()).toMatchObject({
+        ok: true,
+        result: { posted: true, tool: "slack_post_message", args: { channel: "#line3", text: "E42" } }
+      });
+
+      const oaInvoke = await invokeConnector(
+        new Request("http://localhost/api/connectors/conn-openapi-test/invoke", {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: "http://localhost" },
+          body: JSON.stringify({ toolName: "list_erp_orders", args: { plant: "detroit" } })
+        }),
+        { params: Promise.resolve({ id: "conn-openapi-test" }) }
+      );
+      expect(oaInvoke.status).toBe(200);
+      expect(await oaInvoke.json()).toMatchObject({
+        ok: true,
+        result: { orders: [{ id: "PO-901", plant: "detroit" }] }
+      });
+
+      // Chain local Kojo MCP + Remote MCP + UTCP path-substituted HTTP call in isolated Code Mode!
+      const chained = await executeKojoConnectorCode({
+        code: `
+          const st = await kojo.callTool("get_machine_status", { machineId: input.machineId });
+          const slack = await kojo.connectors.metorial.slack_post_message({ channel: "#ops", text: st.status.machineId });
+          const ticket = await kojo.connectors.tickets.update_ticket({ ticketId: "INC-42", status: "triaged" });
+          return { machine: st.status.machineId, posted: slack.posted, ticketId: ticket.ticketId };
+        `,
+        input: { machineId: "mach-l3-filler-01" },
+        ctx: { db: state.conn!.db, user: adminUser, requestId: "req-cm-hybrid" },
+        options: { registry }
+      });
+      expect(chained.result).toEqual({
+        machine: "mach-l3-filler-01",
+        posted: true,
+        ticketId: "INC-42"
+      });
+
+      // Authenticated Kojo UTCP 1.0 manual export combines local & registered remote tools
+      const utcpRes = await getUtcpManual(new Request("http://localhost/api/connectors/utcp"));
+      expect(utcpRes.status).toBe(200);
+      const utcpJson = (await utcpRes.json()) as { utcp_version: string; tools: Array<{ name: string }> };
+      expect(utcpJson.utcp_version).toBe("1.0.0");
+      expect(utcpJson.tools.some((t) => t.name === "get_machine_status")).toBe(true);
+      expect(utcpJson.tools.some((t) => t.name === "metorial.slack_post_message")).toBe(true);
+      expect(utcpJson.tools.some((t) => t.name === "tickets.update_ticket")).toBe(true);
+      expect(utcpJson.tools.some((t) => t.name === "erp-oa.list_erp_orders")).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });

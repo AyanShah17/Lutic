@@ -12,7 +12,7 @@ cp -n .env.example .env
 bun run dev
 ```
 
-Open http://localhost:3000. Development uses an embedded PGlite database, seeded demo accounts, mock chat, and simulated telemetry. Keep this database separate from production. `.env.example` is a development configuration; do not copy its credentials into a deployment. To exercise live chat locally, configure an LLM provider, API key, and model.
+Open http://localhost:3000. Development uses an embedded PGlite database, seeded demo accounts, mock chat, and simulated telemetry. Keep this database separate from production. `.env.example` is a development configuration; do not copy its credentials into a deployment. To exercise live chat locally, configure `LLM_PROVIDER=kojo` with the LiteLLM gateway (or direct `anthropic`/`openai`), API key, and model.
 
 ## 2. Linux server with Docker Compose
 
@@ -26,13 +26,13 @@ bash deploy/kojo.sh prepare
 
 This creates `.env.production` with mode 0600 and unique database, authentication, and encryption secrets. Existing configuration is preserved. Edit that file before starting:
 
-- Configure `LLM_PROVIDER=kojo` (with `KOJO_AI_GATEWAY_URL` and `KOJO_AI_GATEWAY_KEY`), `openai`, or `anthropic`, the matching API key, and an explicit `LLM_MODEL` supported by your account. Production chat fails if a real provider is not configured; `mock` is for development.
+- Configure `LLM_PROVIDER=kojo` (`KOJO_AI_GATEWAY_URL=http://litellm:4000/v1`, `KOJO_AI_GATEWAY_KEY` matching `LITELLM_MASTER_KEY`, and `LLM_MODEL=kojo-claude` / `kojo-gpt4o` / `kojo-mini` from `deploy/litellm_config.yaml`), or configure direct `openai`/`anthropic` credentials. Production chat fails if a real provider is not configured; `mock` is for development.
 - Set `EMBEDDING_PROVIDER=local`. Retrieval uses deterministic 64-dimensional local vectors plus full-text search. External embedding providers are not implemented.
-- If license enforcement is required, supply `LICENSE_SERVER_URL` (HTTPS), `KOJO_LICENSE_KEY`, and the issuer's `LICENSE_SIGNING_SECRET`. Alternatively set `LICENSE_ENFORCE=false` for an installation that does not enforce licenses. The bundled `license-dev` service and demo keys are development fixtures.
+- If license enforcement is required, supply `LICENSE_SERVER_URL` (HTTPS), `KOJO_LICENSE_KEY`, and the issuer's `LICENSE_SIGNING_SECRET`. Alternatively set `LICENSE_ENFORCE=false` for an installation that does not enforce licenses.
 - Leave `COOKIE_SECURE=true`. Configure exact HTTPS origins in `CORS_ORIGINS` only for separately hosted browser clients. Same-origin web use needs no CORS entry.
 - Compose supplies `CLAMAV_HOST=clamd` and port 3310. Keep this scanner on a private network.
 
-Create a fresh database and initial administrator:
+Create a fresh database and initial administrator (using `bash deploy/kojo.sh bootstrap`, or `bun run db:bootstrap` inside the app container):
 
 ```sh
 docker compose --env-file .env.production build kojo-paas
@@ -42,15 +42,12 @@ export KOJO_PLANT_NAME='Your first plant'
 export KOJO_ADMIN_EMAIL='admin@your-company.example'
 read -r -s -p 'Initial admin password (16+ characters): ' KOJO_ADMIN_PASSWORD
 export KOJO_ADMIN_PASSWORD
-docker compose --env-file .env.production run --rm --no-deps \
-  -e KOJO_TENANT_NAME -e KOJO_PLANT_NAME \
-  -e KOJO_ADMIN_EMAIL -e KOJO_ADMIN_PASSWORD \
-  kojo-paas bun packages/core/src/db/bootstrap.ts
+bash deploy/kojo.sh bootstrap
 unset KOJO_ADMIN_PASSWORD
 bash deploy/kojo.sh up
 ```
 
-The password must be unique and contain varied characters. Bootstrap installs one tenant, one plant, an administrator, and core tool permissions. It creates no machines, telemetry, manuals, or example customers. It is idempotent and leaves an existing installation untouched. Never run `db:seed` on production; production mode explicitly rejects it.
+The password must be unique and contain varied characters. `bootstrap` installs one tenant, one plant, an administrator, core tool permissions, the 5 built-in local `mcp://` connector connections (without demo secrets), the `plant-alerts` topic, and the `ops-dispatch` queue. It creates no machines, telemetry, manuals, or example customers. It is idempotent and leaves an existing installation untouched. Never run `db:seed` on production; production mode explicitly rejects it.
 
 Schema updates are tracked in `schema_migrations` and serialized under a PostgreSQL transaction advisory lock (`pg_advisory_xact_lock`). The schema initializer needs a database owner capable of creating the `vector` extension, roles, and RLS policies. On a managed database, confirm those privileges before adopting the provider. Tenant requests switch to the restricted `kojo_app` role inside a transaction (`schema_migrations` and `license_state` are revoked from `kojo_app`); administrative authentication, migrations, and runtime tasks use the owner connection. Preserve that separation when adding routes.
 
@@ -107,7 +104,7 @@ Replace the timestamp with the actual measurement time (not a future time). Unit
 
 Users can change their own password from the sidebar security control (`POST /api/auth/change-password`), and admins can reset passwords, revoke active sessions (`token_version` bump), or deactivate accounts in **Admin → Users & Roles** (`PATCH /api/admin/users`).
 
-Local MCP adapters cover stored documents, historian, CMMS, MES, and parts ERP data. External vendor connectors, webhook/AI workflow nodes that are not implemented, and Code Mode script execution (`mode: "code"` / `execute_connector_code`, disabled under P0-07) report unavailable (`HTTP 501` / disabled controls); do not plan an operational dependency on them. This release assists operators; validate advice against approved procedures before using it on machinery.
+Local MCP adapters cover stored documents, historian, CMMS, MES, and parts ERP data. Live external integrations run via Streamable HTTP Remote MCP (`remote_mcp` for Metorial, OpenConnectors, UTCP-MCP) and UTCP 1.0 / OpenAPI 3.x direct HTTP bridges (`utcp_http`) over SSRF-checked HTTPS URLs; isolated subprocess Code Mode executes multi-tool scripts under parent policy enforcement. Unimplemented raw HTTP/webhook/AI workflow stubs still report unavailable (`HTTP 501` / disabled controls). This release assists operators; validate advice against approved procedures before using it on machinery.
 
 ## Backups, key rotation, upgrades, and recovery
 
@@ -145,6 +142,6 @@ Monitor HTTPS availability, error logs, license state, scanner readiness/signatu
 
 ## Verification boundary
 
-Local verification covers workspace type checks, lint, regression tests (PGlite unit/integration + lifecycle security tests), and a production Next.js build. Native PostgreSQL multi-connection tests (`tests/postgres-integration.test.ts`) and the Docker container smoke job (`container-smoke`) are wired into `.github/workflows/ci.yml` but require Docker and PostgreSQL, which are not installed on all workstations. Live LLM provider calls, TLS termination, and live external industrial integrations remain outside local workstation verification and must be validated on the target host before admitting real users.
+Local verification covers workspace type checks, lint, Vitest regression tests (PGlite unit/integration, lifecycle security, SSRF/UTCP/MCP bridges, and isolated Code Mode subprocess checks), and a production Next.js build. Native PostgreSQL multi-connection tests (`tests/postgres-integration.test.ts`) and the Docker container smoke job (`container-smoke`) are wired into `.github/workflows/ci.yml` and require Docker and PostgreSQL. Live LLM calls, TLS termination, and real third-party SaaS endpoints remain outside local workstation verification and must be validated in target staging.
 
-The source and CI configuration are published on GitHub. Verify the CI results for the exact release commit and refresh the audit before deployment; publication alone does not establish a passing pipeline.
+Verify the CI run and dependency audit (`bun audit --audit-level=high`) for the exact release commit before deploying.

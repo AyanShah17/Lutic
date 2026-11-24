@@ -142,6 +142,9 @@ describe("production deployment", () => {
       const databasePassword = original.match(/^POSTGRES_PASSWORD=([a-f0-9]{64})$/m)?.[1];
       expect(databasePassword).toBeDefined();
       expect(original).toContain(`DATABASE_URL=postgresql://kojo:${databasePassword}@postgres:5432/kojo`);
+      const gatewayKey = original.match(/^LITELLM_MASTER_KEY=(sk-kojo-[a-f0-9]{64})$/m)?.[1];
+      expect(gatewayKey).toBeDefined();
+      expect(original).toContain(`KOJO_AI_GATEWAY_KEY=${gatewayKey}`);
 
       execFileSync("bash", command);
       expect(readFileSync(envFile, "utf8")).toBe(original);

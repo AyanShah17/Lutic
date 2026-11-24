@@ -4,7 +4,16 @@ import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import {
+  auditLog,
+  authorize,
+  connectorConnections,
+  eq,
+  invokeExternalConnectorTool,
+  sha256Hex
+} from "@kojo/core";
 import { defaultMcpRegistry, type ToolExecutionContext } from "@kojo/connectors";
+import crypto from "node:crypto";
 import {
   executeToolWithPolicy,
   getAllowedToolsForUser,
@@ -97,11 +106,32 @@ export async function executeKojoConnectorCode(params: {
   const timeoutMs = Math.min(Math.max(params.timeoutMs ?? DEFAULT_CODE_MODE_TIMEOUT_MS, 50), 30_000);
   const registry = params.options?.registry ?? defaultMcpRegistry;
 
-  // Prepare tenant-authorized tool catalog in the parent before spawning
+  // Prepare tenant-authorized tool catalog & remote bridge map in the parent before spawning
   const allowedTools = await getAllowedToolsForUser(params.ctx.db, params.ctx.user, registry);
+  const tenantConns = await params.ctx.db
+    .select()
+    .from(connectorConnections)
+    .where(eq(connectorConnections.tenantId, params.ctx.user.tenantId));
+
+  const remoteConnBySlug = new Map<string, (typeof tenantConns)[number]>();
   const toolCatalog: Array<{ name: string; description?: string }> = allowedTools
     .filter((t) => t.name !== "execute_connector_code")
     .map((t) => ({ name: t.name, description: t.description }));
+
+  for (const c of tenantConns) {
+    if (c.transport === "remote_mcp" || c.transport === "utcp_http") {
+      remoteConnBySlug.set(c.slug, c);
+      for (const t of c.discoveredTools ?? []) {
+        const tName = typeof t.name === "string" ? t.name : "";
+        if (tName) {
+          toolCatalog.push({
+            name: `${c.slug}.${tName}`,
+            description: typeof t.description === "string" ? t.description : undefined
+          });
+        }
+      }
+    }
+  }
 
   const workerPath = resolveWorkerScriptPath();
   const bunBin = resolveBunExecutable();
@@ -193,6 +223,58 @@ export async function executeKojoConnectorCode(params: {
 
       const rawArgs =
         msg.args && typeof msg.args === "object" && !Array.isArray(msg.args) ? msg.args : {};
+      const t0 = Date.now();
+
+      const remoteConn = msg.connectorSlug ? remoteConnBySlug.get(msg.connectorSlug) : undefined;
+      const isBuiltin = Boolean(registry.getToolDefinition(msg.toolName));
+
+      if (remoteConn && !isBuiltin) {
+        try {
+          authorize(params.ctx.user, "connector:read", { tenantId: params.ctx.user.tenantId });
+          const data = await invokeExternalConnectorTool(
+            params.ctx.db,
+            remoteConn,
+            msg.toolName,
+            rawArgs
+          );
+          const latencyMs = Math.max(1, Date.now() - t0);
+          innerCalls.push({
+            toolName: `${remoteConn.slug}.${msg.toolName}`,
+            args: rawArgs,
+            status: "allowed",
+            data,
+            latencyMs
+          });
+          await params.ctx.db.insert(auditLog).values({
+            id: `aud-${crypto.randomUUID().slice(0, 12)}`,
+            tenantId: params.ctx.user.tenantId,
+            userId: params.ctx.user.userId,
+            role: params.ctx.user.role,
+            conversationId: params.ctx.conversationId ?? null,
+            action: "connector_code_tool",
+            toolName: `${remoteConn.slug}.${msg.toolName}`,
+            args: rawArgs,
+            resultHash: sha256Hex(JSON.stringify(data)),
+            status: "allowed",
+            reason: `Remote bridge ${remoteConn.slug}`,
+            latencyMs
+          });
+          writeToChild({ type: "tool_result", id: msg.id, ok: true, data });
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          lastInnerDenial = errMsg;
+          const latencyMs = Math.max(1, Date.now() - t0);
+          innerCalls.push({
+            toolName: `${remoteConn.slug}.${msg.toolName}`,
+            args: rawArgs,
+            status: "error",
+            denialReason: errMsg,
+            latencyMs
+          });
+          writeToChild({ type: "tool_result", id: msg.id, ok: false, error: errMsg });
+        }
+        return;
+      }
 
       const policyRes = await executeToolWithPolicy(
         msg.toolName,
