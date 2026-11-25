@@ -64,9 +64,10 @@ const config: Config = {
         }
       },
       borderRadius: {
+        xl: "var(--radius-xl)",
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)"
+        md: "calc(var(--radius) - 3px)",
+        sm: "calc(var(--radius) - 5px)"
       },
       keyframes: {
         "lutic-spin-slow": {

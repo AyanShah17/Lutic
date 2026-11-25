@@ -18,6 +18,9 @@ export default function SignupPage() {
           <Factory className="h-5 w-5" />
         </span>
         <div>
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
+            WORKSPACE PROVISIONING // LUTIC.APP
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
             Get Started with Lutic
           </h1>

@@ -16,7 +16,7 @@ export function LineHoverLink({
   return (
     <Link
       className={cn(
-        "group relative inline-flex items-center gap-1.5 text-xs font-medium text-foreground transition-colors hover:text-primary",
+        "group relative inline-flex items-center gap-1.5 text-xs font-medium text-foreground transition-colors duration-150 hover:text-primary",
         className
       )}
       {...props}
@@ -24,7 +24,7 @@ export function LineHoverLink({
       <span>{children}</span>
       <span
         aria-hidden="true"
-        className="absolute bottom-0 left-0 h-[1.5px] w-full origin-left scale-x-0 bg-primary transition-transform duration-200 group-hover:scale-x-100"
+        className="absolute bottom-0 left-0 h-[1.5px] w-full origin-left scale-x-0 bg-primary transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-x-100 motion-reduce:transition-none"
       />
     </Link>
   );

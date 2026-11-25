@@ -87,17 +87,17 @@ export function Dialog({
 
   const containerClass =
     variant === "drawer-left"
-      ? "fixed inset-0 z-50 flex justify-start bg-black/50 backdrop-blur-[1px]"
+      ? "fixed inset-0 z-50 flex justify-start bg-black/50 backdrop-blur-[2px]"
       : variant === "drawer-right"
-        ? "fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[1px]"
-        : "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4";
+        ? "fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]"
+        : "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[3px] p-4";
 
   const panelClass =
     variant === "drawer-left"
-      ? "h-full w-72 max-w-[85vw] border-r border-border bg-card text-card-foreground shadow-xl overflow-y-auto"
+      ? "h-full w-72 max-w-[85vw] border-r border-border bg-card text-card-foreground shadow-2xl overflow-y-auto animate-lutic-drawer-left"
       : variant === "drawer-right"
-        ? "h-full w-full max-w-lg border-l border-border bg-card text-card-foreground shadow-xl overflow-y-auto"
-        : "w-full max-w-lg rounded-lg border border-border bg-card text-card-foreground shadow-xl";
+        ? "h-full w-full max-w-lg border-l border-border bg-card text-card-foreground shadow-2xl overflow-y-auto animate-lutic-drawer-right"
+        : "w-full max-w-lg rounded-xl border border-border bg-card text-card-foreground shadow-2xl animate-lutic-modal";
 
   return (
     <div

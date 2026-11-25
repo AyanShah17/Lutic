@@ -318,8 +318,11 @@ export default async function HomePage() {
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 space-y-7">
       <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-border pb-6">
         <div className="space-y-2 max-w-2xl">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {user ? `${user.role.toUpperCase()} · ${user.plantIds.join(", ")}` : "Lutic Operations Platform"}
+          <div className="inline-flex items-center gap-2 rounded-sm border border-border bg-card px-2 py-0.5 font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+            <span>
+              {user ? `${user.role.toUpperCase()} · ${user.plantIds.join(", ")}` : "Lutic Operations Platform"}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Lutic Industrial Operations PaaS
@@ -356,13 +359,13 @@ export default async function HomePage() {
       {snapshot && (
         <section
           aria-label="Operational Snapshot"
-          className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border rounded-lg border border-border bg-card overflow-hidden"
+          className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border rounded-xl border border-border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
         >
           <div className="p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Fleet Running
             </div>
-            <div className="mt-1 text-xl font-bold font-mono tabular-nums">
+            <div className="mt-1.5 text-xl font-bold font-mono tabular-nums">
               {snapshot.runningMachines}
               <span className="text-xs font-normal text-muted-foreground">
                 /{snapshot.totalMachines}
@@ -370,12 +373,12 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Active Faults
             </div>
             <div
               className={cn(
-                "mt-1 text-xl font-bold font-mono tabular-nums",
+                "mt-1.5 text-xl font-bold font-mono tabular-nums",
                 snapshot.faultMachines > 0 ? "text-destructive" : "text-foreground"
               )}
             >
@@ -383,18 +386,18 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Open Alerts
             </div>
-            <div className="mt-1 text-xl font-bold font-mono tabular-nums">
+            <div className="mt-1.5 text-xl font-bold font-mono tabular-nums">
               {snapshot.openAlerts ?? "—"}
             </div>
           </div>
           <div className="p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Active Workflows
             </div>
-            <div className="mt-1 text-xl font-bold font-mono tabular-nums">
+            <div className="mt-1.5 text-xl font-bold font-mono tabular-nums">
               {snapshot.enabledWorkflows ?? "—"}
             </div>
           </div>
@@ -455,18 +458,18 @@ export default async function HomePage() {
               <span className="text-xs text-muted-foreground">{group.subtitle}</span>
             </div>
 
-            <Card className="divide-y divide-border overflow-hidden">
+            <Card className="divide-y divide-border overflow-hidden rounded-xl">
               {group.items.map(({ href, title, description, tag, Icon }) => (
                 <Link
                   key={href + title}
                   href={href}
-                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40"
+                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-muted/35"
                 >
                   <div className="flex items-start sm:items-center gap-3 min-w-0">
-                    <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 mt-0.5 sm:mt-0 transition-colors" />
+                    <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 mt-0.5 sm:mt-0 transition-colors duration-150" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                        <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-150">
                           {title}
                         </span>
                         <Badge variant="outline" className="text-[10px] font-mono">
@@ -478,7 +481,7 @@ export default async function HomePage() {
                       </p>
                     </div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 hidden sm:block" />
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] shrink-0 hidden sm:block" />
                 </Link>
               ))}
             </Card>

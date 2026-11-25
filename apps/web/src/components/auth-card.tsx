@@ -259,8 +259,8 @@ export function LuticAuthCard({ mode }: { mode: "sign-in" | "sign-up" }) {
   }
 
   return (
-    <Card className="mx-auto max-w-md">
-      <CardHeader>
+    <Card className="mx-auto max-w-md rounded-xl">
+      <CardHeader className="border-b border-border/60 pb-3.5">
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-primary" />
           <span>

@@ -390,7 +390,7 @@ export function CommandSearch({
         ) : (
           grouped.map(([category, items]) => (
             <div key={category} className="space-y-1">
-              <div className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {category}
               </div>
               {items.map((item) => {
@@ -408,8 +408,10 @@ export function CommandSearch({
                     type="button"
                     onMouseEnter={() => setSelectedIndex(flatIndex)}
                     onClick={() => navigateTo(item.href)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-colors ${
-                      active ? "bg-accent text-accent-foreground" : "hover:bg-muted/60"
+                    className={`flex w-full items-center justify-between gap-2 rounded-md border-l-2 px-2.5 py-2 text-left text-xs transition-colors duration-150 ${
+                      active
+                        ? "border-primary bg-accent text-accent-foreground"
+                        : "border-transparent hover:bg-muted/60"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

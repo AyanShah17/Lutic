@@ -268,8 +268,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="text-sm font-bold tracking-tight text-foreground">
                 Lutic
               </div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                Industrial PaaS
+              <div className="font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                Industrial OS
               </div>
             </div>
           )}
@@ -293,7 +293,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {navGroups.map((group) => (
           <div key={group.id} className="space-y-1">
             {!compact && (
-              <div className="px-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="px-2.5 pb-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {group.label}
               </div>
             )}
@@ -313,17 +313,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={onNavigate}
                     title={compact ? item.label : undefined}
                     className={cn(
-                      "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors min-h-[32px]",
+                      "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-[color,background-color,border-color] duration-150 min-h-[32px]",
                       compact && "justify-center px-0",
                       active
-                        ? "bg-card text-foreground shadow-sm border border-border"
+                        ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-border"
                         : "text-sidebar-foreground/80 hover:bg-card/70 hover:text-foreground border border-transparent"
                     )}
                   >
                     {active && !compact && (
                       <span
                         aria-hidden="true"
-                        className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary"
+                        className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-r bg-primary"
                       />
                     )}
                     <Icon
@@ -478,7 +478,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="no-print sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur px-3 sm:px-5 flex items-center justify-between gap-3">
+        <header className="no-print sticky top-0 z-40 h-14 border-b border-border bg-background/90 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {!isAuthPage ? (
               <>
@@ -560,7 +560,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   )}
                 </button>
                 {bellOpen && (
-                  <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 shadow-xl z-50 space-y-2.5">
+                  <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-2xl z-50 space-y-2.5 animate-lutic-modal">
                     <div className="flex items-center justify-between text-xs font-semibold">
                       <span>Notifications ({unreadCount} unread)</span>
                       <button

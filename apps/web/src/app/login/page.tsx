@@ -124,17 +124,22 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12 space-y-6">
-      <div className="flex items-center gap-3 border-b border-border pb-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-          <Factory className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-            Sign in to Lutic
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Role-governed industrial operations AI across manuals, telemetry, workflows, and dashboards.
-          </p>
+      <div className="flex items-center justify-between gap-3 border-b border-border pb-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Factory className="h-5 w-5" />
+          </span>
+          <div>
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
+              ACCESS CONTROL // LUTIC.APP
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Sign in to Lutic
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Role-governed industrial operations AI across manuals, telemetry, workflows, and dashboards.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -222,27 +227,27 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             {PERSONA_GROUPS.map((section) => (
               <div key={section.group} className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                   {section.group}
                 </div>
-                <div className="divide-y divide-border rounded-md border border-border overflow-hidden">
+                <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                   {section.accounts.map((u) => (
                     <button
                       key={u.email}
                       type="button"
                       disabled={disabled}
                       onClick={() => handleQuickDemo(u.email)}
-                      className="w-full text-left px-3.5 py-2.5 bg-background hover:bg-muted/60 transition-colors flex items-center justify-between gap-3 disabled:opacity-50"
+                      className="w-full text-left px-3.5 py-2.5 bg-background hover:bg-muted/50 transition-colors duration-150 flex items-center justify-between gap-3 disabled:opacity-50"
                     >
                       <div className="min-w-0 space-y-0.5">
-                        <div className="text-xs font-semibold text-foreground truncate">
+                        <div className="text-xs font-mono font-semibold text-foreground truncate">
                           {u.email}
                         </div>
                         <div className="text-[11px] text-muted-foreground">
                           {u.desc}
                         </div>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 uppercase text-[10px]">
+                      <Badge variant="outline" className="shrink-0 font-mono uppercase text-[10px]">
                         {u.role} · {u.plant}
                       </Badge>
                     </button>

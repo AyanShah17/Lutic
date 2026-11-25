@@ -3,50 +3,53 @@
 @tailwind utilities;
 
 :root {
-  --background: 220 18% 97.5%;
-  --foreground: 222 35% 12%;
+  --background: 210 20% 98%;
+  --foreground: 222 38% 10%;
   --card: 0 0% 100%;
-  --card-foreground: 222 35% 12%;
-  --sidebar: 220 20% 95.5%;
-  --sidebar-foreground: 222 30% 18%;
-  --sidebar-border: 220 16% 88%;
-  --primary: 21 88% 46%;
-  --primary-foreground: 0 0% 99%;
-  --secondary: 220 16% 92%;
+  --card-foreground: 222 38% 10%;
+  --sidebar: 214 22% 95.8%;
+  --sidebar-foreground: 222 32% 16%;
+  --sidebar-border: 216 16% 87.5%;
+  --primary: 20 90% 48%;
+  --primary-foreground: 0 0% 99.5%;
+  --secondary: 215 18% 93%;
   --secondary-foreground: 222 35% 14%;
-  --muted: 220 16% 93%;
-  --muted-foreground: 220 12% 43%;
-  --accent: 220 18% 91%;
-  --accent-foreground: 222 35% 12%;
+  --muted: 215 16% 93.8%;
+  --muted-foreground: 218 13% 41%;
+  --accent: 215 18% 92%;
+  --accent-foreground: 222 38% 11%;
   --destructive: 0 74% 48%;
   --destructive-foreground: 0 0% 99%;
-  --border: 220 16% 88%;
-  --input: 220 16% 84%;
-  --ring: 21 88% 46%;
-  --radius: 0.5rem;
+  --border: 216 16% 87.5%;
+  --input: 216 16% 83%;
+  --ring: 20 90% 48%;
+  --radius: 0.625rem;
+  --radius-xl: 0.875rem;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark {
-  --background: 222 28% 8%;
-  --foreground: 210 24% 95%;
-  --card: 222 24% 11.5%;
-  --card-foreground: 210 24% 95%;
-  --sidebar: 222 26% 9.5%;
-  --sidebar-foreground: 210 20% 88%;
-  --sidebar-border: 222 18% 18%;
-  --primary: 22 90% 52%;
-  --primary-foreground: 0 0% 99%;
-  --secondary: 222 20% 17%;
-  --secondary-foreground: 210 24% 94%;
-  --muted: 222 20% 16%;
-  --muted-foreground: 218 14% 64%;
-  --accent: 222 20% 18%;
-  --accent-foreground: 210 24% 95%;
+  --background: 224 24% 6.5%;
+  --foreground: 210 22% 95.5%;
+  --card: 224 20% 9.8%;
+  --card-foreground: 210 22% 95.5%;
+  --sidebar: 224 26% 5.2%;
+  --sidebar-foreground: 212 18% 88%;
+  --sidebar-border: 222 16% 16.5%;
+  --primary: 22 92% 54%;
+  --primary-foreground: 0 0% 99.5%;
+  --secondary: 223 18% 15%;
+  --secondary-foreground: 210 22% 94%;
+  --muted: 223 18% 14%;
+  --muted-foreground: 218 13% 62%;
+  --accent: 223 18% 16%;
+  --accent-foreground: 210 22% 95.5%;
   --destructive: 0 70% 50%;
   --destructive-foreground: 0 0% 99%;
-  --border: 222 18% 19%;
-  --input: 222 18% 23%;
-  --ring: 22 90% 52%;
+  --border: 222 16% 17.5%;
+  --input: 222 16% 21%;
+  --ring: 22 92% 54%;
 }
 
 /* Bright factory floor high-contrast mode */
@@ -121,6 +124,39 @@
   }
 }
 
+@keyframes lutic-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lutic-drawer-left-in {
+  from {
+    opacity: 0.6;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lutic-drawer-right-in {
+  from {
+    opacity: 0.6;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-lutic-flow {
   animation: lutic-flow-dash 1.3s linear infinite;
 }
@@ -132,11 +168,42 @@
 .animate-lutic-pulse {
   transform-box: fill-box;
   transform-origin: center;
-  animation: lutic-pulse-ring 1.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation: lutic-pulse-ring 1.9s var(--ease-spring) infinite;
 }
 
 .animate-lutic-fade-up {
-  animation: lutic-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lutic-fade-up 380ms var(--ease-out-expo) both;
+}
+
+.lutic-reveal {
+  animation: lutic-fade-up 380ms var(--ease-out-expo) both;
+}
+
+.lutic-reveal-delay-1 {
+  animation: lutic-fade-up 380ms var(--ease-out-expo) 60ms both;
+}
+
+.lutic-reveal-delay-2 {
+  animation: lutic-fade-up 380ms var(--ease-out-expo) 120ms both;
+}
+
+.animate-lutic-modal {
+  animation: lutic-modal-in 200ms var(--ease-out-expo) both;
+}
+
+.animate-lutic-drawer-left {
+  animation: lutic-drawer-left-in 180ms var(--ease-out-expo) both;
+}
+
+.animate-lutic-drawer-right {
+  animation: lutic-drawer-right-in 180ms var(--ease-out-expo) both;
+}
+
+.lutic-grid-bg {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -144,7 +211,13 @@
   .animate-lutic-flow,
   .animate-lutic-conveyor,
   .animate-lutic-pulse,
-  .animate-lutic-fade-up {
+  .animate-lutic-fade-up,
+  .lutic-reveal,
+  .lutic-reveal-delay-1,
+  .lutic-reveal-delay-2,
+  .animate-lutic-modal,
+  .animate-lutic-drawer-left,
+  .animate-lutic-drawer-right {
     animation: none !important;
   }
 }
@@ -178,8 +251,9 @@
   transition: height 200ms ease;
 }
 .react-grid-item {
-  transition: all 200ms ease;
   transition-property: left, top, width, height;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
 }
 .react-grid-item > .react-resizable-handle {
   position: absolute;

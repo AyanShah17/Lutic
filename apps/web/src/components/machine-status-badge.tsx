@@ -13,19 +13,19 @@ const STATUS_META: Record<
   running: {
     label: "Running",
     className:
-      "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800/70",
+      "bg-emerald-50 text-emerald-800 border-emerald-300/80 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800/70",
     Icon: CheckCircle2
   },
   idle: {
     label: "Idle",
     className:
-      "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800/70",
+      "bg-amber-50 text-amber-800 border-amber-300/80 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800/70",
     Icon: PauseCircle
   },
   fault: {
     label: "Fault",
     className:
-      "bg-red-50 text-red-800 border-red-200 dark:bg-red-950/60 dark:text-red-200 dark:border-red-800/70",
+      "bg-red-50 text-red-800 border-red-300/80 dark:bg-red-950/60 dark:text-red-200 dark:border-red-800/70",
     Icon: AlertTriangle
   },
   offline: {
@@ -52,7 +52,7 @@ export function MachineStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border font-semibold tracking-tight",
+        "inline-flex items-center gap-1 rounded-sm border font-semibold tracking-tight",
         size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-xs",
         meta.className
       )}
