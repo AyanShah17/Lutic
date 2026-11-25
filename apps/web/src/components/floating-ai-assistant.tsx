@@ -195,6 +195,61 @@ function getScreenContext(pathname: string): ScreenContextMeta {
       ]
     };
   }
+  if (pathname.startsWith("/connectors")) {
+    return {
+      label: "Connectors Hub",
+      screenPresets: [
+        {
+          label: "Create connector task",
+          prompt: "High priority: Verify OT/ERP connector sync health and API credentials"
+        }
+      ]
+    };
+  }
+  if (pathname.startsWith("/notifications")) {
+    return {
+      label: "Notifications",
+      screenPresets: [
+        {
+          label: "Log shift escalation",
+          prompt: "Create operational action: Review critical shift alert subscriptions"
+        }
+      ]
+    };
+  }
+  if (pathname.startsWith("/queues")) {
+    return {
+      label: "Dispatch Queues",
+      screenPresets: [
+        {
+          label: "Audit queue backlog",
+          prompt: "Create operational action: Inspect dead-letter dispatch queue items"
+        }
+      ]
+    };
+  }
+  if (pathname.startsWith("/admin")) {
+    return {
+      label: "Admin Console",
+      screenPresets: [
+        {
+          label: "Schedule RBAC audit",
+          prompt: "Create global operations action: Audit plant permissions and retention settings"
+        }
+      ]
+    };
+  }
+  if (pathname.startsWith("/activate")) {
+    return {
+      label: "License",
+      screenPresets: [
+        {
+          label: "Verify license check",
+          prompt: "Create operational action: Confirm license verification schedule"
+        }
+      ]
+    };
+  }
   return {
     label: "Command Overview",
     screenPresets: [

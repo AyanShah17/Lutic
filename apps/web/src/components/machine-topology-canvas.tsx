@@ -8,12 +8,13 @@ import {
   Bot,
   ExternalLink,
   FileUp,
-  Layers,
+  Filter,
   Maximize2,
   Minus,
   Plus,
   QrCode,
   RotateCcw,
+  Tag,
   X
 } from "lucide-react";
 import {
@@ -46,20 +47,22 @@ export interface CanvasMachineTelemetry {
   activeAlarms: Array<{ code: string; severity: string }>;
 }
 
-const NODE_W = 216;
-const NODE_H = 114;
+const NODE_W = 204;
+const NODE_H = 88;
 
 export function MachineTopologyCanvas({
   topology,
   machinesById,
   visibleMachineIds,
   canUploadDrawing,
+  hasActiveSearchOrFilter = false,
   onTopologyUpdated
 }: {
   topology: MachineTopologyGraph;
   machinesById: Map<string, CanvasMachineTelemetry>;
   visibleMachineIds: Set<string>;
   canUploadDrawing: boolean;
+  hasActiveSearchOrFilter?: boolean;
   onTopologyUpdated: () => void;
 }) {
   const [nodePositions, setNodePositions] = useState<
@@ -70,6 +73,10 @@ export function MachineTopologyCanvas({
   const dragMovedRef = useRef(false);
 
   const [zoom, setZoom] = useState(1);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showAllLabels, setShowAllLabels] = useState(false);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<MachineCategoryId | "all">("all");
   const [activeConnTypes, setActiveConnTypes] = useState<Set<ConnectionCategoryId>>(
     () => new Set(Object.keys(CONNECTION_CATEGORIES) as ConnectionCategoryId[])
@@ -105,7 +112,7 @@ export function MachineTopologyCanvas({
     notice?: string;
   } | null>(null);
 
-  // Sync default positions when topology changes
+  // Sync default positions & focus line when topology changes
   useEffect(() => {
     setNodePositions((prev) => {
       const next: Record<string, { x: number; y: number }> = {};
@@ -114,19 +121,50 @@ export function MachineTopologyCanvas({
       }
       return next;
     });
+    if (!selectedZoneId && topology.zones.length > 0) {
+      const faultedNode = topology.nodes.find((n) => n.status === "fault");
+      const defaultZone =
+        (faultedNode?.lineId
+          ? topology.zones.find((z) => z.lineId === faultedNode.lineId)
+          : undefined) ?? topology.zones[0]!;
+      setSelectedZoneId(defaultZone.id);
+    }
     if (!selectedNodeId && !selectedEdgeId && topology.nodes.length > 0) {
       const faulted = topology.nodes.find((n) => n.status === "fault");
       setSelectedNodeId((faulted ?? topology.nodes[0]!).id);
     }
-  }, [topology.nodes, selectedNodeId, selectedEdgeId]);
+  }, [topology.nodes, topology.zones, selectedZoneId, selectedNodeId, selectedEdgeId]);
+
+  const effectiveZoneId = useMemo(() => {
+    if (hasActiveSearchOrFilter) return "all";
+    if (selectedZoneId === "all") return "all";
+    if (topology.zones.some((z) => z.id === selectedZoneId)) return selectedZoneId;
+    return topology.zones[0]?.id ?? "all";
+  }, [hasActiveSearchOrFilter, selectedZoneId, topology.zones]);
+
+  const focusedZone = useMemo(
+    () => (effectiveZoneId === "all" ? null : topology.zones.find((z) => z.id === effectiveZoneId) ?? null),
+    [effectiveZoneId, topology.zones]
+  );
+
+  const zoneOffset = useMemo(
+    () =>
+      focusedZone
+        ? { dx: focusedZone.x - 24, dy: focusedZone.y - 20 }
+        : { dx: 0, dy: 0 },
+    [focusedZone]
+  );
 
   const visibleNodes = useMemo(() => {
     return topology.nodes.filter((n) => {
       if (!visibleMachineIds.has(n.id)) return false;
+      if (focusedZone && (n.lineId || `${n.plantId}::unassigned`) !== focusedZone.lineId) {
+        return false;
+      }
       if (selectedCategory !== "all" && n.category !== selectedCategory) return false;
       return true;
     });
-  }, [topology.nodes, visibleMachineIds, selectedCategory]);
+  }, [topology.nodes, visibleMachineIds, focusedZone, selectedCategory]);
 
   const visibleNodeSet = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
 
@@ -143,10 +181,11 @@ export function MachineTopologyCanvas({
     const counts: Partial<Record<MachineCategoryId, number>> = {};
     for (const n of topology.nodes) {
       if (!visibleMachineIds.has(n.id)) continue;
+      if (focusedZone && (n.lineId || `${n.plantId}::unassigned`) !== focusedZone.lineId) continue;
       counts[n.category] = (counts[n.category] ?? 0) + 1;
     }
     return counts;
-  }, [topology.nodes, visibleMachineIds]);
+  }, [topology.nodes, visibleMachineIds, focusedZone]);
 
   const connectionCounts = useMemo(() => {
     const counts: Partial<Record<ConnectionCategoryId, number>> = {};
@@ -161,8 +200,35 @@ export function MachineTopologyCanvas({
     const activeLines = new Set(
       visibleNodes.map((n) => n.lineId || `${n.plantId}::unassigned`)
     );
-    return topology.zones.filter((z) => activeLines.has(z.lineId));
-  }, [topology.zones, visibleNodes]);
+    return topology.zones
+      .filter((z) => activeLines.has(z.lineId))
+      .map((z) => ({
+        ...z,
+        x: z.x - zoneOffset.dx,
+        y: z.y - zoneOffset.dy
+      }));
+  }, [topology.zones, visibleNodes, zoneOffset]);
+
+  const faultLines = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of topology.nodes) {
+      if (n.status === "fault" && n.lineId) set.add(n.lineId);
+    }
+    return set;
+  }, [topology.nodes]);
+
+  const canvasDimensions = useMemo(() => {
+    if (focusedZone) {
+      return {
+        width: Math.max(820, focusedZone.width + 48),
+        height: Math.max(460, focusedZone.height + 40)
+      };
+    }
+    return {
+      width: topology.canvasWidth,
+      height: topology.canvasHeight
+    };
+  }, [focusedZone, topology.canvasWidth, topology.canvasHeight]);
 
   const selectedNode: TopologyNode | null = useMemo(
     () => topology.nodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -321,31 +387,83 @@ export function MachineTopologyCanvas({
     }
   };
 
-  const connectedEdgeCountsByNode = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of visibleEdges) {
-      map.set(e.sourceId, (map.get(e.sourceId) ?? 0) + 1);
-      map.set(e.targetId, (map.get(e.targetId) ?? 0) + 1);
-    }
-    return map;
-  }, [visibleEdges]);
+  const hasCustomFilter =
+    selectedCategory !== "all" ||
+    activeConnTypes.size < Object.keys(CONNECTION_CATEGORIES).length;
 
   return (
-    <div className="space-y-4">
-      {/* Compact Minimal Topology Toolbar */}
+    <div className="space-y-3">
+      {/* Compact Line Switcher & Controls Bar */}
       <div className="rounded-xl border border-border/80 bg-card p-3 space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2.5 text-xs">
-            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-              <Layers className="h-3.5 w-3.5 text-primary" />
-              <span>Topology</span>
-            </span>
-            <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-              {visibleNodes.length} machines · {visibleEdges.length} links · {topology.documentsIndexed} drawings
-            </span>
+          {/* Line Switcher */}
+          <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Production line focus">
+            {topology.zones.map((z) => {
+              const active = effectiveZoneId === z.id;
+              const hasFault = faultLines.has(z.lineId);
+              return (
+                <button
+                  key={z.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setSelectedZoneId(z.id);
+                    const firstInLine = topology.nodes.find((n) => n.lineId === z.lineId);
+                    if (firstInLine) {
+                      setSelectedNodeId(firstInLine.id);
+                      setSelectedEdgeId(null);
+                    }
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150",
+                    active
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                  )}
+                >
+                  {hasFault && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="truncate">{z.lineName.split("—")[0]?.trim()}</span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveZoneId === "all"}
+              onClick={() => setSelectedZoneId("all")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150",
+                effectiveZoneId === "all"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              )}
+            >
+              All Lines
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              variant={filtersOpen || hasCustomFilter ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setFiltersOpen((v) => !v)}
+              className="h-7 px-2.5 text-[11px]"
+            >
+              <Filter className="h-3 w-3" />
+              <span>Filters{hasCustomFilter ? " *" : ""}</span>
+            </Button>
+            <Button
+              variant={showAllLabels ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowAllLabels((v) => !v)}
+              className="h-7 px-2.5 text-[11px]"
+            >
+              <Tag className="h-3 w-3" />
+              <span>{showAllLabels ? "All Labels" : "Focus Labels"}</span>
+            </Button>
             <div className="inline-flex items-center rounded-md border border-border/80 bg-background">
               <button
                 type="button"
@@ -388,88 +506,120 @@ export function MachineTopologyCanvas({
           </div>
         </div>
 
-        {/* Unified Groups & Connection Categories */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/60 pt-2">
-          <div className="flex flex-wrap items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory("all")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
-                selectedCategory === "all"
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        {/* Collapsible Group & Connection Filters */}
+        {filtersOpen && (
+          <div className="space-y-2 border-t border-border/60 pt-2.5">
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground mr-1">Groups:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("all")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors",
+                  selectedCategory === "all"
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                All
+              </button>
+              {(Object.values(MACHINE_CATEGORIES) as Array<typeof MACHINE_CATEGORIES[MachineCategoryId]>).map(
+                (cat) => {
+                  const count = categoryCounts[cat.id] ?? 0;
+                  if (count === 0) return null;
+                  const active = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(active ? "all" : cat.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                        active
+                          ? "border-foreground/50 bg-muted text-foreground"
+                          : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span>{cat.label}</span>
+                      <span className="font-mono text-[10px] opacity-70 tabular-nums">{count}</span>
+                    </button>
+                  );
+                }
               )}
-            >
-              All Groups
-            </button>
-            {(Object.values(MACHINE_CATEGORIES) as Array<typeof MACHINE_CATEGORIES[MachineCategoryId]>).map(
-              (cat) => {
-                const count = categoryCounts[cat.id] ?? 0;
-                if (count === 0) return null;
-                const active = selectedCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setSelectedCategory(active ? "all" : cat.id)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
-                      active
-                        ? "border-foreground/50 bg-muted text-foreground"
-                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    )}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 rounded-full shrink-0"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    <span>{cat.label}</span>
-                    <span className="font-mono text-[10px] opacity-70 tabular-nums">{count}</span>
-                  </button>
-                );
-              }
-            )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground mr-1">Connections:</span>
+              {(Object.values(CONNECTION_CATEGORIES) as Array<typeof CONNECTION_CATEGORIES[ConnectionCategoryId]>).map(
+                (conn) => {
+                  const enabled = activeConnTypes.has(conn.id);
+                  const count = connectionCounts[conn.id] ?? 0;
+                  return (
+                    <button
+                      key={conn.id}
+                      type="button"
+                      aria-pressed={enabled}
+                      onClick={() => toggleConnType(conn.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-opacity",
+                        enabled
+                          ? "bg-muted/50 text-foreground hover:bg-muted"
+                          : "text-muted-foreground opacity-45 hover:opacity-75"
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="w-3 h-0 border-t-2 shrink-0"
+                        style={{
+                          borderColor: conn.color,
+                          borderTopStyle: conn.dashed ? "dashed" : "solid"
+                        }}
+                      />
+                      <span>{conn.label}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                }
+              )}
+            </div>
           </div>
+        )}
 
-          <span className="hidden sm:inline h-3.5 w-px bg-border/80" aria-hidden="true" />
-
-          <div className="flex flex-wrap items-center gap-1">
+        {/* Whisper-quiet 1-line color legend & count */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {(Object.values(CONNECTION_CATEGORIES) as Array<typeof CONNECTION_CATEGORIES[ConnectionCategoryId]>).map(
-              (conn) => {
-                const enabled = activeConnTypes.has(conn.id);
-                const count = connectionCounts[conn.id] ?? 0;
-                return (
-                  <button
-                    key={conn.id}
-                    type="button"
-                    aria-pressed={enabled}
-                    onClick={() => toggleConnType(conn.id)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-opacity duration-150",
-                      enabled
-                        ? "bg-muted/50 text-foreground hover:bg-muted"
-                        : "text-muted-foreground opacity-45 hover:opacity-75"
-                    )}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="w-3 h-0 border-t-2 shrink-0"
-                      style={{
-                        borderColor: conn.color,
-                        borderTopStyle: conn.dashed ? "dashed" : "solid"
-                      }}
-                    />
-                    <span>{conn.label}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                      {count}
-                    </span>
-                  </button>
-                );
-              }
+              (conn) => (
+                <span
+                  key={conn.id}
+                  className={cn(
+                    "inline-flex items-center gap-1.5",
+                    !activeConnTypes.has(conn.id) && "opacity-40"
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-3 h-0 border-t-2 shrink-0"
+                    style={{
+                      borderColor: conn.color,
+                      borderTopStyle: conn.dashed ? "dashed" : "solid"
+                    }}
+                  />
+                  <span>{conn.label}</span>
+                </span>
+              )
             )}
           </div>
+          <span className="font-mono tabular-nums">
+            {visibleNodes.length} machines · {visibleEdges.length} links · {topology.documentsIndexed} drawings
+          </span>
         </div>
       </div>
 
@@ -483,18 +633,18 @@ export function MachineTopologyCanvas({
       )}
 
       {/* Split Layout: Interactive Topology Canvas + Grounded Inspector */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_350px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         {/* Interactive Canvas */}
         <div
-          className="relative h-[660px] w-full overflow-auto rounded-xl border border-border bg-background lutic-grid-bg shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+          className="relative h-[580px] w-full overflow-auto rounded-xl border border-border/80 bg-background lutic-grid-bg"
           onMouseMove={(e) => {
             if (!draggingId) return;
             dragMovedRef.current = true;
             const rect = e.currentTarget.getBoundingClientRect();
             const rawX = (e.clientX - rect.left + e.currentTarget.scrollLeft) / zoom - dragOffsetRef.current.dx;
             const rawY = (e.clientY - rect.top + e.currentTarget.scrollTop) / zoom - dragOffsetRef.current.dy;
-            const x = Math.max(16, Math.round(rawX));
-            const y = Math.max(16, Math.round(rawY));
+            const x = Math.max(16, Math.round(rawX + zoneOffset.dx));
+            const y = Math.max(16, Math.round(rawY + zoneOffset.dy));
             setNodePositions((prev) => ({ ...prev, [draggingId]: { x, y } }));
           }}
           onMouseUp={() => {
@@ -507,15 +657,15 @@ export function MachineTopologyCanvas({
           <div
             className="relative origin-top-left"
             style={{
-              width: Math.round(topology.canvasWidth * zoom),
-              height: Math.round(topology.canvasHeight * zoom)
+              width: Math.round(canvasDimensions.width * zoom),
+              height: Math.round(canvasDimensions.height * zoom)
             }}
           >
             <div
               className="relative origin-top-left"
               style={{
-                width: topology.canvasWidth,
-                height: topology.canvasHeight,
+                width: canvasDimensions.width,
+                height: canvasDimensions.height,
                 transform: `scale(${zoom})`
               }}
             >
@@ -528,15 +678,15 @@ export function MachineTopologyCanvas({
                     top: zone.y,
                     width: zone.width,
                     height: zone.height,
-                    borderColor: `${zone.color}55`
+                    borderColor: `${zone.color}40`
                   }}
-                  className="absolute rounded-xl border border-dashed bg-card/45 pointer-events-none"
+                  className="absolute rounded-2xl border border-dashed bg-card/35 pointer-events-none"
                 >
-                  <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-border/50">
+                  <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/50">
                     <div className="flex items-center gap-2 min-w-0">
                       <span
                         aria-hidden="true"
-                        className="h-2.5 w-2.5 rounded-sm shrink-0"
+                        className="h-2 w-2 rounded-full shrink-0"
                         style={{ backgroundColor: zone.color }}
                       />
                       <span className="text-xs font-semibold text-foreground truncate">
@@ -553,10 +703,10 @@ export function MachineTopologyCanvas({
                 </div>
               ))}
 
-              {/* Color-Coded SVG Connection Curves */}
+              {/* Color-Coded SVG Connection Curves with Open-Channel Routing */}
               <svg
-                width={topology.canvasWidth}
-                height={topology.canvasHeight}
+                width={canvasDimensions.width}
+                height={canvasDimensions.height}
                 className="absolute inset-0 pointer-events-none"
               >
                 <defs>
@@ -565,95 +715,137 @@ export function MachineTopologyCanvas({
                       <marker
                         key={meta.id}
                         id={`topo-arrow-${meta.id}`}
-                        markerWidth="8"
-                        markerHeight="8"
-                        refX="7"
-                        refY="4"
+                        markerWidth="7"
+                        markerHeight="7"
+                        refX="6"
+                        refY="3.5"
                         orient="auto"
                       >
-                        <path d="M0,0 L8,4 L0,8 Z" fill={meta.color} />
+                        <path d="M0,0 L7,3.5 L0,7 Z" fill={meta.color} />
                       </marker>
                     )
                   )}
                 </defs>
 
                 {visibleEdges.map((edge, idx) => {
-                  const sPos = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
-                  const tPos = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
-                  if (!sPos || !tPos) return null;
+                  const rawS = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
+                  const rawT = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
+                  if (!rawS || !rawT) return null;
 
-                  const reverse = tPos.x < sPos.x + NODE_W - 20;
-                  const fanY = ((idx % 5) - 2) * 8;
-                  const fanArc = ((idx % 3) - 1) * 16;
-                  const sx = reverse ? sPos.x + NODE_W / 2 : sPos.x + NODE_W;
-                  const sy = reverse ? sPos.y + NODE_H : sPos.y + NODE_H / 2 + fanY;
-                  const tx = reverse ? tPos.x + NODE_W / 2 : tPos.x;
-                  const ty = reverse ? tPos.y : tPos.y + NODE_H / 2 + fanY;
+                  const sPos = { x: rawS.x - zoneOffset.dx, y: rawS.y - zoneOffset.dy };
+                  const tPos = { x: rawT.x - zoneOffset.dx, y: rawT.y - zoneOffset.dy };
 
-                  const ctrlOffset = reverse
-                    ? Math.max(64, Math.abs(ty - sy) * 0.4) + Math.abs(fanArc)
-                    : Math.max(46, Math.abs(tx - sx) * 0.45);
-                  const d = reverse
-                    ? `M ${sx} ${sy} C ${sx + fanArc} ${sy + ctrlOffset * 0.55}, ${tx - fanArc} ${ty - ctrlOffset * 0.55}, ${tx} ${ty}`
-                    : `M ${sx} ${sy} C ${sx + ctrlOffset} ${sy + fanArc}, ${tx - ctrlOffset} ${ty - fanArc}, ${tx} ${ty}`;
+                  const sameCol = Math.abs(tPos.x - sPos.x) < 40;
+                  const reverse = !sameCol && tPos.x < sPos.x;
+                  const fanY = ((idx % 3) - 1) * 10;
+
+                  let d: string;
+                  if (sameCol) {
+                    const sx = sPos.x + NODE_W;
+                    const sy = sPos.y + NODE_H / 2 + fanY;
+                    const tx = tPos.x + NODE_W;
+                    const ty = tPos.y + NODE_H / 2 - fanY;
+                    const arcX = sx + 48 + (idx % 3) * 12;
+                    d = `M ${sx} ${sy} C ${arcX} ${sy}, ${arcX} ${ty}, ${tx} ${ty}`;
+                  } else if (reverse) {
+                    const sx = sPos.x;
+                    const sy = sPos.y + NODE_H / 2 + fanY;
+                    const tx = tPos.x + NODE_W;
+                    const ty = tPos.y + NODE_H / 2 - fanY;
+                    const ctrl = Math.max(54, Math.abs(sx - tx) * 0.42);
+                    d = `M ${sx} ${sy} C ${sx - ctrl} ${sy + 28}, ${tx + ctrl} ${ty + 28}, ${tx} ${ty}`;
+                  } else {
+                    const sx = sPos.x + NODE_W;
+                    const sy = sPos.y + NODE_H / 2 + fanY;
+                    const tx = tPos.x;
+                    const ty = tPos.y + NODE_H / 2;
+                    const ctrl = Math.max(56, (tx - sx) * 0.48);
+                    d = `M ${sx} ${sy} C ${sx + ctrl} ${sy}, ${tx - ctrl} ${ty}, ${tx} ${ty}`;
+                  }
 
                   const meta = getConnectionCategoryMeta(edge.category);
-                  const isEdgeSelected = selectedEdgeId === edge.id;
+                  const isEdgeSelected = selectedEdgeId === edge.id || hoveredEdgeId === edge.id;
                   const touchesSelectedNode =
                     selectedNodeId === edge.sourceId || selectedNodeId === edge.targetId;
+                  const hasFocus = Boolean(selectedEdgeId || selectedNodeId || hoveredEdgeId);
 
                   return (
-                    <path
-                      key={edge.id}
-                      d={d}
-                      fill="none"
-                      stroke={edge.categoryColor}
-                      strokeWidth={isEdgeSelected ? 3 : touchesSelectedNode ? 2.4 : 1.75}
-                      strokeOpacity={
-                        selectedEdgeId || selectedNodeId
-                          ? isEdgeSelected || touchesSelectedNode
-                            ? 0.95
-                            : 0.25
-                          : 0.78
-                      }
-                      strokeDasharray={meta.dashed ? "6 4" : undefined}
-                      markerEnd={`url(#topo-arrow-${edge.category})`}
-                    />
+                    <g key={edge.id}>
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={14}
+                        className="pointer-events-auto cursor-pointer"
+                        onMouseEnter={() => setHoveredEdgeId(edge.id)}
+                        onMouseLeave={() => setHoveredEdgeId((prev) => (prev === edge.id ? null : prev))}
+                        onClick={() => {
+                          setSelectedEdgeId(edge.id);
+                          setSelectedNodeId(null);
+                        }}
+                      />
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke={edge.categoryColor}
+                        strokeWidth={isEdgeSelected ? 2.6 : touchesSelectedNode ? 2.1 : 1.5}
+                        strokeOpacity={
+                          hasFocus
+                            ? isEdgeSelected || touchesSelectedNode
+                              ? 0.95
+                              : 0.16
+                            : 0.65
+                        }
+                        strokeDasharray={meta.dashed ? "5 4" : undefined}
+                        markerEnd={`url(#topo-arrow-${edge.category})`}
+                      />
+                    </g>
                   );
                 })}
               </svg>
 
-              {/* Clickable Midpoint Connection Label Pills */}
+              {/* Channel-Centered Midpoint Connection Labels (Shown on Focus/Hover or "All Labels") */}
               {visibleEdges.map((edge, idx) => {
-                const sPos = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
-                const tPos = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
-                if (!sPos || !tPos) return null;
+                const rawS = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
+                const rawT = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
+                if (!rawS || !rawT) return null;
 
-                const reverse = tPos.x < sPos.x + NODE_W - 20;
-                const isSelected = selectedEdgeId === edge.id;
+                const isSelected = selectedEdgeId === edge.id || hoveredEdgeId === edge.id;
                 const highlighted =
                   isSelected ||
                   selectedNodeId === edge.sourceId ||
                   selectedNodeId === edge.targetId;
 
-                if (!highlighted && visibleEdges.length > 26 && !edge.crossLine) {
+                if (!showAllLabels && !highlighted) {
                   return null;
                 }
 
-                const fanY = ((idx % 5) - 2) * 14;
-                const tShift = ((idx % 3) - 1) * 0.14;
-                const tRatio = 0.5 + tShift;
-                const sx = reverse ? sPos.x + NODE_W / 2 : sPos.x + NODE_W;
-                const sy = reverse ? sPos.y + NODE_H : sPos.y + NODE_H / 2;
-                const tx = reverse ? tPos.x + NODE_W / 2 : tPos.x;
-                const ty = reverse ? tPos.y : tPos.y + NODE_H / 2;
-                const mx = sx + (tx - sx) * tRatio;
-                const my = sy + (ty - sy) * 0.5 + fanY;
+                const sPos = { x: rawS.x - zoneOffset.dx, y: rawS.y - zoneOffset.dy };
+                const tPos = { x: rawT.x - zoneOffset.dx, y: rawT.y - zoneOffset.dy };
+                const sameCol = Math.abs(tPos.x - sPos.x) < 40;
+                const reverse = !sameCol && tPos.x < sPos.x;
+
+                let mx: number;
+                let my: number;
+                if (sameCol) {
+                  mx = sPos.x + NODE_W + 46 + (idx % 3) * 10;
+                  my = (sPos.y + tPos.y + NODE_H) / 2;
+                } else if (reverse) {
+                  mx = (sPos.x + tPos.x + NODE_W) / 2;
+                  my = (sPos.y + tPos.y + NODE_H) / 2 + 18 + ((idx % 2) * 14);
+                } else {
+                  const sx = sPos.x + NODE_W;
+                  const tx = tPos.x;
+                  mx = (sx + tx) / 2;
+                  my = (sPos.y + tPos.y + NODE_H) / 2 + ((idx % 3) - 1) * 14;
+                }
 
                 return (
                   <button
                     key={`lbl-${edge.id}`}
                     type="button"
+                    onMouseEnter={() => setHoveredEdgeId(edge.id)}
+                    onMouseLeave={() => setHoveredEdgeId((prev) => (prev === edge.id ? null : prev))}
                     onClick={() => {
                       setSelectedEdgeId(edge.id);
                       setSelectedNodeId(null);
@@ -675,12 +867,12 @@ export function MachineTopologyCanvas({
                 );
               })}
 
-              {/* Color-Coded & Categorized Machine Nodes */}
+              {/* Minimal Categorized Machine Nodes */}
               {visibleNodes.map((node) => {
-                const pos = nodePositions[node.id] ?? node.position;
+                const rawPos = nodePositions[node.id] ?? node.position;
+                const pos = { x: rawPos.x - zoneOffset.dx, y: rawPos.y - zoneOffset.dy };
                 const live = machinesById.get(node.id);
                 const active = selectedNodeId === node.id;
-                const edgeCount = connectedEdgeCountsByNode.get(node.id) ?? 0;
                 const activeAlarms = live?.activeAlarms ?? [];
 
                 return (
@@ -724,7 +916,7 @@ export function MachineTopologyCanvas({
                       height: NODE_H
                     }}
                     className={cn(
-                      "absolute z-20 flex flex-col justify-between rounded-xl border bg-card/95 p-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none cursor-grab active:cursor-grabbing overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "absolute z-20 flex flex-col justify-between rounded-xl border bg-card/95 px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] select-none cursor-grab active:cursor-grabbing overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
                         ? "border-primary ring-2 ring-primary/20 shadow-md"
                         : "border-border/80 hover:border-foreground/30"
@@ -737,7 +929,7 @@ export function MachineTopologyCanvas({
                       style={{ backgroundColor: node.categoryColor }}
                     />
 
-                    <div className="flex items-start justify-between gap-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
                       <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
                         <span
                           aria-hidden="true"
@@ -749,31 +941,21 @@ export function MachineTopologyCanvas({
                       <MachineStatusBadge status={node.status} size="sm" />
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-foreground truncate">
-                        {node.name}
-                      </div>
-                      <div className="font-mono text-[10px] text-muted-foreground truncate">
-                        {node.manufacturer} {node.model} · {node.id}
-                      </div>
+                    <div className="text-xs font-semibold text-foreground truncate">
+                      {node.name}
                     </div>
 
-                    <div className="flex items-center justify-between gap-1 border-t border-border/60 pt-1 text-[10px] font-mono tabular-nums text-muted-foreground">
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-mono tabular-nums text-muted-foreground">
                       <span className="truncate">
                         {live?.vibration != null ? `${live.vibration}mm/s` : "—"} ·{" "}
                         {live?.temperature != null ? `${live.temperature}C` : "—"}
                       </span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {activeAlarms.length > 0 && (
-                          <span className="inline-flex items-center gap-0.5 rounded-sm bg-destructive/15 px-1 py-0.5 text-[9.5px] font-bold text-destructive">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            {activeAlarms[0]!.code}
-                          </span>
-                        )}
-                        <span className="rounded-sm bg-muted px-1 py-0.5 text-[9.5px] text-foreground">
-                          {edgeCount} links
+                      {activeAlarms.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5 rounded bg-destructive/15 px-1 py-0.5 text-[9.5px] font-semibold text-destructive shrink-0">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          {activeAlarms[0]!.code}
                         </span>
-                      </div>
+                      )}
                     </div>
                   </div>
                 );

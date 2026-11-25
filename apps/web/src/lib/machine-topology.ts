@@ -343,7 +343,7 @@ export function buildDocumentGroundedTopology(params: {
     return machineByLowerId.get(clean.toLowerCase()) ?? machineByLowerName.get(clean.toLowerCase());
   };
 
-  // Build ordered line swimlanes and non-overlapping grid node layout
+  // Build ordered line swimlanes with left-to-right stage columns and wide routing channels
   const byLine = new Map<string, InputMachine[]>();
   for (const m of params.machines) {
     const key = m.lineId || `${m.plantId}::unassigned`;
@@ -356,18 +356,19 @@ export function buildDocumentGroundedTopology(params: {
   const zones: TopologyZone[] = [];
   const positions = new Map<string, { x: number; y: number }>();
 
-  const ZONE_MARGIN_X = 28;
-  const ZONE_PAD_X = 24;
-  const ZONE_HEADER_H = 44;
-  const NODE_W = 216;
-  const NODE_H = 114;
-  const GAP_X = 38;
-  const ROW_GAP_Y = 24;
-  const ZONE_GAP_Y = 30;
-  const COLS_PER_ROW = 4;
+  const ZONE_MARGIN_X = 24;
+  const ZONE_PAD_X = 36;
+  const ZONE_HEADER_H = 52;
+  const ZONE_PAD_BOTTOM = 28;
+  const NODE_W = 204;
+  const NODE_H = 88;
+  const COL_GAP_X = 140;
+  const ROW_GAP_Y = 36;
+  const ZONE_GAP_Y = 44;
+  const MAX_ROWS_PER_COL = 3;
 
-  let cursorY = 24;
-  let maxCanvasWidth = 1040;
+  let cursorY = 20;
+  let maxCanvasWidth = 960;
 
   orderedLineKeys.forEach((lineKey, zoneIdx) => {
     const lineMachines = (byLine.get(lineKey) ?? []).slice().sort((a, b) => {
@@ -377,22 +378,43 @@ export function buildDocumentGroundedTopology(params: {
       return a.name.localeCompare(b.name);
     });
 
+    const stageGroups = new Map<number, InputMachine[]>();
+    for (const m of lineMachines) {
+      const st = getMachineCategoryMeta(m.machineType).stageOrder;
+      const list = stageGroups.get(st) ?? [];
+      list.push(m);
+      stageGroups.set(st, list);
+    }
+
+    const columns: InputMachine[][] = [];
+    const sortedStages = Array.from(stageGroups.keys()).sort((a, b) => a - b);
+    for (const st of sortedStages) {
+      const group = stageGroups.get(st) ?? [];
+      for (let i = 0; i < group.length; i += MAX_ROWS_PER_COL) {
+        columns.push(group.slice(i, i + MAX_ROWS_PER_COL));
+      }
+    }
+
+    const maxRows = Math.max(1, ...columns.map((c) => c.length));
+    const colsUsed = Math.max(1, columns.length);
+    const innerH = maxRows * NODE_H + (maxRows - 1) * ROW_GAP_Y;
+    const zoneW = Math.max(680, ZONE_PAD_X * 2 + colsUsed * NODE_W + Math.max(0, colsUsed - 1) * COL_GAP_X);
+    const zoneH = ZONE_HEADER_H + innerH + ZONE_PAD_BOTTOM;
+
+    columns.forEach((colMachines, colIdx) => {
+      const colH = colMachines.length * NODE_H + (colMachines.length - 1) * ROW_GAP_Y;
+      const yOffset = Math.round((innerH - colH) / 2);
+      colMachines.forEach((m, rowIdx) => {
+        positions.set(m.id, {
+          x: ZONE_MARGIN_X + ZONE_PAD_X + colIdx * (NODE_W + COL_GAP_X),
+          y: cursorY + ZONE_HEADER_H + yOffset + rowIdx * (NODE_H + ROW_GAP_Y)
+        });
+      });
+    });
+
     const first = lineMachines[0]!;
     const lineMeta = lineById.get(lineKey);
     const plantMeta = plantById.get(first.plantId);
-    const rows = Math.max(1, Math.ceil(lineMachines.length / COLS_PER_ROW));
-    const colsUsed = Math.min(COLS_PER_ROW, Math.max(2, lineMachines.length));
-    const zoneW = Math.max(760, ZONE_PAD_X * 2 + colsUsed * NODE_W + (colsUsed - 1) * GAP_X);
-    const zoneH = ZONE_HEADER_H + rows * NODE_H + (rows - 1) * ROW_GAP_Y + 24;
-
-    lineMachines.forEach((m, idx) => {
-      const col = idx % COLS_PER_ROW;
-      const row = Math.floor(idx / COLS_PER_ROW);
-      positions.set(m.id, {
-        x: ZONE_MARGIN_X + ZONE_PAD_X + col * (NODE_W + GAP_X),
-        y: cursorY + ZONE_HEADER_H + row * (NODE_H + ROW_GAP_Y)
-      });
-    });
 
     zones.push({
       id: lineKey,

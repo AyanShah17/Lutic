@@ -270,6 +270,9 @@ export default function MachinesPage() {
           machinesById={machinesById}
           visibleMachineIds={visibleMachineIds}
           canUploadDrawing={canUploadDrawing}
+          hasActiveSearchOrFilter={Boolean(
+            search.trim() || statusFilter !== "all" || plantFilter !== "all"
+          )}
           onTopologyUpdated={() => void refetch()}
         />
       )}

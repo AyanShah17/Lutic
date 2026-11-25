@@ -17,6 +17,7 @@ import { AuthGate } from "./ui/auth-gate";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { Dialog } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select } from "./ui/select";
@@ -166,6 +167,7 @@ export function ConnectorsConsole() {
   });
   const CATALOG_PAGE_SIZE = 60;
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   const isAdmin = user?.role === "admin";
 
@@ -298,6 +300,7 @@ export function ConnectorsConsole() {
       if (res.ok) {
         setNotice(`Registered connector ${form.name}`);
         setForm({ name: "", kind: "http", templateSlug: "", endpointUrl: "", apiKey: "" });
+        setRegisterOpen(false);
         await load();
       } else {
         const d = (await res.json().catch(() => ({}))) as { detail?: string };
@@ -344,6 +347,16 @@ export function ConnectorsConsole() {
               </option>
             ))}
           </Select>
+          {isAdmin && (
+            <Button
+              size="sm"
+              onClick={() => setRegisterOpen(true)}
+              className="shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Connector</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -431,112 +444,30 @@ export function ConnectorsConsole() {
                             setInvokeOutput(null);
                           }
                         }}
-                        className={`cursor-pointer p-4 space-y-2.5 transition-colors min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                        className={`cursor-pointer p-3.5 space-y-1.5 transition-colors min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                           selected?.id === c.id
-                            ? "border-primary ring-1 ring-primary"
-                            : "hover:border-primary/50"
+                            ? "border-primary/70 ring-1 ring-primary/40 bg-muted/20"
+                            : "hover:border-foreground/25"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="font-semibold text-sm">{c.name}</div>
-                            <div className="text-[11px] text-muted-foreground font-mono">
-                              {c.slug} · {formatTransportLabel(c.transport)}
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm text-foreground truncate">{c.name}</div>
+                            <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                              {formatTransportLabel(c.transport)} · {(c.discoveredTools ?? []).length} tool{(c.discoveredTools ?? []).length === 1 ? "" : "s"}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
-                            <Badge variant={statusBadgeVariant(c.status)} className="uppercase text-[10px]">
+                            <Badge variant={statusBadgeVariant(c.status)} className="capitalize text-[10px]">
                               {c.status === "connected" && <CheckCircle2 className="h-3 w-3" />}
                               <span>{c.status}</span>
                             </Badge>
-                            {!supported && (
-                              <Badge variant="outline" className="text-[10px]">
-                                External bridge unavailable
-                              </Badge>
-                            )}
                           </div>
                         </div>
 
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          Endpoint: <code className="font-mono">{c.endpointUrl || "in-memory"}</code>
-                        </div>
                         {c.lastError && (
                           <div className="text-[11px] text-destructive line-clamp-2">
                             {c.lastError}
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-1">
-                          {(c.discoveredTools ?? []).slice(0, 4).map((t) => (
-                            <Badge key={t.name} variant="secondary" className="font-mono text-[10px]">
-                              {t.name}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        {isAdmin && (
-                          <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={!supported}
-                              title={!supported ? "External connector health checks require demo mode or an external bridge" : undefined}
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/connectors/${c.id}/test`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({})
-                                  });
-                                  const d = (await res.json().catch(() => ({}))) as {
-                                    message?: string;
-                                    status?: string;
-                                    detail?: string;
-                                  };
-                                  setNotice(
-                                    res.ok
-                                      ? `Health test (${c.slug}): ${d.status ?? "ok"} — ${d.message ?? ""}`
-                                      : d.detail ?? `Health test failed for ${c.slug}`
-                                  );
-                                  await load();
-                                } catch {
-                                  setNotice(`Health test request failed for ${c.slug}`);
-                                }
-                              }}
-                            >
-                              <Activity className="h-3 w-3" />
-                              <span>Test</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={!supported}
-                              title={!supported ? "External connector sync requires demo mode or an external bridge" : undefined}
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/connectors/${c.id}/sync`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({})
-                                  });
-                                  const d = (await res.json().catch(() => ({}))) as {
-                                    tools?: unknown[];
-                                    detail?: string;
-                                  };
-                                  setNotice(
-                                    res.ok
-                                      ? `Synced ${c.slug}: ${d.tools?.length ?? 0} tool(s)`
-                                      : d.detail ?? `Sync failed for ${c.slug}`
-                                  );
-                                  await load();
-                                } catch {
-                                  setNotice(`Sync request failed for ${c.slug}`);
-                                }
-                              }}
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                              <span>Sync</span>
-                            </Button>
                           </div>
                         )}
                       </Card>
@@ -547,240 +478,354 @@ export function ConnectorsConsole() {
               </div>
 
               <aside className="space-y-4 min-w-0">
-                {selected && !isAdmin && (
-                  <Card className="p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold">{selected.name}</div>
-                      <Badge variant="outline" className="uppercase text-[10px]">
-                        {selected.category}
-                      </Badge>
+                {selected && (
+                  <Card className="p-4 space-y-4">
+                    <div className="flex items-start justify-between gap-2 border-b border-border/70 pb-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">{selected.name}</div>
+                        <div className="text-[11px] font-mono text-muted-foreground truncate mt-0.5">
+                          {formatTransportLabel(selected.transport)} · {selected.endpointUrl || "in-memory"}
+                        </div>
+                        {!isConnectorSupportedInRuntime(selected, demoEnabled) && (
+                          <div className="text-[11px] text-amber-700 dark:text-amber-300 mt-1">
+                            External bridge unavailable in current mode
+                          </div>
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!isConnectorSupportedInRuntime(selected, demoEnabled)}
+                            title={
+                              !isConnectorSupportedInRuntime(selected, demoEnabled)
+                                ? "External connector health checks require demo mode or an external bridge"
+                                : undefined
+                            }
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/connectors/${selected.id}/test`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({})
+                                });
+                                const d = (await res.json().catch(() => ({}))) as {
+                                  message?: string;
+                                  status?: string;
+                                  detail?: string;
+                                };
+                                setNotice(
+                                  res.ok
+                                    ? `Health test (${selected.slug}): ${d.status ?? "ok"} — ${d.message ?? ""}`
+                                    : d.detail ?? `Health test failed for ${selected.slug}`
+                                );
+                                await load();
+                              } catch {
+                                setNotice(`Health test request failed for ${selected.slug}`);
+                              }
+                            }}
+                          >
+                            <Activity className="h-3 w-3" />
+                            <span>Test</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!isConnectorSupportedInRuntime(selected, demoEnabled)}
+                            title={
+                              !isConnectorSupportedInRuntime(selected, demoEnabled)
+                                ? "External connector sync requires demo mode or an external bridge"
+                                : undefined
+                            }
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/connectors/${selected.id}/sync`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({})
+                                });
+                                const d = (await res.json().catch(() => ({}))) as {
+                                  tools?: unknown[];
+                                  detail?: string;
+                                };
+                                setNotice(
+                                  res.ok
+                                    ? `Synced ${selected.slug}: ${d.tools?.length ?? 0} tool(s)`
+                                    : d.detail ?? `Sync failed for ${selected.slug}`
+                                );
+                                await load();
+                              } catch {
+                                setNotice(`Sync request failed for ${selected.slug}`);
+                              }
+                            }}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            <span>Sync</span>
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      <div>
-                        Transport: <code className="font-mono text-foreground">{selected.transport}</code>
-                      </div>
-                      <div className="truncate">
-                        Endpoint: <code className="font-mono text-foreground">{selected.endpointUrl || "in-memory"}</code>
-                      </div>
-                      <div className="tabular-nums">
-                        Last sync: {selected.lastSyncAt ? new Date(selected.lastSyncAt).toLocaleString() : "—"}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5 border-t border-border pt-2.5">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-medium text-muted-foreground">
                         Discovered Tools ({selected.discoveredTools.length})
                       </div>
-                      <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto">
                         {selected.discoveredTools.map((t) => (
-                          <div key={t.name} className="rounded border border-border bg-muted/40 p-2 text-xs">
-                            <div className="font-mono font-semibold">{t.name}</div>
-                            {t.description && (
-                              <div className="text-[11px] text-muted-foreground mt-0.5">
-                                {t.description}
-                              </div>
-                            )}
-                          </div>
+                          <button
+                            key={t.name}
+                            type="button"
+                            onClick={() => {
+                              setToolName(t.name);
+                              setPlaygroundMode("tool");
+                            }}
+                            title={t.description || t.name}
+                            className={`rounded-md border px-2 py-1 font-mono text-[11px] transition-colors ${
+                              toolName === t.name && playgroundMode === "tool"
+                                ? "border-primary/60 bg-primary/10 text-foreground"
+                                : "border-border/80 bg-muted/35 text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {t.name}
+                          </button>
                         ))}
                       </div>
                     </div>
-                  </Card>
-                )}
 
-                {selected && isAdmin && (
-                  <Card className="p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Zap className="h-4 w-4 text-primary" />
-                        <span>Tool Playground: {selected.slug}</span>
-                      </div>
-                      <div className="inline-flex rounded-md border border-border p-0.5 text-[11px]">
-                        <button
-                          type="button"
-                          onClick={() => setPlaygroundMode("tool")}
-                          className={`px-2 py-0.5 rounded font-medium transition-colors ${
-                            playgroundMode === "tool"
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          Standard Tool
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPlaygroundMode("code")}
-                          disabled={!codeModeEnabled}
-                          title={codeModeEnabled ? undefined : "Code Mode is available only in trusted development and tests"}
-                          className={`px-2 py-0.5 rounded font-medium transition-colors ${
-                            playgroundMode === "code"
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          } disabled:cursor-not-allowed disabled:opacity-50`}
-                        >
-                          Lutic Code Mode
-                        </button>
-                      </div>
-                    </div>
-                    {playgroundMode === "tool" ? (
-                      <div className="space-y-1">
-                        <Label htmlFor="connector-tool-name">Tool Name</Label>
-                        <Input
-                          id="connector-tool-name"
-                          value={toolName}
-                          onChange={(e) => setToolName(e.target.value)}
-                          placeholder="e.g. get_work_orders"
-                          className="font-mono"
-                        />
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <Label htmlFor="connector-code-script">
-                          Isolated Code Mode Script (<code className="font-mono">lutic.callTool / lutic.connectors</code>)
-                        </Label>
-                        <Textarea
-                          id="connector-code-script"
-                          rows={4}
-                          value={codeScript}
-                          onChange={(e) => setCodeScript(e.target.value)}
-                          className="font-mono text-xs"
-                        />
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      <Label htmlFor="connector-tool-args">
-                        {playgroundMode === "code" ? "Script Input (JSON)" : "Arguments (JSON)"}
-                      </Label>
-                      <Textarea
-                        id="connector-tool-args"
-                        rows={3}
-                        value={toolArgs}
-                        onChange={(e) => setToolArgs(e.target.value)}
-                        className="font-mono"
-                      />
-                    </div>
-                    {playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled) && (
-                      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
-                        External runtime unavailable in production mode. Use Lutic Cloud, Lutic Direct API (HTTPS), or native <code className="font-mono">lutic://</code> connectors.
-                      </div>
-                    )}
-                    {!codeModeEnabled && (
-                      <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
-                        Code Mode is available only in trusted development and tests. Use governed standard tool invocation.
-                      </div>
-                    )}
-                    <Button
-                      size="sm"
-                      disabled={
-                        (playgroundMode === "code" && !codeModeEnabled) ||
-                        (playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled))
-                      }
-                      onClick={async () => {
-                        let parsed: Record<string, unknown>;
-                        try {
-                          parsed = JSON.parse(toolArgs || "{}") as Record<string, unknown>;
-                        } catch {
-                          setInvokeOutput("Invalid JSON arguments");
-                          return;
-                        }
-                        try {
-                          const payload =
-                            playgroundMode === "code"
-                              ? { mode: "code", code: codeScript, args: parsed }
-                              : { toolName, args: parsed };
-                          const res = await fetch(`/api/connectors/${selected.id}/invoke`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(payload)
-                          });
-                          const data = await res.json().catch(() => ({
-                            detail: `Invocation failed (${res.status})`
-                          }));
-                          setInvokeOutput(JSON.stringify(data, null, 2));
-                          await load();
-                        } catch {
-                          setInvokeOutput("Connector invocation request failed");
-                        }
-                      }}
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                      <span>{playgroundMode === "code" ? "Run Code Mode" : "Invoke Tool"}</span>
-                    </Button>
-                    {invokeOutput && (
-                      <pre className="max-h-48 overflow-auto rounded-md border border-border bg-muted/50 p-2.5 text-[11px] font-mono">
-                        {invokeOutput}
-                      </pre>
-                    )}
-                  </Card>
-                )}
+                    {isAdmin && (
+                      <div className="space-y-3 border-t border-border/70 pt-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold">
+                            <Zap className="h-3.5 w-3.5 text-primary" />
+                            <span>Tool Playground</span>
+                          </div>
+                          <div className="inline-flex rounded-lg border border-border/75 bg-muted/40 p-0.5 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => setPlaygroundMode("tool")}
+                              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                                playgroundMode === "tool"
+                                  ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              Standard Tool
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPlaygroundMode("code")}
+                              disabled={!codeModeEnabled}
+                              title={codeModeEnabled ? undefined : "Code Mode is available only in trusted development and tests"}
+                              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                                playgroundMode === "code"
+                                  ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
+                                  : "text-muted-foreground hover:text-foreground"
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              Lutic Code Mode
+                            </button>
+                          </div>
+                        </div>
 
-                {isAdmin && (
-                  <Card className="p-4">
-                    <form onSubmit={handleRegister} className="space-y-3">
-                      <div className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Plus className="h-4 w-4 text-primary" />
-                        <span>Register Custom Connector</span>
-                      </div>
-                      {!demoEnabled && (
-                        <p className="text-[11px] text-muted-foreground">
-                          Non-demo mode stores external HTTP, webhook, SCADA, and ERP configuration only; use a native{" "}
-                          <code className="font-mono">lutic://</code> or Lutic Cloud HTTPS endpoint for live execution.
-                        </p>
-                      )}
-                      <Input
-                        required
-                        placeholder="Connector Name (e.g. Plant SCADA Gateway)"
-                        aria-label="Connector name"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <Select
-                          value={form.kind}
-                          onChange={(e) => setForm({ ...form, kind: e.target.value })}
-                          aria-label="Connector kind"
+                        {playgroundMode === "tool" ? (
+                          <div className="space-y-1">
+                            <Label htmlFor="connector-tool-name">Tool Name</Label>
+                            <Input
+                              id="connector-tool-name"
+                              value={toolName}
+                              onChange={(e) => setToolName(e.target.value)}
+                              placeholder="e.g. get_work_orders"
+                              className="font-mono"
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <Label htmlFor="connector-code-script">
+                              Isolated Code Mode Script (<code className="font-mono">lutic.callTool / lutic.connectors</code>)
+                            </Label>
+                            <Textarea
+                              id="connector-code-script"
+                              rows={4}
+                              value={codeScript}
+                              onChange={(e) => setCodeScript(e.target.value)}
+                              className="font-mono text-xs"
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <Label htmlFor="connector-tool-args">
+                            {playgroundMode === "code" ? "Script Input (JSON)" : "Arguments (JSON)"}
+                          </Label>
+                          <Textarea
+                            id="connector-tool-args"
+                            rows={3}
+                            value={toolArgs}
+                            onChange={(e) => setToolArgs(e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+
+                        {!codeModeEnabled && (
+                          <div className="rounded-md border border-amber-500/35 bg-amber-500/10 p-2 text-[11px] text-amber-900 dark:text-amber-200">
+                            Code Mode is available only in trusted development and tests. Use governed standard tool invocation.
+                          </div>
+                        )}
+
+                        <Button
+                          size="sm"
+                          disabled={
+                            (playgroundMode === "code" && !codeModeEnabled) ||
+                            (playgroundMode === "tool" && !isConnectorSupportedInRuntime(selected, demoEnabled))
+                          }
+                          onClick={async () => {
+                            let parsed: Record<string, unknown>;
+                            try {
+                              parsed = JSON.parse(toolArgs || "{}") as Record<string, unknown>;
+                            } catch {
+                              setInvokeOutput("Invalid JSON arguments");
+                              return;
+                            }
+                            try {
+                              const payload =
+                                playgroundMode === "code"
+                                  ? { mode: "code", code: codeScript, args: parsed }
+                                  : { toolName, args: parsed };
+                              const res = await fetch(`/api/connectors/${selected.id}/invoke`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload)
+                              });
+                              const data = await res.json().catch(() => ({
+                                detail: `Invocation failed (${res.status})`
+                              }));
+                              setInvokeOutput(JSON.stringify(data, null, 2));
+                              await load();
+                            } catch {
+                              setInvokeOutput("Connector invocation request failed");
+                            }
+                          }}
                         >
-                          <option value="lutic-cloud">Lutic Cloud Connectors</option>
-                          <option value="lutic-bridge">Lutic Enterprise Bridge</option>
-                          <option value="lutic-api">Lutic Direct API (OpenAPI)</option>
-                          <option value="sap-pm">SAP S/4HANA PM</option>
-                          <option value="sap-mm">SAP S/4HANA MM</option>
-                          <option value="sap-pp">SAP S/4HANA PP</option>
-                          <option value="sap-qm">SAP S/4HANA QM</option>
-                          <option value="aws-iot">AWS IoT SiteWise / Core</option>
-                          <option value="aws-s3">AWS S3 Data Lake</option>
-                          <option value="aws-cloudwatch">AWS CloudWatch / Timestream</option>
-                          <option value="servicenow">ServiceNow ITSM</option>
-                          <option value="mqtt-broker">MQTT Broker (Sparkplug B)</option>
-                          <option value="opc-ua">OPC-UA Server</option>
-                          <option value="modbus-tcp">Modbus TCP / RTU</option>
-                          <option value="http">HTTP / REST</option>
-                          <option value="webhook">Webhook</option>
-                          <option value="scada">SCADA</option>
-                          <option value="erp">ERP</option>
-                        </Select>
-                        <Input
-                          type="password"
-                          placeholder="API Key (encrypted)"
-                          aria-label="Connector API key"
-                          value={form.apiKey}
-                          onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-                        />
+                          <Play className="h-3.5 w-3.5" />
+                          <span>{playgroundMode === "code" ? "Run Code Mode" : "Invoke Tool"}</span>
+                        </Button>
+
+                        {invokeOutput && (
+                          <pre className="max-h-48 overflow-auto rounded-md border border-border bg-muted/40 p-2.5 text-[11px] font-mono">
+                            {invokeOutput}
+                          </pre>
+                        )}
                       </div>
-                      <Input
-                        placeholder="Endpoint URL"
-                        aria-label="Connector endpoint URL"
-                        value={form.endpointUrl}
-                        onChange={(e) => setForm({ ...form, endpointUrl: e.target.value })}
-                        className="font-mono"
-                      />
-                      <Button type="submit" className="w-full">
-                        Register Connector
-                      </Button>
-                    </form>
+                    )}
                   </Card>
                 )}
               </aside>
             </div>
           )}
+
+          <Dialog
+            open={registerOpen}
+            onOpenChange={setRegisterOpen}
+            ariaLabel="Register custom connector"
+            className="max-w-md p-5 space-y-4"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold">Add Connector</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Register a plant protocol bridge, ERP adapter, or HTTPS endpoint.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setRegisterOpen(false)}
+                aria-label="Close connector registration dialog"
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <form onSubmit={handleRegister} className="space-y-3">
+              {!demoEnabled && (
+                <p className="text-[11px] text-muted-foreground">
+                  Non-demo mode stores external HTTP, webhook, SCADA, and ERP configuration only; use a native{" "}
+                  <code className="font-mono">lutic://</code> or Lutic Cloud HTTPS endpoint for live execution.
+                </p>
+              )}
+              <div className="space-y-1">
+                <Label htmlFor="reg-conn-name">Connector Name</Label>
+                <Input
+                  id="reg-conn-name"
+                  required
+                  placeholder="e.g. Plant SCADA Gateway"
+                  aria-label="Connector name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="reg-conn-kind">Protocol / System Type</Label>
+                <Select
+                  id="reg-conn-kind"
+                  value={form.kind}
+                  onChange={(e) => setForm({ ...form, kind: e.target.value })}
+                  aria-label="Connector kind"
+                >
+                  <option value="lutic-cloud">Lutic Cloud Connectors</option>
+                  <option value="lutic-bridge">Lutic Enterprise Bridge</option>
+                  <option value="lutic-api">Lutic Direct API (OpenAPI)</option>
+                  <option value="sap-pm">SAP S/4HANA PM</option>
+                  <option value="sap-mm">SAP S/4HANA MM</option>
+                  <option value="sap-pp">SAP S/4HANA PP</option>
+                  <option value="sap-qm">SAP S/4HANA QM</option>
+                  <option value="aws-iot">AWS IoT SiteWise / Core</option>
+                  <option value="aws-s3">AWS S3 Data Lake</option>
+                  <option value="aws-cloudwatch">AWS CloudWatch / Timestream</option>
+                  <option value="servicenow">ServiceNow ITSM</option>
+                  <option value="mqtt-broker">MQTT Broker (Sparkplug B)</option>
+                  <option value="opc-ua">OPC-UA Server</option>
+                  <option value="modbus-tcp">Modbus TCP / RTU</option>
+                  <option value="http">HTTP / REST</option>
+                  <option value="webhook">Webhook</option>
+                  <option value="scada">SCADA</option>
+                  <option value="erp">ERP</option>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="reg-conn-url">Endpoint URL</Label>
+                <Input
+                  id="reg-conn-url"
+                  placeholder="https://... or mqtt://..."
+                  aria-label="Connector endpoint URL"
+                  value={form.endpointUrl}
+                  onChange={(e) => setForm({ ...form, endpointUrl: e.target.value })}
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="reg-conn-key">API Key (encrypted)</Label>
+                <Input
+                  id="reg-conn-key"
+                  type="password"
+                  placeholder="Optional secret token"
+                  aria-label="Connector API key"
+                  value={form.apiKey}
+                  onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setRegisterOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm">
+                  Register Connector
+                </Button>
+              </div>
+            </form>
+          </Dialog>
 
           {viewTab === "catalog" && (
             filteredCatalog.length === 0 ? (
@@ -845,7 +890,8 @@ export function ConnectorsConsole() {
                             apiKey: ""
                           });
                           setViewTab("connections");
-                          setNotice(`Loaded ${cat.name} template into Register Custom Connector`);
+                          setRegisterOpen(true);
+                          setNotice(`Loaded ${cat.name} template into Add Connector`);
                         }}
                       >
                         Use Template
