@@ -331,7 +331,7 @@ printf '%s\\n' "$*" >> "${restoreLog}"
       const freshDir = path.join(tmpDir, "lutic-fresh-restore");
       const freshRes = runRestore(`pglite://${freshDir}`);
       expect(freshRes.status, freshRes.stderr).toBe(0);
-      expect(freshRes.stdout).toContain("Restored and verified migrations: [1,2,3]");
+      expect(freshRes.stdout).toContain("Restored and verified migrations: [1,2,3,4]");
       expect(fs.readFileSync(restoreLog, "utf8")).toContain(freshDir);
 
       // 2. Empty initialized database (schema exists, public.tenants has 0 rows) -> succeeds without --allow-overwrite

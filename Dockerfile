@@ -29,7 +29,7 @@ COPY apps/web/next.config.mjs apps/web/
 COPY packages/core/src packages/core/src
 COPY packages/connectors/src packages/connectors/src
 COPY packages/agent/src packages/agent/src
-COPY deploy/start-production.ts deploy/
+COPY deploy/start-production.ts deploy/worker.ts deploy/
 USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=5 \

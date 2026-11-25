@@ -1,6 +1,6 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, stepCountIs, tool, type ModelMessage, type LanguageModel, type ToolSet } from "ai";
+import { generateText, stepCountIs, streamText, tool, type ModelMessage, type LanguageModel, type ToolSet } from "ai";
 import type { SessionUser } from "@lutic/core";
 import type { ConnectorToolDefinition } from "@lutic/connectors";
 
@@ -59,6 +59,7 @@ export interface LLMGenerateStepInput {
   stepIndex: number;
   observations: ExecutedToolObservation[];
   abortSignal?: AbortSignal;
+  onTokenDelta?: (delta: string) => void;
 }
 
 export interface LLMGenerateStepOutput {
@@ -843,9 +844,18 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
       );
     }
 
+    const finalText = sections.join("\n\n");
+    if (input.onTokenDelta) {
+      const words = finalText.split(/(\s+)/);
+      for (let i = 0; i < words.length; i += 6) {
+        const piece = words.slice(i, i + 6).join("");
+        if (piece) input.onTokenDelta(piece);
+      }
+    }
+
     return {
       toolCalls: [],
-      finalText: sections.join("\n\n"),
+      finalText,
       promptTokens: 340,
       completionTokens: 160,
       model: this.modelName
@@ -918,17 +928,58 @@ async function generateStepWithLanguageModel(
     }
   }
 
-  let result;
+  let plannedCalls: PlannedToolCall[] = [];
+  let finalText: string | undefined;
+  let promptTokens = 0;
+  let completionTokens = 0;
   try {
-    result = await generateText({
-      model,
-      system: input.systemPrompt,
-      messages: coreMessages,
-      tools: toolSet,
-      stopWhen: stepCountIs(1),
-      abortSignal: controller.signal,
-      maxRetries: 1
-    });
+    if (input.onTokenDelta) {
+      const stream = streamText({
+        model,
+        system: input.systemPrompt,
+        messages: coreMessages,
+        tools: toolSet,
+        stopWhen: stepCountIs(1),
+        abortSignal: controller.signal,
+        maxRetries: 1
+      });
+      for await (const part of stream.fullStream) {
+        if (part.type === "text-delta" && part.text) {
+          input.onTokenDelta(part.text);
+        }
+      }
+      const [resolvedCalls, resolvedText, resolvedUsage] = await Promise.all([
+        stream.toolCalls,
+        stream.text,
+        stream.usage
+      ]);
+      plannedCalls = (resolvedCalls ?? []).map((tc) => ({
+        id: tc.toolCallId,
+        name: tc.toolName,
+        args: (tc.input ?? {}) as Record<string, unknown>
+      }));
+      finalText = plannedCalls.length === 0 ? resolvedText : undefined;
+      promptTokens = resolvedUsage?.inputTokens ?? 0;
+      completionTokens = resolvedUsage?.outputTokens ?? 0;
+    } else {
+      const result = await generateText({
+        model,
+        system: input.systemPrompt,
+        messages: coreMessages,
+        tools: toolSet,
+        stopWhen: stepCountIs(1),
+        abortSignal: controller.signal,
+        maxRetries: 1
+      });
+      plannedCalls = (result.toolCalls ?? []).map((tc) => ({
+        id: tc.toolCallId,
+        name: tc.toolName,
+        args: (tc.input ?? {}) as Record<string, unknown>
+      }));
+      finalText = plannedCalls.length === 0 ? result.text : undefined;
+      promptTokens = result.usage?.inputTokens ?? 0;
+      completionTokens = result.usage?.outputTokens ?? 0;
+    }
   } catch (err) {
     if (
       timedOut ||
@@ -947,17 +998,11 @@ async function generateStepWithLanguageModel(
     input.abortSignal?.removeEventListener("abort", onParentAbort);
   }
 
-  const plannedCalls: PlannedToolCall[] = (result.toolCalls ?? []).map((tc) => ({
-    id: tc.toolCallId,
-    name: tc.toolName,
-    args: (tc.input ?? {}) as Record<string, unknown>
-  }));
-
   return {
     toolCalls: plannedCalls,
-    finalText: plannedCalls.length === 0 ? result.text : undefined,
-    promptTokens: result.usage?.inputTokens ?? 0,
-    completionTokens: result.usage?.outputTokens ?? 0,
+    finalText,
+    promptTokens,
+    completionTokens,
     model: reportedModelName
   };
 }

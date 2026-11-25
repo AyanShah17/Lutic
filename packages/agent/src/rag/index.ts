@@ -2,14 +2,14 @@ import crypto from "node:crypto";
 import path from "node:path";
 import JSZip from "jszip";
 import {
+  and,
   chunkDocumentText,
   computeDeterministicEmbedding,
   documentChunks,
   documents,
   EMBEDDING_DIM,
   eq,
-  and,
-  LocalMockEmbeddingProvider,
+  getDefaultEmbeddingProvider,
   type EmbeddingProvider,
   type LuticDatabase
 } from "@lutic/core";
@@ -17,7 +17,10 @@ import {
 export {
   chunkDocumentText,
   computeDeterministicEmbedding,
+  DenseHttpEmbeddingProvider,
   extractFaultCodesAndPartNumbers,
+  getDefaultEmbeddingProvider,
+  HybridLexicalSemanticReranker,
   hybridSearchDocuments,
   LocalMockEmbeddingProvider,
   reciprocalRankFusion,
@@ -85,10 +88,7 @@ export function projectVectorTo64(vec: number[]): number[] {
 }
 
 export function getEmbeddingProvider(): EmbeddingProvider {
-  if (process.env.EMBEDDING_PROVIDER && !["local", "mock"].includes(process.env.EMBEDDING_PROVIDER)) {
-    throw new Error("Only local deterministic embeddings are supported. Set EMBEDDING_PROVIDER=local.");
-  }
-  return new LocalMockEmbeddingProvider();
+  return getDefaultEmbeddingProvider();
 }
 
 export async function extractTextFromDocumentFile(
@@ -244,20 +244,31 @@ export async function ingestDocumentJob(
 
     if (drafts.length > 0) {
       await db.insert(documentChunks).values(
-        drafts.map((c, idx) => ({
-          id: `${docId}-chunk-${c.chunkIndex}`,
-          tenantId: input.tenantId,
-          documentId: docId,
-          chunkIndex: c.chunkIndex,
-          page: c.page,
-          sectionPath: c.sectionPath,
-          text: c.text,
-          embedding: projectVectorTo64(
-            embeddings[idx] ?? computeDeterministicEmbedding(c.text)
-          ),
-          faultCodes: c.faultCodes,
-          partNumbers: c.partNumbers
-        }))
+        drafts.map((c, idx) => {
+          const rawVec = embeddings[idx];
+          const dense1536 =
+            embedder.dimensions === 1536 && rawVec && rawVec.length === 1536
+              ? rawVec
+              : null;
+          const vec64 =
+            rawVec && rawVec.length === EMBEDDING_DIM
+              ? rawVec
+              : computeDeterministicEmbedding(`${input.title} ${c.sectionPath} ${c.text}`);
+          return {
+            id: `${docId}-chunk-${c.chunkIndex}`,
+            tenantId: input.tenantId,
+            documentId: docId,
+            chunkIndex: c.chunkIndex,
+            page: c.page,
+            sectionPath: c.sectionPath,
+            text: c.text,
+            embedding: vec64,
+            denseEmbedding: dense1536,
+            embeddingModel: dense1536 ? embedder.id : "local-deterministic-64",
+            faultCodes: c.faultCodes,
+            partNumbers: c.partNumbers
+          };
+        })
       );
     }
 

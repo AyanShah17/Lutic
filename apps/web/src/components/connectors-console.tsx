@@ -85,13 +85,51 @@ function formatTransportLabel(transport: string): string {
   }
 }
 
+export function getConnectorRuntimeTier(entry: {
+  slug?: string;
+  transport: string;
+  endpointUrl?: string;
+}): "Native" | "Live Protocol" | "HTTPS Bridge" | "Bridge Template" {
+  if (entry.transport === "in_memory_mcp" || entry.transport === "lutic_protocol") {
+    return "Native";
+  }
+  if (entry.transport === "remote_mcp" || entry.transport === "utcp_http") {
+    return "HTTPS Bridge";
+  }
+  const slug = String(entry.slug ?? "").toLowerCase();
+  const url = String(entry.endpointUrl ?? "").toLowerCase();
+  if (
+    url.startsWith("modbus://") ||
+    url.startsWith("mqtt://") ||
+    url.startsWith("mqtts://") ||
+    ["servicenow", "sap-pm", "sap-mm", "sap-pp", "sap-qm", "jira", "linear", "slack"].some(
+      (s) => slug === s || slug.startsWith(`${s}-`)
+    )
+  ) {
+    return "Live Protocol";
+  }
+  return "Bridge Template";
+}
+
 export function isConnectorSupportedInRuntime(
-  connector: { transport: string; endpointUrl: string },
+  connector: { slug?: string; transport: string; endpointUrl: string },
   demoEnabled: boolean
 ): boolean {
   if (demoEnabled) return true;
   if (connector.transport === "remote_mcp" || connector.transport === "utcp_http") {
     return /^https:\/\//i.test(connector.endpointUrl.trim());
+  }
+  if (/^(?:modbus|mqtts?):\/\/[^/\s]+/i.test(connector.endpointUrl.trim())) {
+    return !/\.(?:local|internal|example|invalid)(?:[:/]|$)/i.test(connector.endpointUrl);
+  }
+  const slug = String(connector.slug ?? "").toLowerCase();
+  if (
+    ["servicenow", "sap-pm", "sap-mm", "sap-pp", "sap-qm", "jira", "linear", "slack"].some(
+      (s) => slug === s || slug.startsWith(`${s}-`)
+    ) &&
+    /^https:\/\//i.test(connector.endpointUrl.trim())
+  ) {
+    return !/\.(?:local|internal|example|invalid)(?:[:/]|$)/i.test(connector.endpointUrl);
   }
   return (
     (connector.transport === "in_memory_mcp" || connector.transport === "lutic_protocol") &&
@@ -773,7 +811,7 @@ export function ConnectorsConsole() {
                         </Badge>
                       </div>
                       <div className="text-[11px] font-mono text-muted-foreground">
-                        {cat.slug} · {formatTransportLabel(cat.transport)}
+                        {cat.slug} · {formatTransportLabel(cat.transport)} · {getConnectorRuntimeTier(cat)}
                       </div>
                       <p className="text-xs text-muted-foreground pt-1">{cat.description}</p>
                     </div>

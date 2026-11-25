@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { createDbConnection, type DbConnection } from "./client";
 import { ensureSchema } from "./migrate";
 import * as schema from "./schema";
@@ -88,6 +88,25 @@ function deterministicRand(seed: number): () => number {
     s = (Math.imul(1664525, s) + 1013904223) >>> 0;
     return s / 4294967296;
   };
+}
+
+function computeSyntheticDenseEmbedding1536(text: string): number[] {
+  const base = computeDeterministicEmbedding(text);
+  const dense = new Array<number>(1536);
+  let normSq = 0;
+  for (let i = 0; i < 1536; i += 1) {
+    const b = Math.floor(i / 64) + 1;
+    const v =
+      base[i % 64]! * Math.cos(b * 0.37) +
+      base[(i + b) % 64]! * Math.sin(b * 0.19);
+    dense[i] = v;
+    normSq += v * v;
+  }
+  const norm = Math.sqrt(normSq) || 1;
+  for (let i = 0; i < 1536; i += 1) {
+    dense[i] = Number((dense[i]! / norm).toFixed(6));
+  }
+  return dense;
 }
 
 export async function seedDatabase(conn?: DbConnection): Promise<void> {
@@ -750,6 +769,8 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
         sectionPath: c.sectionPath,
         text: c.text,
         embedding: computeDeterministicEmbedding(`${doc.title} ${c.sectionPath} ${c.text}`),
+        denseEmbedding: computeSyntheticDenseEmbedding1536(`${doc.title} ${c.sectionPath} ${c.text}`),
+        embeddingModel: "lutic-embed-synthetic-1536",
         faultCodes: c.faultCodes,
         partNumbers: c.partNumbers
       }))
@@ -1767,6 +1788,246 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
         sourceRef: "Lutic IAM",
         dueDate: "2026-11-25",
         createdBy: "usr-admin"
+      }
+    ]);
+  }
+
+  // 16. Synthetic v2 Demo Showcase Data (1536-dim chunks, worker heartbeat, AI durable workflow, specialist chat, paid-tier usage)
+  const missingDenseChunks = await db
+    .select({
+      id: schema.documentChunks.id,
+      sectionPath: schema.documentChunks.sectionPath,
+      text: schema.documentChunks.text
+    })
+    .from(schema.documentChunks)
+    .where(isNull(schema.documentChunks.denseEmbedding));
+  for (const row of missingDenseChunks) {
+    await db
+      .update(schema.documentChunks)
+      .set({
+        denseEmbedding: computeSyntheticDenseEmbedding1536(`${row.sectionPath} ${row.text}`),
+        embeddingModel: "lutic-embed-synthetic-1536"
+      })
+      .where(eq(schema.documentChunks.id, row.id));
+  }
+
+  const hbNow = new Date();
+  await db
+    .insert(schema.workerHeartbeats)
+    .values({
+      workerId: "lutic-worker-detroit-01",
+      hostname: "lutic-worker-01.acme.demo",
+      startedAt: new Date(hbNow.getTime() - 6 * 3600 * 1000),
+      lastTickAt: hbNow,
+      lastTickDurationMs: 18,
+      tickCount: 1440,
+      lastError: null,
+      summary: {
+        tickAt: hbNow.toISOString(),
+        telemetryUpdated: 40,
+        rulesEvaluated: 8,
+        alertsTriggered: 2,
+        alertsResolved: 1,
+        connectorsSynced: 15,
+        triggersFired: 3,
+        queueMessagesRequeued: 0,
+        queueMessagesDeadLettered: 0,
+        scheduledWorkflowsQueued: 1
+      },
+      updatedAt: hbNow
+    })
+    .onConflictDoUpdate({
+      target: schema.workerHeartbeats.workerId,
+      set: {
+        lastTickAt: hbNow,
+        updatedAt: hbNow
+      }
+    });
+
+  const existingAiWf = await db
+    .select({ id: schema.workflows.id })
+    .from(schema.workflows)
+    .where(eq(schema.workflows.id, "wf-autonomous-f104-ai"))
+    .limit(1);
+  if (existingAiWf.length === 0) {
+    const aiWfDef = {
+      nodes: [
+        { id: "n1", type: "trigger", label: "Alert: Spindle Temp > 80 C", config: { event: "alert.triggered" }, position: { x: 60, y: 120 } },
+        { id: "n2", type: "mcp", label: "Fetch CNC Telemetry", config: { tool: "get_machine_status", args: { machineId: "mach-l1-cnc-01" }, retries: 1 }, position: { x: 280, y: 120 } },
+        { id: "n3", type: "ai", label: "AI F104 Root Cause & LOTO", config: { prompt: "Synthesize F104 bearing thermal root cause and LOTO checklist", retries: 2, retryDelayMs: 50 }, position: { x: 520, y: 120 } },
+        { id: "n4", type: "notify", label: "Notify Plant Supervisors", config: { topicId: "topic-plant-alerts", severity: "high" }, position: { x: 760, y: 120 } }
+      ],
+      edges: [
+        { id: "e1", source: "n1", target: "n2" },
+        { id: "e2", source: "n2", target: "n3" },
+        { id: "e3", source: "n3", target: "n4" }
+      ]
+    };
+
+    await db.insert(schema.workflows).values({
+      id: "wf-autonomous-f104-ai",
+      tenantId: "tenant-acme",
+      plantId: "plant-detroit",
+      name: "Autonomous F104 Spindle Thermal & AI Triage",
+      description:
+        "Multi-stage durable workflow with step checkpointing, automatic retry backoff, AI root-cause synthesis, and plant notification.",
+      triggerType: "alert",
+      triggerConfig: { metricTag: "temperature", machineId: "mach-l1-cnc-01" },
+      definition: aiWfDef,
+      enabled: true,
+      currentVersion: 1,
+      createdBy: "user-admin"
+    });
+
+    await db.insert(schema.workflowVersions).values({
+      id: "wfv-autonomous-f104-v1",
+      tenantId: "tenant-acme",
+      workflowId: "wf-autonomous-f104-ai",
+      version: 1,
+      definition: aiWfDef,
+      changeSummary: "Initial durable AI triage workflow",
+      createdBy: "user-admin"
+    });
+
+    await db.insert(schema.workflowRuns).values({
+      id: "wfr-seed-ai-1",
+      tenantId: "tenant-acme",
+      workflowId: "wf-autonomous-f104-ai",
+      version: 1,
+      status: "succeeded",
+      triggerSource: "alert",
+      triggeredBy: "lutic-worker-detroit-01",
+      input: { machineId: "mach-l1-cnc-01", faultCode: "F104", temperature: 81.4 },
+      output: {
+        temperature: 81.4,
+        summary:
+          "AI Triage: CNC Mill #1 F104 thermal rise (81.4 C) matches spindle chiller flow restriction; apply SOP-001 LOTO before inspecting coolant manifold.",
+        notified: true
+      },
+      stepTraces: [
+        { nodeId: "n1", type: "trigger", label: "Alert: Spindle Temp > 80 C", status: "succeeded", durationMs: 3, attempts: 1, checkpointedAt: hbNow.toISOString() },
+        { nodeId: "n2", type: "mcp", label: "Fetch CNC Telemetry", status: "succeeded", durationMs: 14, attempts: 1, checkpointedAt: hbNow.toISOString() },
+        { nodeId: "n3", type: "ai", label: "AI F104 Root Cause & LOTO", status: "succeeded", durationMs: 142, attempts: 2, checkpointedAt: hbNow.toISOString() },
+        { nodeId: "n4", type: "notify", label: "Notify Plant Supervisors", status: "succeeded", durationMs: 9, attempts: 1, checkpointedAt: hbNow.toISOString() }
+      ],
+      startedAt: new Date(hbNow.getTime() - 25 * 60 * 1000),
+      completedAt: new Date(hbNow.getTime() - 24 * 60 * 1000)
+    });
+  }
+
+  const existingShowcaseConv = await db
+    .select({ id: schema.conversations.id })
+    .from(schema.conversations)
+    .where(eq(schema.conversations.id, "conv-demo-f104-triage"))
+    .limit(1);
+  if (existingShowcaseConv.length === 0) {
+    await db.insert(schema.conversations).values([
+      {
+        id: "conv-demo-f104-triage",
+        tenantId: "tenant-acme",
+        userId: "user-admin",
+        title: "Line 1 CNC #1 F104 Thermal & LOTO Triage"
+      },
+      {
+        id: "conv-demo-e42-eng",
+        tenantId: "tenant-acme",
+        userId: "user-det-eng",
+        title: "Line 3 Filler #1 E42 Vibration & Spare Allocation"
+      }
+    ]);
+
+    await db.insert(schema.messages).values([
+      {
+        id: "msg-demo-f104-u1",
+        tenantId: "tenant-acme",
+        conversationId: "conv-demo-f104-triage",
+        role: "user",
+        content: "Diagnose F104 spindle over-temperature on mach-l1-cnc-01 and verify LOTO procedure.",
+        createdAt: new Date(hbNow.getTime() - 18 * 60 * 1000)
+      },
+      {
+        id: "msg-demo-f104-a1",
+        tenantId: "tenant-acme",
+        conversationId: "conv-demo-f104-triage",
+        role: "assistant",
+        content:
+          "Line 1 CNC Mill #1 (mach-l1-cnc-01) is faulted at 81.4 C (fault F104). Apply zero-energy Lockout/Tagout per SOP-001 on the 480 VAC main disconnect before inspecting the spindle coolant manifold and SKF bearing assembly.",
+        toolCalls: [
+          { toolName: "get_machine_status", args: { machineId: "mach-l1-cnc-01" }, resultSummary: "status=fault, temp=81.4C", durationMs: 6 },
+          { toolName: "search_manuals", args: { query: "F104 spindle thermal LOTO SOP-001" }, resultSummary: "Matched SOP-001 & VCN-530C manual", durationMs: 11 },
+          { toolName: "find_part_for_fault", args: { faultCode: "F104" }, resultSummary: "Checked spindle coolant & bearing spares", durationMs: 5 }
+        ],
+        citations: [
+          {
+            documentId: "doc-sop-loto-001",
+            docTitle: "SOP-001 Lockout/Tagout & Zero-Energy Verification",
+            revision: "Rev 4",
+            status: "current",
+            page: 1,
+            snippet: "Isolate 480 VAC main disconnect and verify zero energy before manifold inspection."
+          }
+        ],
+        safetyWarning: "Safety Verifier (CAUTION): Lockout/Tagout & Electrical Isolation (SOP-001) — cited: SOP-001 Lockout/Tagout & Zero-Energy Verification",
+        createdAt: new Date(hbNow.getTime() - 17 * 60 * 1000)
+      },
+      {
+        id: "msg-demo-e42-u1",
+        tenantId: "tenant-acme",
+        conversationId: "conv-demo-e42-eng",
+        role: "user",
+        content: "Check mach-l3-filler-01 E42 vibration alarm and reserve required spares.",
+        createdAt: new Date(hbNow.getTime() - 12 * 60 * 1000)
+      },
+      {
+        id: "msg-demo-e42-a1",
+        tenantId: "tenant-acme",
+        conversationId: "conv-demo-e42-eng",
+        role: "assistant",
+        content:
+          "Line 3 Rotary Filler #1 (mach-l3-filler-01) triggered E42 servo torque overload at 7.8 mm/s RMS. Spare seal valve assembly PRT-SV-402 is in stock (qty 3, Detroit SLOC-01) under work order wo-e42-open-1.",
+        toolCalls: [
+          { toolName: "get_active_alarms", args: { machineId: "mach-l3-filler-01" }, resultSummary: "Active fault E42", durationMs: 5 },
+          { toolName: "find_part_for_fault", args: { faultCode: "E42" }, resultSummary: "PRT-SV-402 qty=3 available", durationMs: 7 }
+        ],
+        citations: [
+          {
+            documentId: "doc-filler-rf400",
+            docTitle: "Krones RF-400 Rotary Filler Fault & Torque Recovery Manual",
+            revision: "Rev 2",
+            status: "current",
+            page: 4,
+            snippet: "Fault E42 indicates starwheel overload or worn PRT-SV-402 valve assembly."
+          }
+        ],
+        safetyWarning: null,
+        createdAt: new Date(hbNow.getTime() - 11 * 60 * 1000)
+      }
+    ]);
+
+    await db.insert(schema.usageLog).values([
+      {
+        id: "usg-seed-v2-1",
+        tenantId: "tenant-acme",
+        userId: "user-admin",
+        role: "admin",
+        conversationId: "conv-demo-f104-triage",
+        model: "lutic-claude",
+        promptTokens: 1840,
+        completionTokens: 620,
+        estimatedCostUsd: 0.01482,
+        latencyMs: 840
+      },
+      {
+        id: "usg-seed-v2-2",
+        tenantId: "tenant-acme",
+        userId: "user-det-eng",
+        role: "engineer",
+        conversationId: "conv-demo-e42-eng",
+        model: "lutic-gpt4o",
+        promptTokens: 1420,
+        completionTokens: 490,
+        estimatedCostUsd: 0.00845,
+        latencyMs: 690
       }
     ]);
   }

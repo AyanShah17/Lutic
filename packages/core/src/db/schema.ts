@@ -26,6 +26,20 @@ export const vector64 = customType<{ data: number[]; driverData: string }>({
   }
 });
 
+export const vector1536 = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return "vector(1536)";
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: string): number[] {
+    const trimmed = String(value).replace(/^\[|\]$/g, "");
+    if (!trimmed) return [];
+    return trimmed.split(",").map((v) => Number(v));
+  }
+});
+
 // 1. Multi-tenancy, Plants & Identity
 export const tenants = pgTable("tenants", {
   id: text("id").primaryKey(),
@@ -455,6 +469,8 @@ export const documentChunks = pgTable(
     sectionPath: text("section_path").notNull().default("Overview"),
     text: text("text").notNull(),
     embedding: vector64("embedding").notNull(),
+    denseEmbedding: vector1536("dense_embedding"),
+    embeddingModel: text("embedding_model").notNull().default("local-deterministic-64"),
     faultCodes: jsonb("fault_codes").$type<string[]>().notNull().default([]),
     partNumbers: jsonb("part_numbers").$type<string[]>().notNull().default([])
   },
@@ -1138,3 +1154,16 @@ export const boardIssues = pgTable(
     index("board_issues_tenant_status_idx").on(t.tenantId, t.status)
   ]
 );
+
+// 15. Dedicated Worker Heartbeat (global operational telemetry, not tenant-scoped)
+export const workerHeartbeats = pgTable("worker_heartbeats", {
+  workerId: text("worker_id").primaryKey(),
+  hostname: text("hostname").notNull().default(""),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  lastTickAt: timestamp("last_tick_at", { withTimezone: true }).notNull(),
+  lastTickDurationMs: integer("last_tick_duration_ms").notNull().default(0),
+  tickCount: integer("tick_count").notNull().default(0),
+  lastError: text("last_error"),
+  summary: jsonb("summary").$type<Record<string, unknown>>().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});

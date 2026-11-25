@@ -559,7 +559,7 @@ describe("Phase 1 P0 & P1-01 Lifecycle, Security, Rotation, Diagnostics & Ingest
       queues: { ready: number; inFlight: number; deadLetter: number };
     };
     expect(diagJson.database.status).toBe("ok");
-    expect(diagJson.migrations.currentVersion).toBe(3);
+    expect(diagJson.migrations.currentVersion).toBe(4);
     expect(diagJson.telemetry.totalMachines).toBeGreaterThan(0);
 
     // Retention isolation: insert old records in both tenant-acme and tenant-beta

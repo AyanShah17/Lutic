@@ -1,8 +1,16 @@
 import dns from "node:dns";
+import http from "node:http";
+import https from "node:https";
 import net from "node:net";
 
 const MAX_EXTERNAL_BODY_BYTES = 1024 * 1024;
 const EXTERNAL_TIMEOUT_MS = 15_000;
+
+export interface ValidatedExternalTarget {
+  url: URL;
+  pinnedAddress?: string;
+  pinnedFamily?: 4 | 6;
+}
 
 export interface ExternalConnectorTool {
   name: string;
@@ -30,7 +38,7 @@ function isPrivateOrReservedIpv4(ip: string): boolean {
   return false;
 }
 
-function isPrivateOrReservedIp(rawIp: string): boolean {
+export function isPrivateOrReservedIp(rawIp: string): boolean {
   const ip = rawIp.trim().toLowerCase().replace(/^\[|\]$/g, "").split("%")[0] ?? "";
   if (net.isIPv4(ip)) return isPrivateOrReservedIpv4(ip);
   if (!net.isIPv6(ip)) return true;
@@ -48,9 +56,10 @@ function isPrivateOrReservedIp(rawIp: string): boolean {
 
 /**
  * Validates that an external connector URL uses HTTPS (or HTTP only when explicitly opted-in for
- * isolated local tests via LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true) and resolves solely to public IPs.
+ * isolated local tests via LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true) and resolves DNS once to pin
+ * public IPs against DNS-rebinding TOCTOU attacks.
  */
-export async function assertSafeExternalUrl(rawUrl: string): Promise<URL> {
+export async function resolveSafeExternalTarget(rawUrl: string): Promise<ValidatedExternalTarget> {
   let parsed: URL;
   try {
     parsed = new URL(rawUrl.trim());
@@ -85,7 +94,11 @@ export async function assertSafeExternalUrl(rawUrl: string): Promise<URL> {
       if (isPrivateOrReservedIp(hostname)) {
         throw new Error(`Blocked private or reserved IP address '${hostname}'.`);
       }
-      return parsed;
+      return {
+        url: parsed,
+        pinnedAddress: hostname,
+        pinnedFamily: (net.isIP(hostname) || 4) as 4 | 6
+      };
     }
 
     let resolved: Array<{ address: string }>;
@@ -104,9 +117,19 @@ export async function assertSafeExternalUrl(rawUrl: string): Promise<URL> {
         );
       }
     }
+    const primary = resolved[0]!;
+    return {
+      url: parsed,
+      pinnedAddress: primary.address,
+      pinnedFamily: (net.isIP(primary.address) || 4) as 4 | 6
+    };
   }
 
-  return parsed;
+  return { url: parsed };
+}
+
+export async function assertSafeExternalUrl(rawUrl: string): Promise<URL> {
+  return (await resolveSafeExternalTarget(rawUrl)).url;
 }
 
 export function buildAuthHeaders(creds?: Record<string, unknown>): Record<string, string> {
@@ -136,26 +159,119 @@ export function buildAuthHeaders(creds?: Record<string, unknown>): Record<string
   return headers;
 }
 
-async function readBoundedText(res: Response): Promise<string> {
-  const reader = res.body?.getReader();
-  if (!reader) return await res.text();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      total += value.byteLength;
-      if (total > MAX_EXTERNAL_BODY_BYTES) {
-        throw new Error(`External connector response exceeded ${MAX_EXTERNAL_BODY_BYTES} bytes.`);
+export async function safePinnedHttpRequest(
+  rawUrl: string,
+  options: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    timeoutMs?: number;
+    maxBytes?: number;
+  } = {}
+): Promise<{
+  status: number;
+  headers: Record<string, string>;
+  text: string;
+  url: URL;
+}> {
+  const target = await resolveSafeExternalTarget(rawUrl);
+  const timeoutMs = options.timeoutMs ?? EXTERNAL_TIMEOUT_MS;
+  const maxBytes = options.maxBytes ?? MAX_EXTERNAL_BODY_BYTES;
+  const transportMod = target.url.protocol === "https:" ? https : http;
+  const port = target.url.port
+    ? Number(target.url.port)
+    : target.url.protocol === "https:"
+      ? 443
+      : 80;
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (err?: Error, value?: { status: number; headers: Record<string, string>; text: string; url: URL }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(value!);
+    };
+
+    const pinnedLookup = target.pinnedAddress
+      ? ((
+          _hostname: string,
+          lookupOpts: { all?: boolean } | ((e: Error | null, a: unknown, f?: number) => void),
+          maybeCb?: (e: Error | null, a: unknown, f?: number) => void
+        ) => {
+          const cb = typeof lookupOpts === "function" ? lookupOpts : maybeCb;
+          if (!cb) return;
+          const family = target.pinnedFamily ?? 4;
+          if (typeof lookupOpts === "object" && lookupOpts?.all) {
+            cb(null, [{ address: target.pinnedAddress!, family }]);
+          } else {
+            cb(null, target.pinnedAddress!, family);
+          }
+        }) as unknown as net.LookupFunction
+      : undefined;
+
+    const req = transportMod.request(
+      {
+        hostname: target.url.hostname.replace(/^\[|\]$/g, ""),
+        port,
+        path: `${target.url.pathname}${target.url.search}`,
+        method: options.method ?? "GET",
+        headers: options.headers,
+        ...(pinnedLookup ? { lookup: pinnedLookup } : {}),
+        ...(target.url.protocol === "https:" ? { servername: target.url.hostname } : {})
+      },
+      (res) => {
+        const status = res.statusCode ?? 0;
+        if (status >= 300 && status < 400) {
+          res.destroy();
+          req.destroy();
+          finish(new Error(`Redirect blocked (${status}) for external connector.`));
+          return;
+        }
+
+        const normHeaders: Record<string, string> = {};
+        for (const [k, v] of Object.entries(res.headers)) {
+          if (typeof v === "string") normHeaders[k.toLowerCase()] = v;
+          else if (Array.isArray(v) && v.length > 0) normHeaders[k.toLowerCase()] = v.join(", ");
+        }
+
+        const chunks: Buffer[] = [];
+        let total = 0;
+        res.on("data", (chunk: Buffer) => {
+          const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          total += buf.byteLength;
+          if (total > maxBytes) {
+            res.destroy();
+            req.destroy();
+            finish(new Error(`External connector response exceeded ${maxBytes} bytes.`));
+            return;
+          }
+          chunks.push(buf);
+        });
+        res.on("end", () => {
+          finish(undefined, {
+            status,
+            headers: normHeaders,
+            text: Buffer.concat(chunks).toString("utf8"),
+            url: target.url
+          });
+        });
+        res.on("error", (err) => finish(err));
       }
-      chunks.push(value);
+    );
+
+    const timer = setTimeout(() => {
+      req.destroy();
+      finish(new Error(`External connector request timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    req.on("error", (err) => finish(err));
+    if (options.body !== undefined) {
+      req.write(options.body);
     }
-  } finally {
-    reader.releaseLock();
-  }
-  return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8");
+    req.end();
+  });
 }
 
 function parseMcpResponseBody(rawText: string, contentType: string): Record<string, unknown> {
@@ -185,7 +301,6 @@ async function mcpJsonRpc(
   creds?: Record<string, unknown>,
   sessionId?: string
 ): Promise<{ result: Record<string, unknown>; sessionId?: string }> {
-  const safeUrl = await assertSafeExternalUrl(endpointUrl);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
@@ -195,7 +310,7 @@ async function mcpJsonRpc(
     headers["Mcp-Session-Id"] = sessionId;
   }
 
-  const res = await fetch(safeUrl.href, {
+  const res = await safePinnedHttpRequest(endpointUrl, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -203,22 +318,19 @@ async function mcpJsonRpc(
       id: `lutic-${Date.now()}`,
       method,
       params
-    }),
-    redirect: "error",
-    signal: AbortSignal.timeout(EXTERNAL_TIMEOUT_MS)
+    })
   });
 
-  const text = await readBoundedText(res);
-  if (!res.ok) {
-    throw new Error(`Remote MCP HTTP ${res.status}: ${text.slice(0, 200)}`);
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Remote MCP HTTP ${res.status}: ${res.text.slice(0, 200)}`);
   }
 
-  const payload = parseMcpResponseBody(text, res.headers.get("content-type") ?? "");
+  const payload = parseMcpResponseBody(res.text, res.headers["content-type"] ?? "");
   if (payload.error && typeof payload.error === "object") {
     const errMsg = String((payload.error as { message?: unknown }).message ?? "Remote MCP error");
     throw new Error(errMsg);
   }
-  const returnedSessionId = res.headers.get("mcp-session-id") ?? sessionId;
+  const returnedSessionId = res.headers["mcp-session-id"] ?? sessionId;
   return {
     result: (payload.result as Record<string, unknown>) ?? {},
     sessionId: returnedSessionId
@@ -316,22 +428,19 @@ export async function discoverUtcpTools(
   endpointUrl: string,
   creds?: Record<string, unknown>
 ): Promise<ExternalConnectorTool[]> {
-  const safeUrl = await assertSafeExternalUrl(endpointUrl);
-  const res = await fetch(safeUrl.href, {
+  const res = await safePinnedHttpRequest(endpointUrl, {
     method: "GET",
     headers: {
       Accept: "application/json",
       ...buildAuthHeaders(creds)
-    },
-    redirect: "error",
-    signal: AbortSignal.timeout(EXTERNAL_TIMEOUT_MS)
+    }
   });
+  const safeUrl = res.url;
 
-  const text = await readBoundedText(res);
-  if (!res.ok) {
-    throw new Error(`UTCP/OpenAPI manual fetch failed (${res.status}): ${text.slice(0, 200)}`);
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`UTCP/OpenAPI manual fetch failed (${res.status}): ${res.text.slice(0, 200)}`);
   }
-  const doc = JSON.parse(text) as Record<string, unknown>;
+  const doc = JSON.parse(res.text) as Record<string, unknown>;
 
   // UTCP 1.0 JSON manual format
   if (Array.isArray(doc.tools)) {
@@ -468,26 +577,23 @@ export async function callUtcpTool(
     body = JSON.stringify(remaining);
   }
 
-  const res = await fetch(targetUrl.href, {
+  const res = await safePinnedHttpRequest(targetUrl.href, {
     method,
     headers,
-    ...(body !== undefined ? { body } : {}),
-    redirect: "error",
-    signal: AbortSignal.timeout(EXTERNAL_TIMEOUT_MS)
+    ...(body !== undefined ? { body } : {})
   });
 
-  const text = await readBoundedText(res);
-  if (!res.ok) {
-    throw new Error(`UTCP HTTP ${res.status} (${method} ${targetUrl.pathname}): ${text.slice(0, 200)}`);
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`UTCP HTTP ${res.status} (${method} ${targetUrl.pathname}): ${res.text.slice(0, 200)}`);
   }
 
   try {
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(res.text);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return parsed as Record<string, unknown>;
     }
     return { data: parsed };
   } catch {
-    return { text };
+    return { text: res.text };
   }
 }

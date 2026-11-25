@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   and,
-  asc,
   authorize,
   conversations,
   createPostgresRateLimitConsumer,
+  desc,
   eq,
-  messages,
+  messages
 } from "@lutic/core";
 import { runAgentTurn } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
@@ -57,8 +57,9 @@ export async function POST(req: Request) {
       await (await readBoundedBody(req, 4 * 1024 * 1024)).json()
     );
 
-    let convId = body.conversationId;
-    return await withWebTenantDb(user.tenantId, async (db) => {
+    // Transaction 1: ensure conversation, fetch latest 20 messages, persist user message.
+    const prepared = await withWebTenantDb(user.tenantId, async (db) => {
+      let convId = body.conversationId;
       if (convId) {
         const existing = await db
           .select()
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
           )
           .limit(1);
         if (!existing[0]) {
-          return problemResponse(404, "Not Found", "Conversation not found.");
+          return null;
         }
       } else {
         convId = `conv-${crypto.randomUUID().slice(0, 10)}`;
@@ -95,10 +96,11 @@ export async function POST(req: Request) {
             eq(messages.tenantId, user.tenantId)
           )
         )
-        .orderBy(asc(messages.createdAt))
+        .orderBy(desc(messages.createdAt))
         .limit(20);
 
       const history = priorMsgs
+        .reverse()
         .filter((m): m is { role: "user" | "assistant"; content: string } =>
           m.role === "user" || m.role === "assistant"
         );
@@ -112,81 +114,109 @@ export async function POST(req: Request) {
         content: body.message
       });
 
-      const result = await runAgentTurn({
-        db,
-        consumeQuota,
-        user,
-        message: body.message,
-        conversationId: convId,
-        machineId: body.machineId,
-        attachments: body.attachments,
-        history,
-        abortSignal: req.signal
-      });
+      return { convId, history };
+    });
 
+    if (!prepared) {
+      return problemResponse(404, "Not Found", "Conversation not found.");
+    }
+
+    const { convId, history } = prepared;
+    const persistAssistantResult = async (result: Awaited<ReturnType<typeof runAgentTurn>>) => {
       const assistantMsgId = `msg-${crypto.randomUUID().slice(0, 10)}`;
-      await db.insert(messages).values({
-        id: assistantMsgId,
-        tenantId: user.tenantId,
-        conversationId: convId,
-        role: "assistant",
-        content: result.answer,
-        toolCalls: result.toolCalls as unknown as Array<Record<string, unknown>>,
-        citations: result.citations as unknown as Array<Record<string, unknown>>,
-        charts: result.charts as unknown as Array<Record<string, unknown>>,
-        safetyWarning: result.safetyWarning ?? null,
-        pendingActionId: result.pendingAction?.id ?? null
+      await withWebTenantDb(user.tenantId, async (db) => {
+        await db.insert(messages).values({
+          id: assistantMsgId,
+          tenantId: user.tenantId,
+          conversationId: convId,
+          role: "assistant",
+          content: result.answer,
+          toolCalls: result.toolCalls as unknown as Array<Record<string, unknown>>,
+          citations: result.citations as unknown as Array<Record<string, unknown>>,
+          charts: result.charts as unknown as Array<Record<string, unknown>>,
+          safetyWarning: result.safetyWarning ?? null,
+          pendingActionId: result.pendingAction?.id ?? null
+        });
+        await db
+          .update(conversations)
+          .set({ updatedAt: new Date() })
+          .where(eq(conversations.id, convId));
       });
-
-      await db
-        .update(conversations)
-        .set({ updatedAt: new Date() })
-        .where(eq(conversations.id, convId));
-
-      const payload = {
+      return {
         conversationId: convId,
         messageId: assistantMsgId,
         ...result
       };
+    };
 
-      if (body.stream) {
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
+    if (body.stream) {
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
             if (req.signal?.aborted) {
               controller.close();
               return;
             }
-            const words = result.answer.split(/(\s+)/);
-            for (let i = 0; i < words.length; i += 4) {
-              if (req.signal?.aborted) {
-                controller.close();
-                return;
+            const result = await runAgentTurn({
+              runScopedDb: (fn) => withWebTenantDb(user.tenantId, fn),
+              consumeQuota,
+              user,
+              message: body.message,
+              conversationId: convId,
+              machineId: body.machineId,
+              attachments: body.attachments,
+              history,
+              abortSignal: req.signal,
+              onTokenDelta: (delta) => {
+                if (req.signal?.aborted || !delta) return;
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`)
+                );
               }
-              const chunk = words.slice(i, i + 4).join("");
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: "delta", text: chunk })}\n\n`)
-              );
-            }
+            });
+            const payload = await persistAssistantResult(result);
             if (!req.signal?.aborted) {
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ type: "done", payload })}\n\n`)
               );
             }
+          } catch (err) {
+            const detail =
+              err instanceof Error && err.name === "AbortError"
+                ? "The client cancelled the request before completion."
+                : "Chat stream failed.";
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: "error", detail })}\n\n`)
+            );
+          } finally {
             controller.close();
           }
-        });
+        }
+      });
 
-        return new Response(readable, {
-          headers: {
-            "Content-Type": "text/event-stream; charset=utf-8",
-            "Cache-Control": "no-cache"
-          }
-        });
-      }
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache"
+        }
+      });
+    }
 
-      return NextResponse.json(payload);
+    // LLM calls run outside open DB transactions; tool calls use short-lived runScopedDb transactions.
+    const result = await runAgentTurn({
+      runScopedDb: (fn) => withWebTenantDb(user.tenantId, fn),
+      consumeQuota,
+      user,
+      message: body.message,
+      conversationId: convId,
+      machineId: body.machineId,
+      attachments: body.attachments,
+      history,
+      abortSignal: req.signal
     });
+    const payload = await persistAssistantResult(result);
+    return NextResponse.json(payload);
   } catch (err) {
     if (req.signal?.aborted || (err instanceof Error && err.name === "AbortError")) {
       return problemResponse(499, "Request Cancelled", "The client cancelled the request before completion.");

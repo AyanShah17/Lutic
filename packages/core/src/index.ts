@@ -17,3 +17,4 @@ export * from "./messaging";
 export * from "./workflows";
 export * from "./connector-hub";
 export * from "./external-connectors";
+export * from "./live-adapters";

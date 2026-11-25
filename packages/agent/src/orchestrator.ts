@@ -43,10 +43,29 @@ export interface InlineChartSpec {
 
 export interface ToolTraceItem {
   toolName: string;
+  specialist?: string;
   args: Record<string, unknown>;
   status: "allowed" | "denied" | "requires_confirmation" | "confirmed" | "error";
   latencyMs: number;
   summary: string;
+}
+
+export interface SpecialistStageTrace {
+  agent:
+    | "telemetry_specialist"
+    | "knowledge_specialist"
+    | "cmms_erp_specialist"
+    | "analytics_specialist"
+    | "safety_verifier";
+  status: "completed" | "skipped" | "flagged";
+  summary: string;
+}
+
+export interface SafetyGateResult {
+  status: "clear" | "caution" | "hold_unverified";
+  hazardsDetected: string[];
+  citedCurrentSops: string[];
+  unverifiedHold: boolean;
 }
 
 export interface PendingActionItem {
@@ -68,7 +87,8 @@ export interface ChatAttachment {
 }
 
 export interface AgentRunInput {
-  db: LuticDatabase;
+  db?: LuticDatabase;
+  runScopedDb?: <T>(fn: (db: LuticDatabase) => Promise<T>) => Promise<T>;
   consumeQuota?: RateLimitConsumer;
   user: SessionUser;
   message: string;
@@ -80,6 +100,7 @@ export interface AgentRunInput {
   llmProvider?: LLMProvider;
   registry?: McpToolRegistry;
   abortSignal?: AbortSignal;
+  onTokenDelta?: (delta: string) => void;
 }
 
 export interface AgentRunResult {
@@ -89,6 +110,9 @@ export interface AgentRunResult {
   charts: InlineChartSpec[];
   dashboardDraft?: DashboardSpec;
   pendingAction?: PendingActionItem;
+  pendingActions: PendingActionItem[];
+  agentStages: SpecialistStageTrace[];
+  safetyGate: SafetyGateResult;
   safetyWarning?: string;
   supersededWarning?: string;
   usage: {
@@ -100,10 +124,99 @@ export interface AgentRunResult {
   };
 }
 
+export function planSpecialistStages(
+  message: string,
+  hasMachine: boolean
+): Array<Exclude<SpecialistStageTrace["agent"], "safety_verifier">> {
+  const lower = message.toLowerCase();
+  const planned: Array<Exclude<SpecialistStageTrace["agent"], "safety_verifier">> = [];
+  if (
+    hasMachine ||
+    /alarm|vibrat|temp|pressur|speed|status|reading|mqtt|opc|modbus|sensor/.test(lower)
+  ) {
+    planned.push("telemetry_specialist");
+  }
+  if (
+    /manual|sop|procedure|loto|lockout|torque|seal|fault|code|repair|guide|why|how|check/.test(
+      lower
+    )
+  ) {
+    planned.push("knowledge_specialist");
+  }
+  if (
+    /work\s*order|part|spare|invent|reserve|sap|servicenow|ticket|board|workflow|queue|alert/.test(
+      lower
+    )
+  ) {
+    planned.push("cmms_erp_specialist");
+  }
+  if (/oee|metric|kpi|downtime|scrap|throughput|mtbf|mttr|energy|dashboard|chart|compare/.test(lower)) {
+    planned.push("analytics_specialist");
+  }
+  if (planned.length === 0) {
+    planned.push("knowledge_specialist");
+  }
+  return planned;
+}
+
+function classifyToolSpecialist(
+  toolName: string
+): Exclude<SpecialistStageTrace["agent"], "safety_verifier"> {
+  if (
+    toolName === "list_machines" ||
+    toolName === "get_machine" ||
+    toolName === "get_machine_status" ||
+    toolName === "get_active_alarms" ||
+    toolName === "get_recent_readings"
+  ) {
+    return "telemetry_specialist";
+  }
+  if (toolName === "search_documents" || toolName === "get_document_section") {
+    return "knowledge_specialist";
+  }
+  if (
+    toolName === "list_metrics" ||
+    toolName === "query_metric" ||
+    toolName === "compare_metrics" ||
+    toolName === "create_dashboard_draft"
+  ) {
+    return "analytics_specialist";
+  }
+  return "cmms_erp_specialist";
+}
+
+export function estimateModelCostUsd(
+  model: string,
+  promptTokens: number,
+  completionTokens: number
+): number {
+  const lower = model.toLowerCase();
+  if (lower.includes("deterministic") || lower.includes("mock")) {
+    return 0;
+  }
+  let inPer1k = 0.003;
+  let outPer1k = 0.015;
+  if (lower.includes("mini") || lower.includes("haiku")) {
+    inPer1k = 0.00015;
+    outPer1k = 0.0006;
+  } else if (lower.includes("gpt-4o")) {
+    inPer1k = 0.0025;
+    outPer1k = 0.01;
+  } else if (lower.includes("opus")) {
+    inPer1k = 0.015;
+    outPer1k = 0.075;
+  } else if (lower.includes("claude") || lower.includes("sonnet")) {
+    inPer1k = 0.003;
+    outPer1k = 0.015;
+  }
+  return Number(((promptTokens * inPer1k + completionTokens * outPer1k) / 1000).toFixed(6));
+}
+
 export function assembleSystemPrompt(params: {
   user: SessionUser;
   allowedToolNames: string[];
   machineContext?: { id: string; name: string; machineType: string; plantId: string };
+  plannedSpecialists?: string[];
 }): string {
   const today = new Date().toISOString().slice(0, 10);
   return [
@@ -113,6 +226,9 @@ export function assembleSystemPrompt(params: {
     params.machineContext
       ? `Active machine scope: ${params.machineContext.name} (id=${params.machineContext.id}, type=${params.machineContext.machineType}, plant=${params.machineContext.plantId}).`
       : "No single machine pre-selected.",
+    params.plannedSpecialists?.length
+      ? `Active specialist stages: ${params.plannedSpecialists.join(" -> ")} -> safety_verifier.`
+      : "",
     `Allowed tools for this session: ${params.allowedToolNames.join(", ") || "none"}.`,
     "",
     "SECURITY & POLICY RULES:",
@@ -121,23 +237,70 @@ export function assembleSystemPrompt(params: {
     "- Answers about procedures, safety, lockout/tagout (LOTO), torque values, tolerances, and chemicals must quote or closely follow a cited source (document, revision, page). If sources do not cover it, say so plainly and suggest contacting a supervisor.",
     "- Never use superseded document revisions unless explicitly asked; flag loudly when only a superseded revision exists.",
     "- For analytics, use semantic-layer tools only (never free-form SQL). Never write to PLCs or control systems."
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-function detectSafetyBanner(text: string): string | undefined {
-  const lower = text.toLowerCase();
-  const triggers: string[] = [];
-  if (/loto|lockout|tagout|zero[- ]energy|480\s*vac|dc bus|electrical/.test(lower)) {
-    triggers.push("Lockout/Tagout & Electrical Isolation (SOP-001)");
+export function evaluateIndustrialSafetyGate(params: {
+  answer: string;
+  citations: CitationItem[];
+  supersededWarning?: string;
+}): { safetyGate: SafetyGateResult; safetyWarning?: string } {
+  const lower = params.answer.toLowerCase();
+  const hazards: string[] = [];
+  if (/loto|lockout|tagout|zero[- ]energy|480\s*vac|dc bus|electrical|high[- ]voltage/.test(lower)) {
+    hazards.push("Lockout/Tagout & Electrical Isolation (SOP-001)");
   }
-  if (/hydraulic|pneumatic|bar\b|pressure|accumulator/.test(lower)) {
-    triggers.push("Stored Fluid / Pneumatic Pressure Bleed Required");
+  if (/hydraulic|pneumatic|\bbleed\b|accumulator/.test(lower)) {
+    hazards.push("Stored Fluid / Pneumatic Pressure Bleed Required");
   }
   if (/caustic|naoh|sodium hydroxide|nitric acid|chemical|cip\b/.test(lower)) {
-    triggers.push("Chemical Hazard & Mandatory PPE (SAF-104)");
+    hazards.push("Chemical Hazard & Mandatory PPE (SAF-104)");
   }
-  if (triggers.length === 0) return undefined;
-  return `Safety Notice: ${triggers.join(" • ")}. Verify zero-energy and PPE before opening machine guards.`;
+  const prescribesNumericSpec =
+    /\b\d+(?:\.\d+)?\s*(?:nm|n·m|ft-lb|bar|psi|vac|vdc|degc|°c)\b/i.test(params.answer) &&
+    /(?:torque|tighten|set\b|adjust|bleed|replace|lockout|isolate|apply|pressurize)/i.test(lower);
+
+  const currentCitations = params.citations.filter((c) => c.status === "current");
+  const citedCurrentSops = Array.from(
+    new Set(currentCitations.map((c) => `${c.title} (${c.revision}, p.${c.page})`))
+  );
+
+  if (hazards.length === 0 && !prescribesNumericSpec) {
+    return {
+      safetyGate: {
+        status: "clear",
+        hazardsDetected: [],
+        citedCurrentSops,
+        unverifiedHold: false
+      }
+    };
+  }
+
+  if (currentCitations.length === 0 || Boolean(params.supersededWarning)) {
+    const labelList = hazards.length > 0 ? hazards : ["Unverified numerical procedure / tolerance"];
+    return {
+      safetyGate: {
+        status: "hold_unverified",
+        hazardsDetected: labelList,
+        citedCurrentSops: [],
+        unverifiedHold: true
+      },
+      safetyWarning: `UNVERIFIED SAFETY HOLD: ${labelList.join(" · ")}. No current SOP citation backs this instruction; verify against approved plant manuals before executing on equipment.`
+    };
+  }
+
+  const displayHazards = hazards.length > 0 ? hazards : ["Verified Technical Tolerance"];
+  return {
+    safetyGate: {
+      status: "caution",
+      hazardsDetected: displayHazards,
+      citedCurrentSops,
+      unverifiedHold: false
+    },
+    safetyWarning: `Safety Notice: ${displayHazards.join(" · ")}. Grounded in ${citedCurrentSops[0]} — verify zero-energy and PPE before opening machine guards.`
+  };
 }
 
 function summarizeObservation(obs: ExecutedToolObservation): string {
@@ -249,55 +412,102 @@ function collectToolArtifacts(
   }
 }
 
+export async function executeWorkflowAiNodeWithLlm(params: {
+  tenantId: string;
+  label: string;
+  prompt: string;
+  context: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  const llm = createLLMProvider();
+  const res = await llm.generateStep({
+    systemPrompt:
+      "You are a Lutic workflow AI step. Produce a concise actionable engineering summary.",
+    history: [],
+    userMessage: `Step: ${params.label}\nInstruction: ${params.prompt}\nContext: ${JSON.stringify(params.context)}`,
+    user: {
+      userId: "lutic-workflow-executor",
+      tenantId: params.tenantId,
+      role: "admin",
+      email: "workflow@lutic.local",
+      name: "Lutic Workflow Executor",
+      plantIds: []
+    },
+    allowedTools: [],
+    stepIndex: 0,
+    observations: []
+  });
+  return {
+    summary: (res.finalText ?? "").trim() || `Completed AI step ${params.label}`,
+    usage: {
+      model: res.model,
+      promptTokens: res.promptTokens,
+      completionTokens: res.completionTokens
+    }
+  };
+}
+
 export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
   const started = Date.now();
   const llm = input.llmProvider ?? createLLMProvider();
   const registry = input.registry ?? defaultMcpRegistry;
   const maxSteps = Math.min(Math.max(input.maxSteps ?? 8, 1), 12);
+  const withDb =
+    input.runScopedDb ??
+    (async <T,>(fn: (db: LuticDatabase) => Promise<T>): Promise<T> => {
+      if (!input.db) {
+        throw new Error("Either db or runScopedDb must be provided to runAgentTurn.");
+      }
+      return fn(input.db);
+    });
 
-  let machineContext:
-    | { id: string; name: string; machineType: string; plantId: string }
-    | undefined;
-
-  if (input.machineId) {
-    const mRows = await input.db
-      .select({
-        id: assets.id,
-        name: assets.name,
-        machineType: assets.machineType,
-        plantId: assets.plantId
-      })
-      .from(assets)
-      .where(
-        and(
-          eq(assets.id, input.machineId),
-          eq(assets.tenantId, input.user.tenantId),
-          inArray(assets.plantId, input.user.plantIds)
+  const { machineContext, allowedTools } = await withDb(async (db) => {
+    let resolvedMachine:
+      | { id: string; name: string; machineType: string; plantId: string }
+      | undefined;
+    if (input.machineId) {
+      const mRows = await db
+        .select({
+          id: assets.id,
+          name: assets.name,
+          machineType: assets.machineType,
+          plantId: assets.plantId
+        })
+        .from(assets)
+        .where(
+          and(
+            eq(assets.id, input.machineId),
+            eq(assets.tenantId, input.user.tenantId),
+            inArray(assets.plantId, input.user.plantIds)
+          )
         )
-      )
-      .limit(1);
-    if (mRows[0]) {
-      machineContext = mRows[0];
+        .limit(1);
+      if (mRows[0]) {
+        resolvedMachine = mRows[0];
+      }
     }
-  }
+    const toolsList = await getAllowedToolsForUser(db, input.user, registry);
+    return { machineContext: resolvedMachine, allowedTools: toolsList };
+  });
 
-  const allowedTools = await getAllowedToolsForUser(
-    input.db,
-    input.user,
-    registry
-  );
+  const plannedSpecialists = planSpecialistStages(input.message, Boolean(machineContext));
   const systemPrompt = assembleSystemPrompt({
     user: input.user,
     allowedToolNames: allowedTools.map((t) => t.name),
-    machineContext
+    machineContext,
+    plannedSpecialists
   });
 
   const observations: ExecutedToolObservation[] = [];
   const traces: ToolTraceItem[] = [];
   const citations: CitationItem[] = [];
   const charts: InlineChartSpec[] = [];
+  const pendingActions: PendingActionItem[] = [];
+  const pushPendingAction = (pa: PendingActionItem) => {
+    if (!pendingActions.some((existing) => existing.id === pa.id)) {
+      pendingActions.push(pa);
+    }
+  };
   let dashboardDraft: DashboardSpec | undefined;
-  let pendingAction: PendingActionItem | undefined;
   let supersededWarning: string | undefined;
 
   let totalPromptTokens = 0;
@@ -319,7 +529,8 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       allowedTools,
       stepIndex: step,
       observations,
-      abortSignal: input.abortSignal
+      abortSignal: input.abortSignal,
+      onTokenDelta: input.onTokenDelta
     });
 
     totalPromptTokens += stepOut.promptTokens;
@@ -335,16 +546,18 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       if (input.abortSignal?.aborted) {
         throw createAbortError();
       }
-      const policyRes = await executeToolWithPolicy(
-        tc.name,
-        tc.args,
-        {
-          db: input.db,
-          user: input.user,
-          requestId: `req-${crypto.randomUUID().slice(0, 8)}`,
-          conversationId: input.conversationId
-        },
-        { registry, consumeQuota: input.consumeQuota }
+      const policyRes = await withDb((db) =>
+        executeToolWithPolicy(
+          tc.name,
+          tc.args,
+          {
+            db,
+            user: input.user,
+            requestId: `req-${crypto.randomUUID().slice(0, 8)}`,
+            conversationId: input.conversationId
+          },
+          { registry, consumeQuota: input.consumeQuota }
+        )
       );
 
       const obs: ExecutedToolObservation = {
@@ -358,8 +571,10 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       };
       observations.push(obs);
 
+      const specialist = classifyToolSpecialist(tc.name);
       traces.push({
         toolName: tc.name,
+        specialist,
         args: tc.args,
         status: policyRes.status,
         latencyMs: policyRes.latencyMs,
@@ -367,7 +582,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       });
 
       if (policyRes.pendingAction) {
-        pendingAction = policyRes.pendingAction;
+        pushPendingAction(policyRes.pendingAction);
       }
 
       if (policyRes.status === "allowed" && policyRes.data) {
@@ -404,13 +619,14 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
             };
             traces.push({
               toolName: inner.toolName,
+              specialist: classifyToolSpecialist(inner.toolName),
               args: inner.args ?? {},
               status: inner.status,
               latencyMs: inner.latencyMs ?? 0,
               summary: summarizeObservation(innerObs)
             });
-            if (inner.pendingAction && !pendingAction) {
-              pendingAction = inner.pendingAction;
+            if (inner.pendingAction) {
+              pushPendingAction(inner.pendingAction);
             }
             if (inner.status === "allowed" && inner.data) {
               collectToolArtifacts(inner.toolName, inner.data, artifactTarget);
@@ -427,24 +643,56 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
   }
 
   const latencyMs = Date.now() - started;
-  const estimatedCostUsd = Number(
-    ((totalPromptTokens * 0.003 + totalCompletionTokens * 0.015) / 1000).toFixed(6)
+  const estimatedCostUsd = estimateModelCostUsd(
+    modelUsed,
+    totalPromptTokens,
+    totalCompletionTokens
   );
 
-  await input.db.insert(usageLog).values({
-    id: `usg-${crypto.randomUUID().slice(0, 12)}`,
-    tenantId: input.user.tenantId,
-    userId: input.user.userId,
-    role: input.user.role,
-    conversationId: input.conversationId ?? null,
-    model: modelUsed,
-    promptTokens: totalPromptTokens,
-    completionTokens: totalCompletionTokens,
-    estimatedCostUsd,
-    latencyMs
+  await withDb(async (db) => {
+    await db.insert(usageLog).values({
+      id: `usg-${crypto.randomUUID().slice(0, 12)}`,
+      tenantId: input.user.tenantId,
+      userId: input.user.userId,
+      role: input.user.role,
+      conversationId: input.conversationId ?? null,
+      model: modelUsed,
+      promptTokens: totalPromptTokens,
+      completionTokens: totalCompletionTokens,
+      estimatedCostUsd,
+      latencyMs
+    });
   });
 
-  const safetyWarning = detectSafetyBanner(finalAnswer);
+  const { safetyGate, safetyWarning } = evaluateIndustrialSafetyGate({
+    answer: finalAnswer,
+    citations,
+    supersededWarning
+  });
+
+  const agentStages: SpecialistStageTrace[] = [
+    ...plannedSpecialists.map((agent) => {
+      const matched = traces.filter((t) => t.specialist === agent);
+      return {
+        agent,
+        status: matched.length > 0 ? ("completed" as const) : ("skipped" as const),
+        summary:
+          matched.length > 0
+            ? `${matched.length} governed tool call(s)`
+            : "No matching tool invocation needed"
+      };
+    }),
+    {
+      agent: "safety_verifier" as const,
+      status: safetyGate.unverifiedHold ? ("flagged" as const) : ("completed" as const),
+      summary:
+        safetyGate.status === "hold_unverified"
+          ? "Hold: hazardous or numerical guidance lacks a current SOP citation"
+          : safetyGate.status === "caution"
+            ? `Caution grounded in ${safetyGate.citedCurrentSops.length} current SOP citation(s)`
+            : "No unverified hazardous procedures detected"
+    }
+  ];
 
   return {
     answer: finalAnswer,
@@ -452,7 +700,10 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
     citations,
     charts,
     dashboardDraft,
-    pendingAction,
+    pendingAction: pendingActions[0],
+    pendingActions,
+    agentStages,
+    safetyGate,
     safetyWarning,
     supersededWarning,
     usage: {

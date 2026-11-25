@@ -5,8 +5,12 @@ import {
   authorize,
   eq,
   executeWorkflow,
+  hasWorkflowAiExecutor,
+  isDemoMode,
+  registerWorkflowAiExecutor,
   workflows
 } from "@lutic/core";
+import { executeWorkflowAiNodeWithLlm } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
 import {
   getSessionUser,
@@ -54,6 +58,10 @@ export async function POST(
         rawBody = {};
       }
       const body = RunWorkflowSchema.parse(rawBody);
+
+      if (!isDemoMode() && !hasWorkflowAiExecutor()) {
+        registerWorkflowAiExecutor(executeWorkflowAiNodeWithLlm);
+      }
 
       const run = await executeWorkflow(db, {
         tenantId: user.tenantId,

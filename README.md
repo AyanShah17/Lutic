@@ -10,8 +10,8 @@ See [PRODUCTION.md](PRODUCTION.md) for deployment, Clerk custom-domain configura
 
 - **Workspaces (`4` packages)**: `@lutic/core`, `@lutic/connectors`, `@lutic/agent`, `@lutic/web`
 - **Web & API Surface (`apps/web`)**: `19` App Router pages (including multi-product landing `/`, white-labeled `/login`, `/signup`, `/sso-callback`, and Kanban/List execution `/board`) and `78` API route handlers backed by Next.js 15 (`lutic_session` cookies, optional Clerk Free Tier Email + Google/Microsoft auth, CSRF/Origin guards, and scoped `CORS_ORIGINS`)
-- **Data & Semantic Layer (`packages/core`)**: `50` Drizzle ORM tables across `3` versioned migrations (`0001` baseline, `0002` account lifecycle & ingestion tokens, `0003` Clerk identity linking, `tenants.plan`, and `board_issues`), PostgreSQL 16 + `pgvector` with `lutic_app` row-level security (`withTenantScope`), `12` governed semantic metrics (`oee`, `availability`, `performance`, `quality`, `downtime_minutes`, `scrap_rate`, `throughput`, `mtbf`, `mttr`, `energy_kwh`, `open_work_orders`, `parts_below_min_stock`), AES-256-GCM encrypted connector credentials, and `kjt_` telemetry ingestion tokens
-- **AI, White-Labeling & `2,118` Connectors (`packages/agent` & `packages/connectors` & `packages/core`)**: Orchestrator (default `8` steps, max `12`) feeding a 6-step Policy Engine, Hybrid RAG (64-dim deterministic local embeddings + full-text search + fault-code boost), `5` built-in local hubs (`docs`, `historian`, `cmms`, `parts-erp`, `mes`), `11` SAP S/4HANA (`sap-pm`, `sap-mm`, `sap-pp`, `sap-qm`), AWS (`aws-iot`, `aws-s3`, `aws-cloudwatch`), ServiceNow, MQTT, OPC-UA, and Modbus catalog templates, `3` SSRF-checked HTTPS cloud/API bridges (`lutic-cloud`, `lutic-bridge`, `lutic-api`), `2,098` deduplicated white-labeled connectors generated into [connector-catalog.generated.json](packages/core/src/connector-catalog.generated.json), sanitized **Lutic Security Scanner** diagnostics, and **Lutic AI Gateway** routing
+- **Data & Semantic Layer (`packages/core`)**: `51` Drizzle ORM tables across `4` versioned migrations (`0001` baseline, `0002` account lifecycle & ingestion tokens, `0003` Clerk identity linking, `tenants.plan`, and `board_issues`, `0004` 1536-dim HNSW dense embeddings and `worker_heartbeats` revoked from `lutic_app`), PostgreSQL 16 + `pgvector` with `lutic_app` row-level security (`withTenantScope`), `12` governed semantic metrics (`oee`, `availability`, `performance`, `quality`, `downtime_minutes`, `scrap_rate`, `throughput`, `mtbf`, `mttr`, `energy_kwh`, `open_work_orders`, `parts_below_min_stock`), AES-256-GCM encrypted connector credentials, and `kjt_` telemetry ingestion tokens
+- **AI, White-Labeling & `2,118` Connectors (`packages/agent` & `packages/connectors` & `packages/core`)**: Incremental `streamText` SSE streaming orchestrator (latest-20 context window, short-lived DB transactions outside LLM loops, specialist routing & `safety_verifier` gate, cost tracking, multiple `pendingActions`), 6-step Policy Engine, 4-way Hybrid RAG (64-dim local + optional 1536-dim `lutic-embed`/OpenAI dense vectors + full-text + fault-code boost + `HybridLexicalSemanticReranker`), `5` built-in native hubs (`docs`, `historian`, `cmms`, `parts-erp`, `mes`), `11` SAP/AWS/ServiceNow/MQTT/OPC-UA/Modbus adapters (live binary Modbus TCP, binary MQTT 3.1.1, and DNS-pinned HTTPS ServiceNow/SAP OData/Jira/Linear/Slack runtimes plus demo simulation), `3` DNS-pinned HTTPS bridges (`lutic-cloud`, `lutic-bridge`, `lutic-api`), `1` generic HTTP webhook, `2,098` catalog bridge templates ([connector-catalog.generated.json](packages/core/src/connector-catalog.generated.json)), durable step-checkpointed workflows with retries + `lutic-worker` background daemon, and sanitized **Lutic Security Scanner** & **Lutic AI Gateway** routing
 
 ---
 
@@ -27,7 +27,8 @@ flowchart LR
   Agent --> Gateway["Lutic AI Gateway (Internal Model Aliases / Direct Providers)"]
   Agent --> LocalMCP["packages/connectors - 5 Built-in Native Hubs"]
   Agent --> Catalog["packages/core - 2,118 White-Labeled Connectors & HTTPS Bridges"]
-  LocalMCP --> DB["PostgreSQL 16 + pgvector - 50 Tables, 3 Migrations, lutic_app RLS"]
+  LocalMCP --> DB["PostgreSQL 16 + pgvector - 51 Tables, 4 Migrations, lutic_app RLS"]
+  Worker["deploy/worker.ts - Advisory-Locked Runtime & Workflow Worker"] --> DB
   Web --> DB
 ```
 
@@ -42,7 +43,7 @@ sequenceDiagram
   participant Agent as Orchestrator & 6-Step Policy
   participant GW as Lutic AI Gateway
   participant Hub as Connectors & Bridges (2,118 Catalog)
-  participant DB as PostgreSQL 16 - lutic_app RLS (50 Tables)
+  participant DB as PostgreSQL 16 - lutic_app RLS (51 Tables)
 
   User->>AuthUI: Sign in / Sign up via Clerk Free Tier or Local Credentials
   AuthUI->>Web: Request with Bearer token, lutic_session, or Clerk session
@@ -69,9 +70,10 @@ flowchart TD
   Client["Client Browser / Gateway Agent"] -->|"HTTPS / TLS"| Proxy["Host Reverse Proxy (Caddy / Nginx)"]
   Proxy -->|"127.0.0.1:3000"| App["lutic-paas (Next.js Standalone on Bun 1.4.2)"]
   App -.->|"Optional Clerk Auth (clerk.lutic.app / accounts.lutic.app)"| Clerk["Clerk Free Tier (Email, Google, Microsoft)"]
-  App -->|"SQL + pgvector + RLS (50 Tables)"| PG["postgres (pgvector/pg16 on lutic_pgdata)"]
+  App -->|"SQL + pgvector + RLS (51 Tables)"| PG["postgres (pgvector/pg16 on lutic_pgdata)"]
+  Worker["lutic-worker (deploy/worker.ts, LUTIC_RUNTIME_DISABLED=false)"] -->|"Advisory Lock + Heartbeat"| PG
   App -->|"zINSTREAM Scan -> Lutic Security Scanner"| Scanner["clamd (private network :3310)"]
-  App -->|"LUTIC_AI_GATEWAY_URL (:4000)"| Gateway["Lutic AI Gateway Proxy (litellm service)"]
+  App -->|"LUTIC_AI_GATEWAY_URL (:4000)"| Gateway["Lutic AI Gateway Proxy (litellm v1.63.11)"]
   Gateway -->|"Aliases: lutic-claude, lutic-gpt4o, lutic-mini"| Upstream["Upstream Model Providers"]
   Ops["deploy/lutic.sh (prepare, bootstrap, up, status, down)"] -.->|"Mode 0600 .env.production & keys"| App
   Backup["deploy/backup-restore.sh (AES-256-CBC dump & restore-verify)"] -.->|"Isolated PG drill"| PG
@@ -148,26 +150,26 @@ Production refuses `db:seed` and demo sign-in. Provision PostgreSQL 16 + `pgvect
 
 - **Auth & Provisioning**: [auth.ts](apps/web/src/lib/auth.ts) checks explicit `Authorization: Bearer ...` and `lutic_session` tokens first, falling back to `getClerkServerSessionUser()` ([clerk.ts](apps/web/src/lib/clerk.ts)) when Clerk keys are configured. New verified Clerk sign-ups receive a personal Free workspace (`tenants.plan = 'free'`, starter `Primary Plant`, and `3` starter `/board` items) when Free/Individual is active, or see **Access Pending** if `LUTIC_DEPLOYMENT_PLAN=enterprise` / an active Enterprise license is present without an invited user row.
 - **White-Labeled Security Scanner & AI Gateway**: All user-facing diagnostics report **Lutic Security Scanner** ([scan.ts](packages/agent/src/rag/scan.ts)) and **Lutic AI Gateway** without exposing internal vendor names (`ClamAV`, `LiteLLM`, `Metorial`, `OpenConnectors`, `UTCP`, `PGlite`).
-- **`2,118` Connectors & Bridges**: Combines `5` native hubs, `3` HTTPS cloud/API bridges (`lutic-cloud`, `lutic-bridge`, `lutic-api` — also accepting legacy `metorial`, `open-connector`, `utcp-http` aliases in `POST /api/connectors`), `11` SAP/AWS/ServiceNow/MQTT/OPC-UA/Modbus catalog templates, and `2,098` deduplicated white-labeled catalog connectors (`2,118` total). All external `remote_mcp` / `utcp_http` calls enforce HTTPS, post-DNS private/loopback/metadata IP blocking, disabled redirects, 1 MiB response caps, 15s timeouts, and **same-origin credential scoping** ([external-connectors.ts](packages/core/src/external-connectors.ts)).
-- **Operations & Execution Board (`/board`)**: Multi-tenant Kanban & List board backed by `board_issues` (`50` tables under `lutic_app` RLS) via [api/board/route.ts](apps/web/src/app/api/board/route.ts) and [api/board/[id]/route.ts](apps/web/src/app/api/board/[id]/route.ts) with sequential `LUT-XXX` keys, drag-and-drop status changes, priority/workstream filtering, and plant-scoped RBAC (`workorder:read` / `workorder:write`).
-- **Production Boundaries & Disabled Paths**:
+- **`2,118` Connectors & Bridges**: Combines `5` native hubs (`Native`), `3` HTTPS cloud/API bridges (`HTTPS Bridge`: `lutic-cloud`, `lutic-bridge`, `lutic-api`), `11` industrial/enterprise adapters (`Live Protocol`: binary Modbus TCP & MQTT 3.1.1 wire clients plus DNS-pinned HTTPS ServiceNow/SAP OData/Jira/Linear/Slack REST runtimes, with full demo simulation under demo mode), `1` generic HTTP webhook, and `2,098` catalog bridge templates ([external-connectors.ts](packages/core/src/external-connectors.ts), [live-adapters.ts](packages/core/src/live-adapters.ts)). All outbound HTTP(S) connector requests enforce single-lookup pinned-IP transport (`safePinnedHttpRequest`), SNI, disabled 3xx redirects, 1 MiB response caps, 15s timeouts, and same-origin credential scoping.
+- **Operations & Execution Board (`/board`)**: Multi-tenant Kanban & List board backed by `board_issues` (`51` total schema tables; tenant tables scoped under `lutic_app` RLS) via [api/board/route.ts](apps/web/src/app/api/board/route.ts) and [api/board/[id]/route.ts](apps/web/src/app/api/board/[id]/route.ts) with sequential `LUT-XXX` keys, drag-and-drop status changes, priority/workstream filtering, and plant-scoped RBAC (`workorder:read` / `workorder:write`).
+- **Production Boundaries & Durable Runtime**:
   - **Lutic Code Mode (`isCodeModeEnabled()`)**: Restricted strictly to `NODE_ENV=development` and `test`; disabled fail-closed in production (`HTTP 501`).
-  - **Simulated Catalog Templates & HTTP 501 Stubs**: The `2,098` generated + `11` SAP/AWS/ServiceNow/OT templates execute demo simulation tools out of the box and store configuration in non-demo production (returning `HTTP 501` unless bridged via live HTTPS `lutic-cloud` / `lutic-api` endpoints). Raw `http`/`webhook` stubs and webhook pub/sub delivery also return `HTTP 501` in production.
-  - **Embeddings & PDFs**: Embeddings are deterministic 64-dimensional local vectors; PDF manuals must contain extractable text (OCR is not built in).
+  - **Simulated Catalog Templates & HTTP 501 Stubs**: Catalog bridge templates and simulated demo connectors execute synthetic simulations under demo mode; in non-demo production, only native hubs, live wire/REST adapters (`modbus://`, `mqtt(s)://`, live HTTPS ServiceNow/SAP/Jira/Linear/Slack), and `remote_mcp`/`utcp_http` HTTPS bridges invoke external systems (generic HTTP/webhook stubs return `HTTP 501`).
+  - **Embeddings, Workflows & Dedicated Worker**: `getDefaultEmbeddingProvider()` supports deterministic 64-dim local embeddings alongside 1536-dim `lutic-embed` / OpenAI semantic embeddings (`dense_embedding` HNSW index) with 4-way RRF and `HybridLexicalSemanticReranker`. Workflows persist per-step checkpoints and retry attempts (`resumeWorkflowRun`, fail-closed production AI executor), executed by `lutic-worker` ([worker.ts](deploy/worker.ts)) while `lutic-paas` runs with `LUTIC_RUNTIME_DISABLED=true`. PDF manuals must contain extractable text (OCR is not built in).
 
 ---
 
 ## Scripts & Verification
 
 ```bash
-bun run db:migrate   # Apply versioned schema migrations (v1..v3) under advisory lock
+bun run db:migrate   # Apply versioned schema migrations (v1..v4) under advisory lock
 bun run db:bootstrap # Idempotent clean production tenant/plant/admin setup
-bun run db:seed      # Dev-only synthetic plant, connector & board seed (rejected in production)
+bun run db:seed      # Dev-only synthetic plant, 1536-dim RAG, worker & board seed (rejected in production)
 bun run sim          # Dev-only telemetry & alarm simulator
 bun run typecheck    # Strict TypeScript check across all 4 packages
 bun run lint         # ESLint (@lutic/web) + tsc --noEmit (core/connectors/agent)
-bun run test         # Vitest suite (20 test files, 132 total tests)
+bun run test         # Vitest suite (21 test files, 138 total tests)
 bun run build        # Production Next.js build + workspace TypeScript checks
 ```
 
-Locally on `prod`, `typecheck`, `lint`, `build`, `bun audit --audit-level=high` (`0` vulnerabilities across `768` packages), `125` Vitest tests across `19` runnable files (`tests/postgres-integration.test.ts` skips `7` tests locally when `POSTGRES_TEST_URL` is unset), and a live browser check (`landing`, `/login`, `/board`, `/connectors`) all passed. GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all `132` tests (including native `pgvector/pg16`), dependency audit, and Docker `container-smoke` (verifying `"currentVersion":3`); live HTTPS TLS termination, live Clerk OAuth/custom domain `lutic.app` CNAMEs, live scanner uploads, live AI Gateway upstream calls, and off-host backup restores remain pending target private-staging verification.
+Locally on `feat/v2-engineering-upgrades` (merged to `prod`), `typecheck`, `lint`, `build`, `bun audit --audit-level=high` (`0` vulnerabilities across `768` packages), and `131` Vitest tests across `20` runnable files (`tests/postgres-integration.test.ts` skips `7` tests locally when `POSTGRES_TEST_URL` is unset) all passed. GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all `138` tests (including native `pgvector/pg16`), dependency audit, and Docker `container-smoke` (verifying `"currentVersion":4`); live HTTPS TLS termination, live Clerk OAuth/custom domain `lutic.app` CNAMEs, live scanner uploads, live AI Gateway upstream calls, and off-host backup restores remain pending target private-staging verification.

@@ -30,7 +30,7 @@ services:
       retries: 5
 
   litellm:
-    image: ghcr.io/berriai/litellm:main-stable
+    image: ghcr.io/berriai/litellm:main-v1.63.11
     restart: unless-stopped
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
@@ -86,6 +86,7 @@ services:
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
       NEXT_PUBLIC_CLERK_OAUTH_PROVIDERS: ${NEXT_PUBLIC_CLERK_OAUTH_PROVIDERS:-google,microsoft}
       LUTIC_DEPLOYMENT_PLAN: ${LUTIC_DEPLOYMENT_PLAN:-free}
+      LUTIC_RUNTIME_DISABLED: ${LUTIC_RUNTIME_DISABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,6 +98,29 @@ services:
       timeout: 5s
       start_period: 25s
       retries: 5
+
+  lutic-worker:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    command: ["bun", "deploy/worker.ts"]
+    environment:
+      DATABASE_URL:
+      AUTH_SECRET:
+      CREDENTIAL_ENCRYPTION_KEY:
+      LUTIC_RUNTIME_DISABLED: "false"
+      RUNTIME_TICK_INTERVAL_MS: ${RUNTIME_TICK_INTERVAL_MS:-15000}
+      LLM_PROVIDER: ${LLM_PROVIDER:-lutic}
+      LLM_MODEL: ${LLM_MODEL:-lutic-claude}
+      LUTIC_AI_GATEWAY_URL: ${LUTIC_AI_GATEWAY_URL:-http://litellm:4000/v1}
+      LUTIC_AI_GATEWAY_KEY: ${LUTIC_AI_GATEWAY_KEY:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      ANTHROPIC_API_KEY:
+      OPENAI_API_KEY:
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   lutic_pgdata:

@@ -15,7 +15,8 @@ describe("Upload scanning", () => {
 
   it("does not silently substitute local embeddings for a configured external provider", () => {
     vi.stubEnv("EMBEDDING_PROVIDER", "openai");
-    expect(() => getEmbeddingProvider()).toThrow("Only local deterministic embeddings");
+    vi.stubEnv("OPENAI_API_KEY", "");
+    expect(() => getEmbeddingProvider()).toThrow(/missing credentials|Unsupported EMBEDDING_PROVIDER/i);
   });
   it("extracts bounded DOCX text", async () => {
     const zip = new JSZip();

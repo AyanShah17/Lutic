@@ -10,6 +10,7 @@ import {
   connectorSyncLogs,
   eq,
   getLocalConnectorKind,
+  hasLiveAdapterSupport,
   invokeExternalConnectorTool,
   isCodeModeEnabled,
   isDemoMode,
@@ -209,7 +210,10 @@ export async function POST(
         return problemResponse(400, "Validation Error", "toolName is required.");
       }
 
-      const isRemoteBridge = conn.transport === "remote_mcp" || conn.transport === "utcp_http";
+      const isRemoteBridge =
+        conn.transport === "remote_mcp" ||
+        conn.transport === "utcp_http" ||
+        hasLiveAdapterSupport(conn);
       const mcpDef = isRemoteBridge ? undefined : defaultMcpRegistry.getToolDefinition(toolName);
       let result: Record<string, unknown>;
       if (isRemoteBridge) {

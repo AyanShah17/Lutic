@@ -3,6 +3,7 @@ import {
   and,
   assets,
   authorize,
+  desc,
   eq,
   getAppliedMigrations,
   getConfiguredRetentionDays,
@@ -11,7 +12,8 @@ import {
   inArray,
   machineStatus,
   queueMessages,
-  sql
+  sql,
+  workerHeartbeats
 } from "@lutic/core";
 import { checkScannerHealth } from "@lutic/agent";
 import { getWebAdministrativeDb, getWebDbConnection, requireWebLicense, withWebTenantDb } from "@/lib/db";
@@ -34,14 +36,31 @@ export async function GET(req: Request) {
     const dbLatencyMs = Date.now() - dbStart;
 
     const conn = await getWebDbConnection();
-    const [poolStats, license, scanner, migrations] = await Promise.all([
+    const [poolStats, license, scanner, migrations, latestWorkerRows] = await Promise.all([
       Promise.resolve(conn.getPoolStats?.() ?? null),
       getLicenseStatus(adminDb),
       checkScannerHealth(),
-      getAppliedMigrations(conn).catch(() => [])
+      getAppliedMigrations(conn).catch(() => []),
+      adminDb.select().from(workerHeartbeats).orderBy(desc(workerHeartbeats.lastTickAt)).limit(1).catch(() => [])
     ]);
 
-    const runtime = getRuntimeHealthSnapshot();
+    const localRuntime = getRuntimeHealthSnapshot();
+    const workerRow = latestWorkerRows[0];
+    const workerFresh = Boolean(workerRow && Date.now() - workerRow.lastTickAt.getTime() < 90_000);
+    const runtime =
+      !localRuntime.autoEnabled && workerRow
+        ? {
+            ...localRuntime,
+            autoEnabled: workerFresh,
+            workerId: workerRow.workerId,
+            startedAt: workerRow.startedAt.toISOString(),
+            lastTickAt: workerRow.lastTickAt.toISOString(),
+            lastTickDurationMs: workerRow.lastTickDurationMs,
+            tickCount: workerRow.tickCount,
+            lastError: workerRow.lastError,
+            lastTickSummary: (workerRow.summary ?? null) as typeof localRuntime.lastTickSummary
+          }
+        : localRuntime;
     const retentionDays = getConfiguredRetentionDays();
     const nowMs = Date.now();
 

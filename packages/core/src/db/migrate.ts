@@ -781,10 +781,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS board_issues_tenant_identifier_idx ON board_is
 CREATE INDEX IF NOT EXISTS board_issues_tenant_status_idx ON board_issues(tenant_id, status);
 `;
 
+const MIGRATION_0004_SQL = `
+ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS dense_embedding vector(1536);
+ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS embedding_model TEXT NOT NULL DEFAULT 'local-deterministic-64';
+DO $$
+BEGIN
+  CREATE INDEX IF NOT EXISTS document_chunks_dense_hnsw_idx
+    ON document_chunks USING hnsw (dense_embedding vector_cosine_ops)
+    WHERE dense_embedding IS NOT NULL;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS worker_heartbeats (
+  worker_id TEXT PRIMARY KEY,
+  hostname TEXT NOT NULL DEFAULT '',
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_tick_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_tick_duration_ms INTEGER NOT NULL DEFAULT 0,
+  tick_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  summary JSONB DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+`;
+
 export const MIGRATIONS: ReadonlyArray<MigrationDefinition> = [
   { version: 1, name: "0001_baseline_schema", sql: SCHEMA_SQL },
   { version: 2, name: "0002_account_lifecycle_and_ingestion_tokens", sql: MIGRATION_0002_SQL },
-  { version: 3, name: "0003_clerk_identity_and_board_issues", sql: MIGRATION_0003_SQL }
+  { version: 3, name: "0003_clerk_identity_and_board_issues", sql: MIGRATION_0003_SQL },
+  { version: 4, name: "0004_dense_embeddings_and_worker_heartbeats", sql: MIGRATION_0004_SQL }
 ];
 
 function migrationChecksum(sqlText: string): string {
@@ -810,6 +836,7 @@ GRANT lutic_app TO CURRENT_USER;
 GRANT USAGE ON SCHEMA public TO lutic_app;
 REVOKE ALL ON license_state FROM lutic_app;
 REVOKE ALL ON schema_migrations FROM lutic_app;
+REVOKE ALL ON worker_heartbeats FROM lutic_app;
 REVOKE INSERT, UPDATE, DELETE ON tenants FROM lutic_app;
 GRANT SELECT ON tenants TO lutic_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ${TENANT_RLS_TABLES.filter((table) => table !== "tenants").join(", ")}, rate_limits TO lutic_app;

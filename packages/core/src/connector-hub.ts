@@ -17,6 +17,11 @@ import {
   discoverUtcpTools,
   type ExternalConnectorTool
 } from "./external-connectors";
+import {
+  hasLiveAdapterSupport,
+  invokeLiveAdapterTool,
+  testLiveAdapter
+} from "./live-adapters";
 import { getRuntimeHooks, isDemoMode } from "./runtime";
 
 type TriggerWorkflowExecutor = (db: LuticDatabase, runId: string) => Promise<void>;
@@ -442,9 +447,11 @@ export async function testConnectorConnection(
 
   const demo = isDemoMode();
   const isExternalBridge = isExternalBridgeTransport(conn.transport);
-  let supported = demo;
+  const isLiveAdapter = hasLiveAdapterSupport(conn);
+  let supported = demo || isLiveAdapter;
   let discoveredCount = 0;
   let bridgeError: string | null = null;
+  let liveMessage: string | null = null;
 
   if (isExternalBridge) {
     supported = true;
@@ -455,6 +462,17 @@ export async function testConnectorConnection(
             ? await discoverRemoteMcpTools(conn.endpointUrl, creds)
             : await discoverUtcpTools(conn.endpointUrl, creds);
         discoveredCount = externalTools.length;
+      } catch (err) {
+        bridgeError = err instanceof Error ? err.message : String(err);
+      }
+    }
+  } else if (isLiveAdapter) {
+    supported = true;
+    if (credsValid) {
+      try {
+        const probe = await testLiveAdapter(conn, creds);
+        if (!probe.healthy) bridgeError = probe.message;
+        else liveMessage = probe.message;
       } catch (err) {
         bridgeError = err instanceof Error ? err.message : String(err);
       }
@@ -476,9 +494,11 @@ export async function testConnectorConnection(
         ? bridgeError
         : isExternalBridge
           ? `${conn.transport === "remote_mcp" ? "Lutic Cloud" : "Lutic Direct API"} endpoint responded (${discoveredCount} tool(s))`
-          : demo
-            ? `Demo health check passed for ${conn.name}`
-            : `Lutic native adapter for ${conn.name} responded to tool discovery`;
+          : liveMessage
+            ? liveMessage
+            : demo
+              ? `Demo health check passed for ${conn.name}`
+              : `Lutic native adapter for ${conn.name} responded to tool discovery`;
 
   await db
     .update(connectorConnections)
@@ -545,7 +565,8 @@ export async function syncConnectorConnection(
 
   const demo = isDemoMode();
   const isExternalBridge = isExternalBridgeTransport(conn.transport);
-  let supported = demo;
+  const isLiveAdapter = hasLiveAdapterSupport(conn);
+  let supported = demo || isLiveAdapter;
   let discoveredTools: Array<Record<string, unknown> & { name: string; description?: string }> = [];
   let syncError: string | null = null;
 
@@ -564,11 +585,14 @@ export async function syncConnectorConnection(
     } catch (err) {
       syncError = err instanceof Error ? err.message : String(err);
     }
-  } else if (demo) {
+  } else if (isLiveAdapter || demo) {
+    const baseEntry =
+      catalogEntry ??
+      CONNECTOR_CATALOG.find((c) => conn.slug === c.slug || conn.slug.startsWith(`${c.slug}-`));
     discoveredTools =
       conn.discoveredTools && conn.discoveredTools.length > 0
         ? (conn.discoveredTools as Array<{ name: string; description?: string }>)
-        : (catalogEntry?.defaultTools ?? [{ name: "ping", description: "Probe connector" }]);
+        : (baseEntry?.defaultTools ?? [{ name: "ping", description: "Probe connector" }]);
   } else {
     const localTools = await discoverConfiguredLocalTools(conn, discoverLocalTools);
     supported = localTools.length > 0;
@@ -632,6 +656,9 @@ export async function invokeExternalConnectorTool(
   args: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   const creds = readConnectorCredentials(conn);
+  if (hasLiveAdapterSupport(conn)) {
+    return invokeLiveAdapterTool(conn, toolName, args, creds);
+  }
   if (conn.transport === "remote_mcp") {
     return callRemoteMcpTool(conn.endpointUrl, toolName, args, creds);
   }
