@@ -47,8 +47,8 @@ export interface CanvasMachineTelemetry {
   activeAlarms: Array<{ code: string; severity: string }>;
 }
 
-const NODE_W = 204;
-const NODE_H = 88;
+const NODE_W = 168;
+const NODE_H = 80;
 
 export function MachineTopologyCanvas({
   topology,
@@ -69,6 +69,7 @@ export function MachineTopologyCanvas({
     Record<string, { x: number; y: number }>
   >({});
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const dragOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const dragMovedRef = useRef(false);
 
@@ -122,15 +123,20 @@ export function MachineTopologyCanvas({
       return next;
     });
     if (!selectedZoneId && topology.zones.length > 0) {
-      const faultedNode = topology.nodes.find((n) => n.status === "fault");
+      const spotlightNode =
+        topology.nodes.find((n) => n.id === "mach-l3-filler-01") ??
+        topology.nodes.find((n) => n.status === "fault") ??
+        topology.nodes[0];
       const defaultZone =
-        (faultedNode?.lineId
-          ? topology.zones.find((z) => z.lineId === faultedNode.lineId)
+        (spotlightNode?.lineId
+          ? topology.zones.find((z) => z.lineId === spotlightNode.lineId)
           : undefined) ?? topology.zones[0]!;
       setSelectedZoneId(defaultZone.id);
     }
     if (!selectedNodeId && !selectedEdgeId && topology.nodes.length > 0) {
-      const faulted = topology.nodes.find((n) => n.status === "fault");
+      const faulted =
+        topology.nodes.find((n) => n.id === "mach-l3-filler-01") ??
+        topology.nodes.find((n) => n.status === "fault");
       setSelectedNodeId((faulted ?? topology.nodes[0]!).id);
     }
   }, [topology.nodes, topology.zones, selectedZoneId, selectedNodeId, selectedEdgeId]);
@@ -220,8 +226,8 @@ export function MachineTopologyCanvas({
   const canvasDimensions = useMemo(() => {
     if (focusedZone) {
       return {
-        width: Math.max(820, focusedZone.width + 48),
-        height: Math.max(460, focusedZone.height + 40)
+        width: Math.max(700, focusedZone.width + 32),
+        height: Math.max(420, focusedZone.height + 40)
       };
     }
     return {
@@ -229,6 +235,18 @@ export function MachineTopologyCanvas({
       height: topology.canvasHeight
     };
   }, [focusedZone, topology.canvasWidth, topology.canvasHeight]);
+
+  const computeFitZoom = (targetWidth: number, isAllLines: boolean) => {
+    if (isAllLines) return 0.85;
+    const avail = viewportRef.current?.clientWidth || 830;
+    const fitted = Math.floor(((avail - 20) / targetWidth) * 100) / 100;
+    return Math.min(1, Math.max(0.72, fitted));
+  };
+
+  useEffect(() => {
+    setZoom(computeFitZoom(canvasDimensions.width, effectiveZoneId === "all"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveZoneId, canvasDimensions.width]);
 
   const selectedNode: TopologyNode | null = useMemo(
     () => topology.nodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -270,7 +288,7 @@ export function MachineTopologyCanvas({
     const next: Record<string, { x: number; y: number }> = {};
     for (const n of topology.nodes) next[n.id] = n.position;
     setNodePositions(next);
-    setZoom(1);
+    setZoom(computeFitZoom(canvasDimensions.width, effectiveZoneId === "all"));
   };
 
   const openDocumentCitation = async (ref: TopologyDocumentRef) => {
@@ -462,7 +480,7 @@ export function MachineTopologyCanvas({
               className="h-7 px-2.5 text-[11px]"
             >
               <Tag className="h-3 w-3" />
-              <span>{showAllLabels ? "All Labels" : "Focus Labels"}</span>
+              <span>{showAllLabels ? "Hide Labels" : "Show Labels"}</span>
             </Button>
             <div className="inline-flex items-center rounded-md border border-border/80 bg-background">
               <button
@@ -633,10 +651,11 @@ export function MachineTopologyCanvas({
       )}
 
       {/* Split Layout: Interactive Topology Canvas + Grounded Inspector */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_316px]">
         {/* Interactive Canvas */}
         <div
-          className="relative h-[580px] w-full overflow-auto rounded-xl border border-border/80 bg-background lutic-grid-bg"
+          ref={viewportRef}
+          className="relative h-[560px] w-full overflow-auto rounded-xl border border-border/80 bg-background lutic-grid-bg"
           onMouseMove={(e) => {
             if (!draggingId) return;
             dragMovedRef.current = true;
@@ -736,6 +755,7 @@ export function MachineTopologyCanvas({
                   const tPos = { x: rawT.x - zoneOffset.dx, y: rawT.y - zoneOffset.dy };
 
                   const sameCol = Math.abs(tPos.x - sPos.x) < 40;
+                  const skipCol = Math.abs(tPos.x - sPos.x) > NODE_W + 110;
                   const reverse = !sameCol && tPos.x < sPos.x;
                   const fanY = ((idx % 3) - 1) * 10;
 
@@ -745,21 +765,36 @@ export function MachineTopologyCanvas({
                     const sy = sPos.y + NODE_H / 2 + fanY;
                     const tx = tPos.x + NODE_W;
                     const ty = tPos.y + NODE_H / 2 - fanY;
-                    const arcX = sx + 48 + (idx % 3) * 12;
+                    const arcX = sx + 38 + (idx % 3) * 10;
                     d = `M ${sx} ${sy} C ${arcX} ${sy}, ${arcX} ${ty}, ${tx} ${ty}`;
+                  } else if (skipCol) {
+                    const srcLine = nodeMap.get(edge.sourceId)?.lineId;
+                    const tgtLine = nodeMap.get(edge.targetId)?.lineId;
+                    const sameZone = srcLine && srcLine === tgtLine;
+                    const parentZone = visibleZones.find((z) => z.lineId === (srcLine ?? ""));
+                    const sx = sPos.x + NODE_W * 0.65;
+                    const sy = sPos.y;
+                    const tx = tPos.x + NODE_W * 0.35;
+                    const ty = tPos.y;
+                    const busY =
+                      (sameZone && parentZone ? parentZone.y + 48 : Math.min(sPos.y, tPos.y) - 24) +
+                      (idx % 3) * 9;
+                    const r = 8;
+                    const dir = tx >= sx ? 1 : -1;
+                    d = `M ${sx} ${sy} L ${sx} ${busY + r} Q ${sx} ${busY} ${sx + dir * r} ${busY} L ${tx - dir * r} ${busY} Q ${tx} ${busY} ${tx} ${busY + r} L ${tx} ${ty}`;
                   } else if (reverse) {
                     const sx = sPos.x;
                     const sy = sPos.y + NODE_H / 2 + fanY;
                     const tx = tPos.x + NODE_W;
                     const ty = tPos.y + NODE_H / 2 - fanY;
-                    const ctrl = Math.max(54, Math.abs(sx - tx) * 0.42);
-                    d = `M ${sx} ${sy} C ${sx - ctrl} ${sy + 28}, ${tx + ctrl} ${ty + 28}, ${tx} ${ty}`;
+                    const ctrl = Math.max(40, Math.abs(sx - tx) * 0.45);
+                    d = `M ${sx} ${sy} C ${sx - ctrl} ${sy + 26}, ${tx + ctrl} ${ty + 26}, ${tx} ${ty}`;
                   } else {
                     const sx = sPos.x + NODE_W;
                     const sy = sPos.y + NODE_H / 2 + fanY;
                     const tx = tPos.x;
                     const ty = tPos.y + NODE_H / 2;
-                    const ctrl = Math.max(56, (tx - sx) * 0.48);
+                    const ctrl = Math.max(36, (tx - sx) * 0.48);
                     d = `M ${sx} ${sy} C ${sx + ctrl} ${sy}, ${tx - ctrl} ${ty}, ${tx} ${ty}`;
                   }
 
@@ -804,35 +839,40 @@ export function MachineTopologyCanvas({
                 })}
               </svg>
 
-              {/* Channel-Centered Midpoint Connection Labels (Shown on Focus/Hover or "All Labels") */}
+              {/* Clean Connection Pills (Rendered on Hover/Edge-Click or when "Show Labels" is active) */}
               {visibleEdges.map((edge, idx) => {
                 const rawS = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
                 const rawT = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
                 if (!rawS || !rawT) return null;
 
                 const isSelected = selectedEdgeId === edge.id || hoveredEdgeId === edge.id;
-                const highlighted =
-                  isSelected ||
-                  selectedNodeId === edge.sourceId ||
-                  selectedNodeId === edge.targetId;
-
-                if (!showAllLabels && !highlighted) {
+                if (!showAllLabels && !isSelected) {
                   return null;
                 }
 
                 const sPos = { x: rawS.x - zoneOffset.dx, y: rawS.y - zoneOffset.dy };
                 const tPos = { x: rawT.x - zoneOffset.dx, y: rawT.y - zoneOffset.dy };
                 const sameCol = Math.abs(tPos.x - sPos.x) < 40;
+                const skipCol = Math.abs(tPos.x - sPos.x) > NODE_W + 110;
                 const reverse = !sameCol && tPos.x < sPos.x;
 
                 let mx: number;
                 let my: number;
                 if (sameCol) {
-                  mx = sPos.x + NODE_W + 46 + (idx % 3) * 10;
+                  mx = sPos.x + NODE_W + 40 + (idx % 3) * 10;
                   my = (sPos.y + tPos.y + NODE_H) / 2;
+                } else if (skipCol) {
+                  const srcLine = nodeMap.get(edge.sourceId)?.lineId;
+                  const tgtLine = nodeMap.get(edge.targetId)?.lineId;
+                  const sameZone = srcLine && srcLine === tgtLine;
+                  const parentZone = visibleZones.find((z) => z.lineId === (srcLine ?? ""));
+                  mx = (sPos.x + NODE_W * 0.65 + tPos.x + NODE_W * 0.35) / 2;
+                  my =
+                    (sameZone && parentZone ? parentZone.y + 48 : Math.min(sPos.y, tPos.y) - 24) +
+                    (idx % 3) * 9;
                 } else if (reverse) {
                   mx = (sPos.x + tPos.x + NODE_W) / 2;
-                  my = (sPos.y + tPos.y + NODE_H) / 2 + 18 + ((idx % 2) * 14);
+                  my = (sPos.y + tPos.y + NODE_H) / 2 + 22 + ((idx % 2) * 16);
                 } else {
                   const sx = sPos.x + NODE_W;
                   const tx = tPos.x;
@@ -858,7 +898,7 @@ export function MachineTopologyCanvas({
                     }}
                     className={cn(
                       "absolute rounded-full border bg-background/95 px-2 py-0.5 font-mono text-[9.5px] font-medium transition-transform duration-150 hover:scale-105 whitespace-nowrap",
-                      highlighted ? "z-30 ring-1 ring-ring text-foreground" : "z-20 text-foreground/85"
+                      isSelected ? "z-30 ring-1 ring-ring text-foreground" : "z-20 text-foreground/85"
                     )}
                     title={`${edge.categoryLabel}: ${edge.label}`}
                   >

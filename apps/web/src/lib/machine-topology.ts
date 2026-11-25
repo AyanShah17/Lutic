@@ -352,23 +352,28 @@ export function buildDocumentGroundedTopology(params: {
     byLine.set(key, list);
   }
 
-  const orderedLineKeys = Array.from(byLine.keys()).sort((a, b) => a.localeCompare(b));
+  const orderedLineKeys = Array.from(byLine.keys()).sort((a, b) => {
+    const aAus = a.includes("austin") ? 1 : 0;
+    const bAus = b.includes("austin") ? 1 : 0;
+    if (aAus !== bAus) return aAus - bAus;
+    return a.localeCompare(b);
+  });
   const zones: TopologyZone[] = [];
   const positions = new Map<string, { x: number; y: number }>();
 
-  const ZONE_MARGIN_X = 24;
-  const ZONE_PAD_X = 36;
-  const ZONE_HEADER_H = 52;
-  const ZONE_PAD_BOTTOM = 28;
-  const NODE_W = 204;
-  const NODE_H = 88;
-  const COL_GAP_X = 140;
-  const ROW_GAP_Y = 36;
-  const ZONE_GAP_Y = 44;
+  const ZONE_MARGIN_X = 16;
+  const ZONE_PAD_X = 22;
+  const ZONE_HEADER_H = 84;
+  const ZONE_PAD_BOTTOM = 36;
+  const NODE_W = 168;
+  const NODE_H = 80;
+  const COL_GAP_X = 76;
+  const ROW_GAP_Y = 28;
+  const ZONE_GAP_Y = 36;
   const MAX_ROWS_PER_COL = 3;
 
   let cursorY = 20;
-  let maxCanvasWidth = 960;
+  let maxCanvasWidth = 760;
 
   orderedLineKeys.forEach((lineKey, zoneIdx) => {
     const lineMachines = (byLine.get(lineKey) ?? []).slice().sort((a, b) => {
@@ -398,7 +403,7 @@ export function buildDocumentGroundedTopology(params: {
     const maxRows = Math.max(1, ...columns.map((c) => c.length));
     const colsUsed = Math.max(1, columns.length);
     const innerH = maxRows * NODE_H + (maxRows - 1) * ROW_GAP_Y;
-    const zoneW = Math.max(680, ZONE_PAD_X * 2 + colsUsed * NODE_W + Math.max(0, colsUsed - 1) * COL_GAP_X);
+    const zoneW = Math.max(640, ZONE_PAD_X * 2 + colsUsed * NODE_W + Math.max(0, colsUsed - 1) * COL_GAP_X);
     const zoneH = ZONE_HEADER_H + innerH + ZONE_PAD_BOTTOM;
 
     columns.forEach((colMachines, colIdx) => {
