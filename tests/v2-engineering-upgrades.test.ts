@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
+import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   connectorConnections,
@@ -179,6 +181,29 @@ describe("v2 Engineering Upgrades — Database, Security, Live Adapters, RAG, St
         endpointUrl: "https://acme.service-now.com/api/now"
       })
     ).toBe(true);
+
+    const [seededShowcaseMsg] = await conn.db
+      .select({ citations: messages.citations })
+      .from(messages)
+      .where(eq(messages.id, "msg-demo-f104-a1"));
+    const cite = (seededShowcaseMsg?.citations?.[0] ?? {}) as {
+      chunkId?: string;
+      documentId?: string;
+      title?: string;
+    };
+    expect(cite.chunkId).toBe("doc-loto-sop-chunk-0");
+    expect(cite.documentId).toBe("doc-loto-sop");
+    expect(cite.title).toContain("SOP-001");
+    const [realChunk] = await conn.db
+      .select({ id: documentChunks.id })
+      .from(documentChunks)
+      .where(eq(documentChunks.id, cite.chunkId!));
+    expect(realChunk?.id).toBe("doc-loto-sop-chunk-0");
+
+    const composeYaml = fs.readFileSync(path.resolve("docker-compose.yml"), "utf8");
+    const workerSection = composeYaml.slice(composeYaml.indexOf("lutic-worker:"));
+    expect(workerSection).toContain("CREDENTIAL_ENCRYPTION_PREVIOUS_KEYS:");
+    expect(workerSection).toContain("LICENSE_ENFORCE:");
   });
 
   it("blocks private/reserved SSRF IPs including IPv4-mapped IPv6 and rejects 3xx redirects + oversized responses in safePinnedHttpRequest", async () => {
@@ -457,17 +482,20 @@ describe("v2 Engineering Upgrades — Database, Security, Live Adapters, RAG, St
       answer: "Perform Lockout/Tagout on 480 VAC bus and torque spindle bolts to 45 Nm.",
       citations: [
         {
+          chunkId: "chunk-1",
           documentId: "doc-1",
-          docTitle: "SOP-001",
+          title: "SOP-001",
           revision: "Rev 2",
           status: "current",
           page: 1,
-          snippet: "Torque 45 Nm"
+          sectionPath: "1. Torque",
+          excerpt: "Torque 45 Nm"
         }
       ]
     });
     expect(groundedGate.safetyGate.status).toBe("caution");
     expect(groundedGate.safetyGate.unverifiedHold).toBe(false);
+    expect(groundedGate.safetyGate.citedCurrentSops[0]).toContain("SOP-001");
 
     const agentRes = await runAgentTurn({
       db: conn.db,

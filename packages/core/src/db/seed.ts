@@ -1915,6 +1915,33 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
     });
   }
 
+  const showcaseF104Citations = [
+    {
+      chunkId: "doc-loto-sop-chunk-0",
+      documentId: "doc-loto-sop",
+      title: "SOP-001: Lockout / Tagout (LOTO) & Zero-Energy Verification",
+      revision: "Rev 2.1",
+      status: "current",
+      page: 1,
+      sectionPath: "1. Mandatory 7-Step Energy Isolation Sequence",
+      excerpt:
+        "Isolate all energy sources: main 480 VAC electrical disconnect, pneumatic header ball valve, and hydraulic pump isolation valve."
+    }
+  ];
+  const showcaseE42Citations = [
+    {
+      chunkId: "doc-filler-v42-chunk-0",
+      documentId: "doc-filler-v42",
+      title: "Krones RF-400 Rotary Filler Maintenance Manual",
+      revision: "Rev 4.2",
+      status: "current",
+      page: 1,
+      sectionPath: "2. Fault Code Reference Table",
+      excerpt:
+        "E42 Servo Indexing Torque Overload: Perform LOTO (SOP-001), inspect starwheel clearance, replace coupling kit PRT-SV-402."
+    }
+  ];
+
   const existingShowcaseConv = await db
     .select({ id: schema.conversations.id })
     .from(schema.conversations)
@@ -1957,17 +1984,9 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
           { toolName: "search_manuals", args: { query: "F104 spindle thermal LOTO SOP-001" }, resultSummary: "Matched SOP-001 & VCN-530C manual", durationMs: 11 },
           { toolName: "find_part_for_fault", args: { faultCode: "F104" }, resultSummary: "Checked spindle coolant & bearing spares", durationMs: 5 }
         ],
-        citations: [
-          {
-            documentId: "doc-sop-loto-001",
-            docTitle: "SOP-001 Lockout/Tagout & Zero-Energy Verification",
-            revision: "Rev 4",
-            status: "current",
-            page: 1,
-            snippet: "Isolate 480 VAC main disconnect and verify zero energy before manifold inspection."
-          }
-        ],
-        safetyWarning: "Safety Verifier (CAUTION): Lockout/Tagout & Electrical Isolation (SOP-001) — cited: SOP-001 Lockout/Tagout & Zero-Energy Verification",
+        citations: showcaseF104Citations,
+        safetyWarning:
+          "Safety Notice: Lockout/Tagout & Electrical Isolation (SOP-001). Grounded in SOP-001: Lockout / Tagout (LOTO) & Zero-Energy Verification (Rev 2.1, p.1) — verify zero-energy and PPE before opening machine guards.",
         createdAt: new Date(hbNow.getTime() - 17 * 60 * 1000)
       },
       {
@@ -1989,16 +2008,7 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
           { toolName: "get_active_alarms", args: { machineId: "mach-l3-filler-01" }, resultSummary: "Active fault E42", durationMs: 5 },
           { toolName: "find_part_for_fault", args: { faultCode: "E42" }, resultSummary: "PRT-SV-402 qty=3 available", durationMs: 7 }
         ],
-        citations: [
-          {
-            documentId: "doc-filler-rf400",
-            docTitle: "Krones RF-400 Rotary Filler Fault & Torque Recovery Manual",
-            revision: "Rev 2",
-            status: "current",
-            page: 4,
-            snippet: "Fault E42 indicates starwheel overload or worn PRT-SV-402 valve assembly."
-          }
-        ],
+        citations: showcaseE42Citations,
         safetyWarning: null,
         createdAt: new Date(hbNow.getTime() - 11 * 60 * 1000)
       }
@@ -2030,6 +2040,15 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
         latencyMs: 690
       }
     ]);
+  } else {
+    await db
+      .update(schema.messages)
+      .set({ citations: showcaseF104Citations })
+      .where(eq(schema.messages.id, "msg-demo-f104-a1"));
+    await db
+      .update(schema.messages)
+      .set({ citations: showcaseE42Citations })
+      .where(eq(schema.messages.id, "msg-demo-e42-a1"));
   }
 }
 

@@ -469,14 +469,18 @@ export function ChatWorkspace({
         for (const ev of events) {
           if (!ev.startsWith("data: ")) continue;
           const json = JSON.parse(ev.slice(6)) as {
-            type: "delta" | "done";
+            type: "delta" | "done" | "error";
             text?: string;
+            detail?: string;
             payload?: Record<string, unknown>;
           };
           if (json.type === "delta" && json.text) {
             setStreamingText((prev) => prev + json.text);
           } else if (json.type === "done" && json.payload) {
             finalPayload = json.payload;
+          } else if (json.type === "error") {
+            setStreamingText("");
+            throw new Error(json.detail ?? "Chat stream failed.");
           }
         }
       }
