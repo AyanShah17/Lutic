@@ -2050,6 +2050,47 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
       .set({ citations: showcaseE42Citations })
       .where(eq(schema.messages.id, "msg-demo-e42-a1"));
   }
+
+  // Idempotent backfill for newly added seed manuals/topology drawings on existing DBs
+  const existingDocs = await db.select({ id: schema.documents.id }).from(schema.documents);
+  const existingDocIds = new Set(existingDocs.map((d) => d.id));
+  for (const doc of SEED_DOCUMENTS) {
+    if (existingDocIds.has(doc.id)) continue;
+    await db.insert(schema.documents).values({
+      id: doc.id,
+      tenantId: doc.tenantId,
+      title: doc.title,
+      type: doc.type,
+      machineTypes: doc.machineTypes,
+      revision: doc.revision,
+      status: doc.status,
+      effectiveDate: doc.effectiveDate,
+      source: doc.source,
+      ingestionStatus: "completed",
+      ingestionError: null,
+      rawContent: doc.rawContent
+    });
+
+    const drafts = chunkDocumentText(doc.rawContent);
+    if (drafts.length > 0) {
+      await db.insert(schema.documentChunks).values(
+        drafts.map((c) => ({
+          id: `${doc.id}-chunk-${c.chunkIndex}`,
+          tenantId: doc.tenantId,
+          documentId: doc.id,
+          chunkIndex: c.chunkIndex,
+          page: c.page,
+          sectionPath: c.sectionPath,
+          text: c.text,
+          embedding: computeDeterministicEmbedding(`${doc.title} ${c.sectionPath} ${c.text}`),
+          denseEmbedding: computeSyntheticDenseEmbedding1536(`${doc.title} ${c.sectionPath} ${c.text}`),
+          embeddingModel: "lutic-embed-synthetic-1536",
+          faultCodes: c.faultCodes,
+          partNumbers: c.partNumbers
+        }))
+      );
+    }
+  }
 }
 
 const isCli =

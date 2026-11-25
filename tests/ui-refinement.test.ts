@@ -52,9 +52,13 @@ vi.mock("next-themes", () => ({
   useTheme: () => ({ theme: "light", setTheme: () => {} })
 }));
 
-vi.mock("../apps/web/src/lib/auth", () => ({
-  getSessionUser: async () => mockedSessionUser
-}));
+vi.mock("../apps/web/src/lib/auth", async (original) => {
+  const actual = await original<typeof import("../apps/web/src/lib/auth")>();
+  return {
+    ...actual,
+    getSessionUser: async () => mockedSessionUser
+  };
+});
 
 vi.mock("../apps/web/src/components/providers", () => ({
   useAppContext: () => ({
@@ -136,7 +140,7 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
       "Messaging"
     ]);
     const engHrefs = engGroups.flatMap((g) => g.items.map((i) => i.href));
-    expect(engHrefs).toContain("/chat");
+    expect(engHrefs).not.toContain("/chat");
     expect(engHrefs).toContain("/machines");
     expect(engHrefs).toContain("/monitoring");
     expect(engHrefs).toContain("/dashboards");
@@ -352,8 +356,9 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     );
     expect(landingShellHtml).toContain("LandingBody");
     expect(landingShellHtml).not.toContain("Search workspace...");
+    expect(landingShellHtml).not.toContain("Open Lutic AI Assistant");
 
-    mockedPathname = "/chat";
+    mockedPathname = "/machines";
     mockedSessionUser = makeUser("engineer", ["plant-detroit"]);
     const engHtml = renderToStaticMarkup(
       React.createElement(AppShell, null, React.createElement("div", null, "Body"))
@@ -361,9 +366,11 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     expect(engHtml).toContain("Operations");
     expect(engHtml).toContain("Automation &amp; Data");
     expect(engHtml).toContain("Messaging");
+    expect(engHtml).not.toContain('href="/chat"');
     expect(engHtml).not.toContain('href="/admin"');
     expect(engHtml).not.toContain('href="/activate"');
     expect(engHtml).toContain("Search workspace...");
+    expect(engHtml).toContain('aria-label="Open Lutic AI Assistant"');
     expect(engHtml).toContain('aria-label="Change password"');
 
     mockedSessionUser = makeUser("admin", ["plant-detroit", "plant-austin"]);
@@ -1684,5 +1691,107 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
       mockedDemoEnabled = true;
       Object.assign(g, savedGlobals);
     }
+  });
+
+  it("extracts color-coded document-grounded machine connections and persists Floating AI Before/After changes", async () => {
+    const { SEED_DOCUMENTS } = await import("../packages/core/src/db/seed-manuals");
+    const { buildDocumentGroundedTopology, MACHINE_CATEGORIES, CONNECTION_CATEGORIES } = await import(
+      "../apps/web/src/lib/machine-topology"
+    );
+    const { GET: getMachines } = await import("../apps/web/src/app/api/machines/route");
+    const { POST: postAiChanges, GET: getAiChanges } = await import(
+      "../apps/web/src/app/api/ai/changes/route"
+    );
+
+    // 1. Topology graph extracts categorized nodes & labeled/colored drawing links
+    const dwg = SEED_DOCUMENTS.find((d) => d.id === "doc-det-topology-dwg");
+    expect(dwg).toBeDefined();
+    const graph = buildDocumentGroundedTopology({
+      machines: [
+        {
+          id: "mach-l3-comp-01",
+          name: "Line 3 Booster Compressor",
+          plantId: "plant-detroit",
+          lineId: "line-det-3",
+          machineType: "compressor",
+          manufacturer: "Atlas Copco",
+          model: "GA-90",
+          status: "offline"
+        },
+        {
+          id: "mach-l3-filler-01",
+          name: "Line 3 Rotary Filler #1",
+          plantId: "plant-detroit",
+          lineId: "line-det-3",
+          machineType: "filler",
+          manufacturer: "Krones",
+          model: "RF-400",
+          status: "fault"
+        }
+      ],
+      lines: [{ id: "line-det-3", name: "Detroit Line 3", plantId: "plant-detroit" }],
+      plants: [{ id: "plant-detroit", name: "Detroit", code: "DET-01" }],
+      documents: [dwg!],
+      chunks: []
+    });
+
+    expect(graph.nodes[0]!.categoryLabel).toBe(MACHINE_CATEGORIES.utility.label);
+    expect(graph.nodes[0]!.categoryColor).toBe(MACHINE_CATEGORIES.utility.color);
+    expect(graph.edges.some((e) => e.category === "pneumatic_utility")).toBe(true);
+    const airEdge = graph.edges.find((e) => e.category === "pneumatic_utility")!;
+    expect(airEdge.categoryLabel).toBe(CONNECTION_CATEGORIES.pneumatic_utility.label);
+    expect(airEdge.citations[0]?.source).toContain(".pdf");
+
+    // 2. Floating AI Changes API proposes Before/After diff and persists on Save
+    mockedSessionUser = makeUser("admin", ["plant-detroit", "plant-austin"]);
+    const propRes = await postAiChanges(
+      new Request("http://localhost:3000/api/ai/changes", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+        body: JSON.stringify({
+          mode: "propose",
+          scope: "screen",
+          pathname: "/machines",
+          prompt: "Connect mach-l3-comp-01 -> mach-l3-pack-01 pneumatic utility erector feed"
+        })
+      })
+    );
+    expect(propRes.status).toBe(200);
+    const propBody = (await propRes.json()) as {
+      proposal: {
+        canSave: boolean;
+        targetType: string;
+        diffRows: Array<{ field: string; before: string; after: string }>;
+      };
+    };
+    expect(propBody.proposal.canSave).toBe(true);
+    expect(propBody.proposal.targetType).toBe("machine_connection");
+    expect(propBody.proposal.diffRows.length).toBeGreaterThan(0);
+
+    const saveRes = await postAiChanges(
+      new Request("http://localhost:3000/api/ai/changes", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+        body: JSON.stringify({ mode: "save", proposal: propBody.proposal })
+      })
+    );
+    expect(saveRes.status).toBe(200);
+
+    // 3. Saved connection immediately surfaces in GET /api/machines topology & /api/ai/changes history
+    const machinesRes = await getMachines(new Request("http://localhost:3000/api/machines"));
+    expect(machinesRes.status).toBe(200);
+    const machinesBody = (await machinesRes.json()) as {
+      topology: { edges: Array<{ sourceId: string; targetId: string }> };
+    };
+    expect(
+      machinesBody.topology.edges.some(
+        (e) => e.sourceId === "mach-l3-comp-01" && e.targetId === "mach-l3-pack-01"
+      )
+    ).toBe(true);
+
+    const histRes = await getAiChanges(new Request("http://localhost:3000/api/ai/changes"));
+    expect(histRes.status).toBe(200);
+    const histBody = (await histRes.json()) as { changes: Array<{ targetType: string }> };
+    expect(histBody.changes.some((c) => c.targetType === "machine_connection")).toBe(true);
   });
 });

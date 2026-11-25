@@ -35,6 +35,7 @@ import { getNavGroupsForUser } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useAppContext } from "./providers";
 import { CommandSearch } from "./command-search";
+import { FloatingAiAssistant } from "./floating-ai-assistant";
 import { Badge } from "./ui/badge";
 import { Button, buttonVariants } from "./ui/button";
 import { Dialog } from "./ui/dialog";
@@ -656,6 +657,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
+      {!isAuthPage && <FloatingAiAssistant />}
       <CommandSearch open={searchOpen} onOpenChange={setSearchOpen} />
 
       <Dialog

@@ -89,7 +89,7 @@ export default function LoginPage() {
         return;
       }
       await refreshSession();
-      router.push("/chat");
+      router.push("/");
       router.refresh();
     } catch {
       setError("Unable to connect. Check your connection and try again.");
@@ -113,7 +113,7 @@ export default function LoginPage() {
         return;
       }
       await refreshSession();
-      router.push("/chat");
+      router.push("/");
       router.refresh();
     } catch {
       setError("Unable to connect. Check your connection and try again.");

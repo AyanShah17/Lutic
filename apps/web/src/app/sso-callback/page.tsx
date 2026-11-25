@@ -32,8 +32,8 @@ export default function SsoCallbackPage() {
         <CardContent>
           {clerkEnabled ? (
             <AuthenticateWithRedirectCallback
-              signInForceRedirectUrl="/chat"
-              signUpForceRedirectUrl="/chat"
+              signInForceRedirectUrl="/"
+              signUpForceRedirectUrl="/"
             />
           ) : null}
         </CardContent>

@@ -1,17 +1,32 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Cpu, QrCode, RefreshCw, Search } from "lucide-react";
+import { can } from "@lutic/core/rbac";
+import {
+  AlertTriangle,
+  Cpu,
+  LayoutGrid,
+  Network,
+  QrCode,
+  RefreshCw,
+  Search
+} from "lucide-react";
+import type { MachineTopologyGraph } from "@/lib/machine-topology";
 import { useAppContext } from "@/components/providers";
 import { MachineStatusBadge } from "@/components/machine-status-badge";
+import {
+  MachineTopologyCanvas,
+  type CanvasMachineTelemetry
+} from "@/components/machine-topology-canvas";
 import { AuthGate } from "@/components/ui/auth-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SpotlightNavbar } from "@/components/vengeance/spotlight-navbar";
 
 interface MachineItem {
@@ -25,6 +40,7 @@ interface MachineItem {
   status: string | null;
   temperature: number | null;
   vibration: number | null;
+  pressure?: number | null;
   updatedAt?: string | null;
   activeAlarms: Array<{ code: string; severity: string }>;
 }
@@ -41,6 +57,7 @@ export default function MachinesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [plantFilter, setPlantFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"canvas" | "grid">("canvas");
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["machines", user?.userId],
@@ -51,9 +68,18 @@ export default function MachinesPage() {
       return (await res.json()) as {
         machines: MachineItem[];
         plants: Array<{ id: string; name: string; timezone?: string }>;
+        topology?: MachineTopologyGraph;
       };
     }
   });
+
+  useEffect(() => {
+    const onAiSaved = () => {
+      void refetch();
+    };
+    window.addEventListener("lutic:ai-change-saved", onAiSaved);
+    return () => window.removeEventListener("lutic:ai-change-saved", onAiSaved);
+  }, [refetch]);
 
   const machines = useMemo(() => data?.machines ?? [], [data?.machines]);
 
@@ -90,6 +116,25 @@ export default function MachinesPage() {
       });
   }, [machines, statusFilter, plantFilter, search]);
 
+  const visibleMachineIds = useMemo(
+    () => new Set(filtered.map((m) => m.id)),
+    [filtered]
+  );
+
+  const machinesById = useMemo(() => {
+    const map = new Map<string, CanvasMachineTelemetry>();
+    for (const m of machines) {
+      map.set(m.id, {
+        id: m.id,
+        temperature: m.temperature,
+        vibration: m.vibration,
+        pressure: m.pressure,
+        activeAlarms: m.activeAlarms
+      });
+    }
+    return map;
+  }, [machines]);
+
   const groupedByPlant = useMemo(() => {
     const map = new Map<string, MachineItem[]>();
     for (const m of filtered) {
@@ -104,28 +149,50 @@ export default function MachinesPage() {
     return (
       <AuthGate
         title="Sign in to view machines"
-        description="Plant equipment telemetry and QR diagnostic workspaces are scoped by role and plant permissions."
+        description="Plant equipment telemetry, document-grounded machine connections, and QR diagnostic workspaces are scoped by role and plant permissions."
       />
     );
   }
 
+  const canUploadDrawing =
+    can(user, "admin:knowledge") ||
+    can(user, "docs:write") ||
+    can(user, "workorder:write");
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b border-border pb-4">
+    <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between border-b border-border pb-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Shop-Floor Assets
+          <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-primary">
+            TOPOLOGY &amp; FLEET // ISA-95
           </div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
             <Cpu className="h-5 w-5 text-primary" />
-            <span>Machine Fleet &amp; QR Diagnostics</span>
+            <span>Machine Fleet &amp; Topology Canvas</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Scoped to your authorized plants: {user.plantIds.join(", ")}. Faulted assets are surfaced first.
+            Scoped to your authorized plants: {user.plantIds.join(", ")}. Connections are grounded in uploaded engineering drawings, PDFs, and SOPs.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <TabsList>
+            <TabsTrigger
+              active={viewMode === "canvas"}
+              onClick={() => setViewMode("canvas")}
+            >
+              <Network className="h-3.5 w-3.5" />
+              <span>Topology Canvas</span>
+            </TabsTrigger>
+            <TabsTrigger
+              active={viewMode === "grid"}
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Fleet Grid</span>
+            </TabsTrigger>
+          </TabsList>
+
           <div className="relative">
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input
@@ -134,7 +201,7 @@ export default function MachinesPage() {
               aria-label="Search machines"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 w-56"
+              className="pl-8 w-52"
             />
           </div>
           <Select
@@ -200,102 +267,122 @@ export default function MachinesPage() {
         </Card>
       )}
 
-      <div className="space-y-6">
-        {groupedByPlant.map(([plantId, items]) => {
-          const plantMeta = data?.plants?.find((p) => p.id === plantId);
-          const plantName = plantMeta?.name ?? plantId;
-          const faults = items.filter((i) => i.status === "fault").length;
-          return (
-            <section key={plantId} className="space-y-2.5">
-              <div className="flex items-center justify-between border-b border-border/70 pb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {plantName}
-                  </span>
-                  <Badge variant="outline" className="font-mono text-[10px]">
-                    {plantId}
-                  </Badge>
-                  {plantMeta?.timezone && (
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      {plantMeta.timezone}
+      {!isLoading && !error && filtered.length > 0 && viewMode === "canvas" && data?.topology && (
+        <MachineTopologyCanvas
+          topology={data.topology}
+          machinesById={machinesById}
+          visibleMachineIds={visibleMachineIds}
+          canUploadDrawing={canUploadDrawing}
+          onTopologyUpdated={() => void refetch()}
+        />
+      )}
+
+      {!isLoading && !error && viewMode === "grid" && (
+        <div className="space-y-6">
+          {groupedByPlant.map(([plantId, items]) => {
+            const plantMeta = data?.plants?.find((p) => p.id === plantId);
+            const plantName = plantMeta?.name ?? plantId;
+            const faults = items.filter((i) => i.status === "fault").length;
+            return (
+              <section key={plantId} className="space-y-2.5">
+                <div className="flex items-center justify-between border-b border-border/70 pb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {plantName}
                     </span>
-                  )}
-                  {faults > 0 && (
-                    <Badge variant="destructive" className="text-[10px] tabular-nums">
-                      {faults} fault{faults === 1 ? "" : "s"}
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {plantId}
                     </Badge>
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {items.length} asset{items.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((m) => {
-                  const updatedMs = m.updatedAt ? new Date(m.updatedAt).getTime() : 0;
-                  const isStale = Boolean(updatedMs && Date.now() - updatedMs > 15 * 60 * 1000);
-                  return (
-                  <Link
-                    key={m.id}
-                    href={`/m/${m.id}`}
-                    className="group rounded-lg border border-border bg-card p-4 hover:border-primary/60 transition-colors space-y-2.5 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-                          {m.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {m.manufacturer} {m.model} · <code className="font-mono">{m.machineType}</code>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <MachineStatusBadge status={m.status ?? "offline"} size="sm" />
-                        {!m.updatedAt ? (
-                          <Badge variant="outline" className="text-[10px]">No telemetry</Badge>
-                        ) : isStale ? (
-                          <Badge variant="warning" className="text-[10px]">Stale</Badge>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {m.activeAlarms.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {m.activeAlarms.map((a, idx) => (
-                          <Badge key={idx} variant="destructive" className="gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            <span>Alarm {a.code}</span>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/60 tabular-nums font-mono">
-                      <div>
-                        <div>
-                          Vib {m.vibration != null ? `${m.vibration} mm/s` : "—"} ·{" "}
-                          {m.temperature != null ? `${m.temperature}°C` : "—"}
-                        </div>
-                        <div className="text-[10px] mt-0.5">
-                          {m.updatedAt
-                            ? `Updated ${new Date(m.updatedAt).toISOString().slice(0, 16).replace("T", " ")} UTC`
-                            : "Awaiting telemetry"}
-                        </div>
-                      </div>
-                      <span className="inline-flex items-center gap-1 font-sans font-semibold text-primary">
-                        <QrCode className="h-3.5 w-3.5" />
-                        <span>Open</span>
+                    {plantMeta?.timezone && (
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {plantMeta.timezone}
                       </span>
-                    </div>
-                  </Link>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+                    )}
+                    {faults > 0 && (
+                      <Badge variant="destructive" className="text-[10px] tabular-nums">
+                        {faults} fault{faults === 1 ? "" : "s"}
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {items.length} asset{items.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((m) => {
+                    const updatedMs = m.updatedAt ? new Date(m.updatedAt).getTime() : 0;
+                    const isStale = Boolean(updatedMs && Date.now() - updatedMs > 15 * 60 * 1000);
+                    return (
+                      <Link
+                        key={m.id}
+                        href={`/m/${m.id}`}
+                        className="group rounded-lg border border-border bg-card p-4 hover:border-primary/60 transition-colors space-y-2.5 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                              {m.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {m.manufacturer} {m.model} ·{" "}
+                              <code className="font-mono">{m.machineType}</code>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <MachineStatusBadge status={m.status ?? "offline"} size="sm" />
+                            {!m.updatedAt ? (
+                              <Badge variant="outline" className="text-[10px]">
+                                No telemetry
+                              </Badge>
+                            ) : isStale ? (
+                              <Badge variant="warning" className="text-[10px]">
+                                Stale
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {m.activeAlarms.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {m.activeAlarms.map((a, idx) => (
+                              <Badge key={idx} variant="destructive" className="gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                <span>Alarm {a.code}</span>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/60 tabular-nums font-mono">
+                          <div>
+                            <div>
+                              Vib {m.vibration != null ? `${m.vibration} mm/s` : "—"} ·{" "}
+                              {m.temperature != null ? `${m.temperature}°C` : "—"}
+                            </div>
+                            <div className="text-[10px] mt-0.5">
+                              {m.updatedAt
+                                ? `Updated ${new Date(m.updatedAt)
+                                    .toISOString()
+                                    .slice(0, 16)
+                                    .replace("T", " ")} UTC`
+                                : "Awaiting telemetry"}
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1 font-sans font-semibold text-primary">
+                            <QrCode className="h-3.5 w-3.5" />
+                            <span>Open</span>
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

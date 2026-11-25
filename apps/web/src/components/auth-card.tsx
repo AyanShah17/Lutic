@@ -62,7 +62,7 @@ export function LuticAuthCard({ mode }: { mode: "sign-in" | "sign-up" }) {
   useEffect(() => {
     if (!userLoaded || !isSignedIn) return;
     if (user) {
-      router.replace("/chat");
+      router.replace("/");
       return;
     }
     let active = true;
@@ -70,7 +70,7 @@ export function LuticAuthCard({ mode }: { mode: "sign-in" | "sign-up" }) {
     void refreshSession()
       .then((resolved) => {
         if (active && resolved) {
-          router.replace("/chat");
+          router.replace("/");
         }
       })
       .finally(() => {
@@ -89,7 +89,7 @@ export function LuticAuthCard({ mode }: { mode: "sign-in" | "sign-up" }) {
     }
     const resolved = await refreshSession();
     if (resolved) {
-      router.push("/chat");
+      router.push("/");
       router.refresh();
     }
   };
@@ -103,14 +103,14 @@ export function LuticAuthCard({ mode }: { mode: "sign-in" | "sign-up" }) {
         await signIn.authenticateWithRedirect({
           strategy,
           redirectUrl: "/sso-callback",
-          redirectUrlComplete: "/chat"
+          redirectUrlComplete: "/"
         });
       } else {
         if (!signUpLoaded || !signUp) return;
         await signUp.authenticateWithRedirect({
           strategy,
           redirectUrl: "/sso-callback",
-          redirectUrlComplete: "/chat"
+          redirectUrlComplete: "/"
         });
       }
     } catch (err) {

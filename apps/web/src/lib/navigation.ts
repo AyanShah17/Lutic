@@ -34,17 +34,10 @@ const NAV_GROUPS: NavGroupConfig[] = [
         groupId: "operations"
       },
       {
-        id: "chat",
-        href: "/chat",
-        labelKey: "nav.chat",
-        keywords: ["ai", "chat", "assistant", "manuals", "diagnostics", "ask lutic"],
-        groupId: "operations"
-      },
-      {
         id: "machines",
         href: "/machines",
         labelKey: "nav.machines",
-        keywords: ["machines", "assets", "qr", "equipment", "line", "fault"],
+        keywords: ["machines", "assets", "qr", "equipment", "line", "fault", "topology", "canvas"],
         groupId: "operations"
       },
       {

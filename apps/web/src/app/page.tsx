@@ -10,7 +10,6 @@ import {
   Kanban,
   KeyRound,
   Layers,
-  MessageSquare,
   Plug,
   QrCode,
   ShieldCheck
@@ -186,21 +185,12 @@ export default async function HomePage() {
           Icon: Kanban
         },
         {
-          id: "chat",
-          href: "/chat",
-          title: "Unified AI Chat",
-          description:
-            "Multimodal diagnostics across plant manuals, machine telemetry, workflows, and queues.",
-          tag: "Lutic AI",
-          Icon: MessageSquare
-        },
-        {
           id: "machines",
           href: "/machines",
-          title: "Machine Fleet & QR",
+          title: "Machine Fleet & Topology",
           description:
-            "Live status across plant assets with mobile-ready QR diagnostic workspaces.",
-          tag: "ISA-95",
+            "Interactive document-grounded machine connections canvas with colored groups and QR diagnostic workspaces.",
+          tag: "ISA-95 Canvas",
           Icon: Cpu
         },
         {
@@ -335,9 +325,9 @@ export default async function HomePage() {
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {user ? (
             <>
-              <Link href="/chat" className={buttonVariants({ size: "lg" })}>
-                <MessageSquare className="h-4 w-4" />
-                <span>Open Operations Chat</span>
+              <Link href="/machines" className={buttonVariants({ size: "lg" })}>
+                <Cpu className="h-4 w-4" />
+                <span>Open Machine Topology</span>
               </Link>
               <Link
                 href={primaryMachineHref}
