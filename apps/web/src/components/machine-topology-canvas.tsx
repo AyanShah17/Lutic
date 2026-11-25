@@ -586,25 +586,25 @@ export function MachineTopologyCanvas({
                   )}
                 </defs>
 
-                {visibleEdges.map((edge) => {
+                {visibleEdges.map((edge, idx) => {
                   const sPos = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
                   const tPos = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
                   if (!sPos || !tPos) return null;
 
-                  const sx = sPos.x + NODE_W;
-                  const sy = sPos.y + NODE_H / 2;
-                  const tx = tPos.x;
-                  const ty = tPos.y + NODE_H / 2;
+                  const reverse = tPos.x < sPos.x + NODE_W - 20;
+                  const fanY = ((idx % 5) - 2) * 8;
+                  const fanArc = ((idx % 3) - 1) * 16;
+                  const sx = reverse ? sPos.x + NODE_W / 2 : sPos.x + NODE_W;
+                  const sy = reverse ? sPos.y + NODE_H : sPos.y + NODE_H / 2 + fanY;
+                  const tx = reverse ? tPos.x + NODE_W / 2 : tPos.x;
+                  const ty = reverse ? tPos.y : tPos.y + NODE_H / 2 + fanY;
 
-                  const sameColumnOrReverse = tx < sx - 20;
-                  const ctrlOffset = sameColumnOrReverse
-                    ? Math.max(70, Math.abs(ty - sy) * 0.4)
+                  const ctrlOffset = reverse
+                    ? Math.max(64, Math.abs(ty - sy) * 0.4) + Math.abs(fanArc)
                     : Math.max(46, Math.abs(tx - sx) * 0.45);
-                  const c1x = sx + ctrlOffset;
-                  const c2x = tx - ctrlOffset;
-                  const d = sameColumnOrReverse
-                    ? `M ${sPos.x + NODE_W / 2} ${sPos.y + NODE_H} C ${sPos.x + NODE_W / 2} ${sPos.y + NODE_H + ctrlOffset * 0.65}, ${tPos.x + NODE_W / 2} ${tPos.y - ctrlOffset * 0.65}, ${tPos.x + NODE_W / 2} ${tPos.y}`
-                    : `M ${sx} ${sy} C ${c1x} ${sy}, ${c2x} ${ty}, ${tx} ${ty}`;
+                  const d = reverse
+                    ? `M ${sx} ${sy} C ${sx + fanArc} ${sy + ctrlOffset * 0.55}, ${tx - fanArc} ${ty - ctrlOffset * 0.55}, ${tx} ${ty}`
+                    : `M ${sx} ${sy} C ${sx + ctrlOffset} ${sy + fanArc}, ${tx - ctrlOffset} ${ty - fanArc}, ${tx} ${ty}`;
 
                   const meta = getConnectionCategoryMeta(edge.category);
                   const isEdgeSelected = selectedEdgeId === edge.id;
@@ -633,18 +633,12 @@ export function MachineTopologyCanvas({
               </svg>
 
               {/* Clickable Midpoint Connection Label Pills */}
-              {visibleEdges.map((edge) => {
+              {visibleEdges.map((edge, idx) => {
                 const sPos = nodePositions[edge.sourceId] ?? nodeMap.get(edge.sourceId)?.position;
                 const tPos = nodePositions[edge.targetId] ?? nodeMap.get(edge.targetId)?.position;
                 if (!sPos || !tPos) return null;
 
                 const reverse = tPos.x < sPos.x + NODE_W - 20;
-                const mx = reverse
-                  ? (sPos.x + tPos.x + NODE_W) / 2
-                  : (sPos.x + NODE_W + tPos.x) / 2;
-                const my = reverse
-                  ? (sPos.y + NODE_H + tPos.y) / 2
-                  : (sPos.y + tPos.y + NODE_H) / 2;
                 const isSelected = selectedEdgeId === edge.id;
                 const highlighted =
                   isSelected ||
@@ -654,6 +648,16 @@ export function MachineTopologyCanvas({
                 if (!highlighted && visibleEdges.length > 26 && !edge.crossLine) {
                   return null;
                 }
+
+                const fanY = ((idx % 5) - 2) * 14;
+                const tShift = ((idx % 3) - 1) * 0.14;
+                const tRatio = 0.5 + tShift;
+                const sx = reverse ? sPos.x + NODE_W / 2 : sPos.x + NODE_W;
+                const sy = reverse ? sPos.y + NODE_H : sPos.y + NODE_H / 2;
+                const tx = reverse ? tPos.x + NODE_W / 2 : tPos.x;
+                const ty = reverse ? tPos.y : tPos.y + NODE_H / 2;
+                const mx = sx + (tx - sx) * tRatio;
+                const my = sy + (ty - sy) * 0.5 + fanY;
 
                 return (
                   <button
@@ -670,8 +674,8 @@ export function MachineTopologyCanvas({
                       borderColor: edge.categoryColor
                     }}
                     className={cn(
-                      "absolute z-10 rounded-sm border bg-card/95 px-1.5 py-0.5 font-mono text-[9.5px] font-semibold shadow-sm transition-transform duration-150 hover:scale-105 whitespace-nowrap",
-                      isSelected ? "ring-2 ring-ring text-foreground" : "text-foreground/90"
+                      "absolute rounded-sm border bg-card/95 px-1.5 py-0.5 font-mono text-[9.5px] font-semibold shadow-sm transition-transform duration-150 hover:scale-105 whitespace-nowrap",
+                      highlighted ? "z-30 ring-1 ring-ring text-foreground" : "z-20 text-foreground/90"
                     )}
                     title={`${edge.categoryLabel}: ${edge.label}`}
                   >

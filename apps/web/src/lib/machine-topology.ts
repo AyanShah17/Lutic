@@ -511,8 +511,9 @@ export function buildDocumentGroundedTopology(params: {
       );
     }
 
+    const textWithoutDirectives = srcEntry.text.replace(connDirectiveRe, " ");
     arrowProseRe.lastIndex = 0;
-    while ((match = arrowProseRe.exec(srcEntry.text)) !== null) {
+    while ((match = arrowProseRe.exec(textWithoutDirectives)) !== null) {
       const srcMachine = resolveMachine(match[1] ?? "");
       const tgtMachine = resolveMachine(match[2] ?? "");
       if (!srcMachine || !tgtMachine) continue;

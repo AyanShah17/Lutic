@@ -656,8 +656,8 @@ export function FloatingAiAssistant() {
 
                   <div className="space-y-1.5 rounded-md border border-border bg-muted/25 p-2.5">
                     {item.diffRows.map((d, idx) => (
-                      <div key={idx} className="grid grid-cols-[110px_1fr] gap-2 text-[11px] items-start">
-                        <span className="font-mono font-semibold text-muted-foreground truncate">
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-2 text-[11px] items-start">
+                        <span className="font-mono font-semibold text-muted-foreground">
                           {d.field}
                         </span>
                         <div className="space-y-0.5">
