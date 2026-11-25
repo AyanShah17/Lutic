@@ -72,12 +72,19 @@ describe.skipIf(!process.env.POSTGRES_TEST_URL)("PostgreSQL multi-connection iso
 
   it("tracks versioned migrations and blocks lutic_app from schema_migrations and cross-tenant ingestion_tokens", async () => {
     const applied = await getAppliedMigrations(first);
-    expect(applied.map((m) => m.version)).toEqual([1, 2]);
+    expect(applied.map((m) => m.version)).toEqual([1, 2, 3, 4]);
 
     await expect(
       first.db.transaction(async (tx) => {
         await tx.execute(sql`SET LOCAL ROLE lutic_app`);
         return tx.execute(sql`SELECT version FROM schema_migrations`);
+      })
+    ).rejects.toThrow();
+
+    await expect(
+      first.db.transaction(async (tx) => {
+        await tx.execute(sql`SET LOCAL ROLE lutic_app`);
+        return tx.execute(sql`SELECT worker_id FROM worker_heartbeats`);
       })
     ).rejects.toThrow();
 
