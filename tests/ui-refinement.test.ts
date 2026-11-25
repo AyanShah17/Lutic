@@ -1794,4 +1794,24 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     const histBody = (await histRes.json()) as { changes: Array<{ targetType: string }> };
     expect(histBody.changes.some((c) => c.targetType === "machine_connection")).toBe(true);
   });
+
+  it("cleans stale postmaster.pid locks and recovers corrupted local PGlite directories", async () => {
+    const os = await import("node:os");
+    const { cleanStalePgliteLock, createDbConnection } = await import("@lutic/core");
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lutic-pglite-recover-"));
+    try {
+      // 1. Stale postmaster.pid pointing to dead PID is removed safely
+      fs.writeFileSync(path.join(tmpDir, "postmaster.pid"), "999999\n", "utf8");
+      expect(cleanStalePgliteLock(tmpDir)).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, "postmaster.pid"))).toBe(false);
+
+      // 2. Corrupted PGlite PG_VERSION triggers dev recovery instead of RuntimeError: Aborted()
+      fs.writeFileSync(path.join(tmpDir, "PG_VERSION"), "corrupted-version", "utf8");
+      const conn = await createDbConnection(`pglite://${tmpDir}`);
+      await conn.executeRaw("SELECT 1");
+      await conn.close();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

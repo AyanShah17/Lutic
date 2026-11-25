@@ -169,17 +169,14 @@ export default function WorkflowsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border/70 pb-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Orchestration
-          </div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
             <span>Workflows &amp; Builder</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Build visual node-and-edge operational workflows across alerts, MCP connectors, queues, and work orders.
+            Visual node-and-edge automations across alerts, connectors, queues, and work orders.
           </p>
         </div>
 

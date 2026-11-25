@@ -290,29 +290,29 @@ export function BoardWorkspace() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border pb-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border/70 pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Kanban className="h-5 w-5 text-primary" />
-            <h1 className="text-xl font-bold tracking-tight">Operations &amp; Execution Board</h1>
-            <Badge variant="secondary" className="text-[10px]">
-              {filteredIssues.length} items
-            </Badge>
+            <h1 className="text-xl font-semibold tracking-tight">Operations &amp; Execution Board</h1>
+            <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground tabular-nums">
+              {filteredIssues.length}
+            </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Unified Linear and Jira-style workspace connecting plant alarms, SAP orders, ServiceNow incidents, and AI agent workflows.
+            Track plant incidents, SAP orders, ServiceNow escalations, and AI workflows.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-md border border-border bg-muted/40 p-0.5">
+          <div className="inline-flex rounded-lg border border-border/75 bg-muted/40 p-0.5">
             <button
               type="button"
               onClick={() => setView("kanban")}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                 view === "kanban"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-border/70"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -323,9 +323,9 @@ export function BoardWorkspace() {
               type="button"
               onClick={() => setView("list")}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                 view === "list"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-border/70"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -415,15 +415,15 @@ export function BoardWorkspace() {
                   setDraggingId(null);
                   if (droppedId) void moveIssueStatus(droppedId, col.id);
                 }}
-                className="rounded-lg border border-border bg-muted/25 p-2.5 space-y-2.5 min-h-[260px]"
+                className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-2.5 min-h-[260px]"
               >
                 <div className="flex items-center justify-between px-1">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold">
-                    <ColIcon className="h-3.5 w-3.5 text-primary" />
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <ColIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>{col.label}</span>
-                    <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0">
+                    <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                       {columnItems.length}
-                    </Badge>
+                    </span>
                   </div>
                   {canWrite && (
                     <button
@@ -439,7 +439,7 @@ export function BoardWorkspace() {
 
                 <div className="space-y-2">
                   {columnItems.length === 0 ? (
-                    <div className="rounded-md border border-dashed border-border/80 px-2.5 py-6 text-center text-[11px] text-muted-foreground">
+                    <div className="rounded-lg border border-dashed border-border/70 px-2.5 py-6 text-center text-[11px] text-muted-foreground">
                       No items in {col.label}
                     </div>
                   ) : (
@@ -456,7 +456,7 @@ export function BoardWorkspace() {
                           onDragEnd={() => setDraggingId(null)}
                           onClick={() => openEdit(issue)}
                           className={cn(
-                            "p-3 space-y-2 cursor-pointer transition-colors hover:border-primary/50",
+                            "p-3 space-y-2 cursor-pointer shadow-none border-border/75 transition-colors hover:border-foreground/25",
                             draggingId === issue.id && "opacity-60"
                           )}
                         >

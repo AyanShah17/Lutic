@@ -13,15 +13,12 @@ export default function SignupPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12 space-y-6">
-      <div className="flex items-center gap-3 border-b border-border pb-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-          <Factory className="h-5 w-5" />
+      <div className="flex items-center gap-3 border-b border-border/70 pb-5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground text-background">
+          <Factory className="h-4 w-4" />
         </span>
         <div>
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">
-            WORKSPACE PROVISIONING // LUTIC.APP
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
             Get Started with Lutic
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">

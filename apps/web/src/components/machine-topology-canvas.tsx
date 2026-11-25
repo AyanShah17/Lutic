@@ -332,36 +332,30 @@ export function MachineTopologyCanvas({
 
   return (
     <div className="space-y-4">
-      {/* Legend, Category Filter Chips & Toolbar */}
-      <Card className="p-3.5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-foreground">
+      {/* Compact Minimal Topology Toolbar */}
+      <div className="rounded-xl border border-border/80 bg-card p-3 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
               <Layers className="h-3.5 w-3.5 text-primary" />
-              <span>Document-Grounded Topology</span>
+              <span>Topology</span>
             </span>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {visibleNodes.length} machines
-            </Badge>
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {visibleEdges.length} connections
-            </Badge>
-            <Badge variant="secondary" className="font-mono text-[10px]">
-              {topology.documentsIndexed} drawings &amp; SOPs indexed
-            </Badge>
+            <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+              {visibleNodes.length} machines · {visibleEdges.length} links · {topology.documentsIndexed} drawings
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <div className="inline-flex items-center rounded-md border border-border bg-background">
+            <div className="inline-flex items-center rounded-md border border-border/80 bg-background">
               <button
                 type="button"
                 onClick={() => setZoom((z) => Math.max(0.7, Number((z - 0.1).toFixed(2))))}
                 aria-label="Zoom out topology canvas"
                 className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
               >
-                <Minus className="h-3.5 w-3.5" />
+                <Minus className="h-3 w-3" />
               </button>
-              <span className="px-2 font-mono text-[11px] tabular-nums text-foreground">
+              <span className="px-1.5 font-mono text-[11px] tabular-nums text-foreground">
                 {Math.round(zoom * 100)}%
               </span>
               <button
@@ -370,10 +364,10 @@ export function MachineTopologyCanvas({
                 aria-label="Zoom in topology canvas"
                 className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
               </button>
             </div>
-            <Button variant="outline" size="sm" onClick={resetLayout} className="h-7 px-2 text-[11px]">
+            <Button variant="ghost" size="sm" onClick={resetLayout} className="h-7 px-2 text-[11px]">
               <RotateCcw className="h-3 w-3" />
               <span>Reset</span>
             </Button>
@@ -394,93 +388,90 @@ export function MachineTopologyCanvas({
           </div>
         </div>
 
-        {/* Equipment Group / Category Filter */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mr-1">
-            Equipment Groups:
-          </span>
-          <button
-            type="button"
-            onClick={() => setSelectedCategory("all")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
-              selectedCategory === "all"
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-muted-foreground hover:text-foreground"
+        {/* Unified Groups & Connection Categories */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/60 pt-2">
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("all")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
+                selectedCategory === "all"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              All Groups
+            </button>
+            {(Object.values(MACHINE_CATEGORIES) as Array<typeof MACHINE_CATEGORIES[MachineCategoryId]>).map(
+              (cat) => {
+                const count = categoryCounts[cat.id] ?? 0;
+                if (count === 0) return null;
+                const active = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(active ? "all" : cat.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
+                      active
+                        ? "border-foreground/50 bg-muted text-foreground"
+                        : "border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    <span>{cat.label}</span>
+                    <span className="font-mono text-[10px] opacity-70 tabular-nums">{count}</span>
+                  </button>
+                );
+              }
             )}
-          >
-            All Groups
-          </button>
-          {(Object.values(MACHINE_CATEGORIES) as Array<typeof MACHINE_CATEGORIES[MachineCategoryId]>).map(
-            (cat) => {
-              const count = categoryCounts[cat.id] ?? 0;
-              if (count === 0) return null;
-              const active = selectedCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(active ? "all" : cat.id)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
-                    active
-                      ? "border-foreground bg-accent text-foreground shadow-sm"
-                      : "border-border bg-background text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span>{cat.label}</span>
-                  <span className="font-mono text-[10px] opacity-75 tabular-nums">{count}</span>
-                </button>
-              );
-            }
-          )}
-        </div>
+          </div>
 
-        {/* Connection Type Color Key */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground mr-1">
-            Connection Types:
-          </span>
-          {(Object.values(CONNECTION_CATEGORIES) as Array<typeof CONNECTION_CATEGORIES[ConnectionCategoryId]>).map(
-            (conn) => {
-              const enabled = activeConnTypes.has(conn.id);
-              const count = connectionCounts[conn.id] ?? 0;
-              return (
-                <button
-                  key={conn.id}
-                  type="button"
-                  aria-pressed={enabled}
-                  onClick={() => toggleConnType(conn.id)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] font-medium transition-colors duration-150",
-                    enabled
-                      ? "border-border bg-card text-foreground"
-                      : "border-border/50 bg-muted/40 text-muted-foreground opacity-55"
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="w-3.5 h-0 border-t-2 shrink-0"
-                    style={{
-                      borderColor: conn.color,
-                      borderTopStyle: conn.dashed ? "dashed" : "solid"
-                    }}
-                  />
-                  <span>{conn.label}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                    {count}
-                  </span>
-                </button>
-              );
-            }
-          )}
+          <span className="hidden sm:inline h-3.5 w-px bg-border/80" aria-hidden="true" />
+
+          <div className="flex flex-wrap items-center gap-1">
+            {(Object.values(CONNECTION_CATEGORIES) as Array<typeof CONNECTION_CATEGORIES[ConnectionCategoryId]>).map(
+              (conn) => {
+                const enabled = activeConnTypes.has(conn.id);
+                const count = connectionCounts[conn.id] ?? 0;
+                return (
+                  <button
+                    key={conn.id}
+                    type="button"
+                    aria-pressed={enabled}
+                    onClick={() => toggleConnType(conn.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-opacity duration-150",
+                      enabled
+                        ? "bg-muted/50 text-foreground hover:bg-muted"
+                        : "text-muted-foreground opacity-45 hover:opacity-75"
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="w-3 h-0 border-t-2 shrink-0"
+                      style={{
+                        borderColor: conn.color,
+                        borderTopStyle: conn.dashed ? "dashed" : "solid"
+                      }}
+                    />
+                    <span>{conn.label}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                      {count}
+                    </span>
+                  </button>
+                );
+              }
+            )}
+          </div>
         </div>
-      </Card>
+      </div>
 
       {uploadNotice && (
         <div className="rounded-md border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 flex items-center justify-between gap-2">
@@ -674,8 +665,8 @@ export function MachineTopologyCanvas({
                       borderColor: edge.categoryColor
                     }}
                     className={cn(
-                      "absolute rounded-sm border bg-card/95 px-1.5 py-0.5 font-mono text-[9.5px] font-semibold shadow-sm transition-transform duration-150 hover:scale-105 whitespace-nowrap",
-                      highlighted ? "z-30 ring-1 ring-ring text-foreground" : "z-20 text-foreground/90"
+                      "absolute rounded-full border bg-background/95 px-2 py-0.5 font-mono text-[9.5px] font-medium transition-transform duration-150 hover:scale-105 whitespace-nowrap",
+                      highlighted ? "z-30 ring-1 ring-ring text-foreground" : "z-20 text-foreground/85"
                     )}
                     title={`${edge.categoryLabel}: ${edge.label}`}
                   >
@@ -733,29 +724,27 @@ export function MachineTopologyCanvas({
                       height: NODE_H
                     }}
                     className={cn(
-                      "absolute z-20 flex flex-col justify-between rounded-lg border bg-card p-2.5 text-left shadow-sm select-none cursor-grab active:cursor-grabbing overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "absolute z-20 flex flex-col justify-between rounded-xl border bg-card/95 p-3 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none cursor-grab active:cursor-grabbing overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
-                        ? "border-primary ring-2 ring-primary/25 shadow-md"
-                        : "border-border hover:border-foreground/40"
+                        ? "border-primary ring-2 ring-primary/20 shadow-md"
+                        : "border-border/80 hover:border-foreground/30"
                     )}
                   >
-                    {/* Top Category Color Strip */}
+                    {/* Top Category Accent Line */}
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-0 top-0 h-[3px]"
+                      className="absolute inset-x-0 top-0 h-[2px]"
                       style={{ backgroundColor: node.categoryColor }}
                     />
 
-                    <div className="flex items-start justify-between gap-1.5 pt-0.5">
-                      <span
-                        className="inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[9.5px] font-mono font-semibold uppercase leading-none"
-                        style={{
-                          borderColor: `${node.categoryColor}66`,
-                          backgroundColor: `${node.categoryColor}14`,
-                          color: node.categoryColor
-                        }}
-                      >
-                        {getMachineCategoryMeta(node.machineType).shortLabel}
+                    <div className="flex items-start justify-between gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                        <span
+                          aria-hidden="true"
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: node.categoryColor }}
+                        />
+                        <span>{getMachineCategoryMeta(node.machineType).shortLabel}</span>
                       </span>
                       <MachineStatusBadge status={node.status} size="sm" />
                     </div>

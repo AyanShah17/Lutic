@@ -310,17 +310,14 @@ export function ConnectorsConsole() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border/70 pb-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Lutic Connector Protocol
-          </div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
             <Plug className="h-5 w-5 text-primary" />
             <span>Connectors Hub</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Discover Lutic connectors, invoke governed tools, verify health, sync schemas, and inspect logs.
+            Discover Lutic connectors, invoke governed tools, verify health, and inspect sync logs.
           </p>
         </div>
 

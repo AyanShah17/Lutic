@@ -518,19 +518,20 @@ export function FloatingAiAssistant() {
 
   return (
     <>
-      {/* Persistent Floating Action Button across every screen */}
+      {/* Persistent Minimal Floating Action Pill across every screen */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Open Lutic AI Assistant"
         className={cn(
-          "no-print fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-lg transition-[transform,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-primary/90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "no-print fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-border/30 bg-foreground px-3.5 py-2 text-xs font-medium text-background shadow-lg transition-[transform,opacity,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:opacity-95 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           open && "ring-2 ring-ring"
         )}
       >
-        <Bot className="h-4 w-4" />
+        <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+        <Bot className="h-3.5 w-3.5" />
         <span>Lutic AI</span>
-        <span className="hidden sm:inline rounded-full bg-primary-foreground/20 px-2 py-0.5 font-mono text-[10px] leading-none">
+        <span className="hidden sm:inline text-[10px] opacity-70">
           {screenCtx.label}
         </span>
       </button>
@@ -544,18 +545,18 @@ export function FloatingAiAssistant() {
         className="max-w-xl p-0 flex flex-col"
       >
         {/* Header & Scope Controls */}
-        <div className="border-b border-border bg-card px-4 py-3.5 space-y-3 shrink-0">
+        <div className="border-b border-border/70 bg-card px-5 py-4 space-y-3 shrink-0">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex items-center gap-2">
                 <Bot className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-bold tracking-tight">Lutic Floating AI Copilot</h2>
-                <Badge variant="outline" className="font-mono text-[10px]">
+                <h2 className="text-sm font-semibold tracking-tight">Lutic AI Copilot</h2>
+                <kbd className="rounded border border-border/80 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   Cmd+J
-                </Badge>
+                </kbd>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Ask diagnostics, propose edits, inspect Before vs. After diffs, and save changes to{" "}
+                Ask diagnostics, preview Before / After diffs, and save changes to{" "}
                 <code className="font-mono text-foreground">
                   {scope === "global" ? "Global Workspace" : pathname}
                 </code>
@@ -563,10 +564,11 @@ export function FloatingAiAssistant() {
               </p>
             </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() => setOpen(false)}
               aria-label="Close Lutic AI Assistant"
+              className="h-8 w-8"
             >
               <X className="h-4 w-4" />
             </Button>

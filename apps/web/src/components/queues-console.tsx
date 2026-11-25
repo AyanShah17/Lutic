@@ -214,17 +214,14 @@ export function QueuesConsole({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border/70 pb-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Lutic Topics &amp; Dispatch
-          </div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
             <span>Notifications &amp; Queues</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time notification feed, Lutic pub/sub fan-out topics, and Lutic dispatch queues with visibility timeouts &amp; DLQ.
+            Notification feed, pub/sub fan-out topics, and dispatch queues with visibility timeouts &amp; DLQ.
           </p>
         </div>
 

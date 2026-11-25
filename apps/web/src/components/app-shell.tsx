@@ -255,23 +255,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const renderSidebarNav = (onNavigate?: () => void, compact = false) => (
     <div className="flex flex-col h-full">
-      <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 shrink-0">
+      <div className="flex h-13 items-center justify-between border-b border-sidebar-border/70 px-3.5 shrink-0 py-3">
         <Link
           href="/"
           onClick={onNavigate}
           className="flex items-center gap-2.5 min-w-0"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
-            <Factory className="h-4 w-4" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
+            <Factory className="h-3.5 w-3.5" />
           </span>
           {!compact && (
-            <div className="min-w-0 leading-tight">
-              <div className="text-sm font-bold tracking-tight text-foreground">
+            <div className="min-w-0 flex items-baseline gap-1.5">
+              <span className="text-sm font-semibold tracking-tight text-foreground">
                 Lutic
-              </div>
-              <div className="font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                Industrial OS
-              </div>
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground">app</span>
             </div>
           )}
         </Link>
@@ -292,9 +290,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-3"
       >
         {navGroups.map((group) => (
-          <div key={group.id} className="space-y-1">
+          <div key={group.id} className="space-y-0.5">
             {!compact && (
-              <div className="px-2.5 pb-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground/80">
                 {group.label}
               </div>
             )}
@@ -314,17 +312,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={onNavigate}
                     title={compact ? item.label : undefined}
                     className={cn(
-                      "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-[color,background-color,border-color] duration-150 min-h-[32px]",
+                      "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-[color,background-color] duration-150 min-h-[32px]",
                       compact && "justify-center px-0",
                       active
-                        ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-border"
-                        : "text-sidebar-foreground/80 hover:bg-card/70 hover:text-foreground border border-transparent"
+                        ? "bg-foreground/[0.06] dark:bg-foreground/[0.08] text-foreground"
+                        : "text-sidebar-foreground/75 hover:bg-foreground/[0.035] hover:text-foreground"
                     )}
                   >
                     {active && !compact && (
                       <span
                         aria-hidden="true"
-                        className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] rounded-r bg-primary"
+                        className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r bg-primary"
                       />
                     )}
                     <Icon
@@ -345,15 +343,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       {user && (
-        <div className="border-t border-sidebar-border p-3 space-y-2.5 shrink-0">
+        <div className="border-t border-sidebar-border/70 p-3 space-y-2.5 shrink-0">
           {!compact && licenseStatus && (
             canManageLicense ? (
               <Link
                 href="/activate"
                 onClick={onNavigate}
-                className="flex items-center justify-between rounded-md border border-border bg-card px-2.5 py-1.5 text-[11px] hover:border-primary/40 transition-colors"
+                className="flex items-center justify-between rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground transition-colors"
               >
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
                   <KeyRound className="h-3 w-3" />
                   <span>License</span>
                 </span>
@@ -365,8 +363,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Badge>
               </Link>
             ) : (
-              <div className="flex items-center justify-between rounded-md border border-border bg-card/60 px-2.5 py-1.5 text-[11px]">
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <div className="flex items-center justify-between rounded-md px-2 py-1 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
                   <KeyRound className="h-3 w-3" />
                   <span>License</span>
                 </span>
@@ -386,7 +384,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               value={user.email}
               disabled={switching}
               onChange={(e) => handleDemoSwitch(e.target.value)}
-              className="h-8 w-full rounded-md border border-border bg-card px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-8 w-full rounded-md border border-border/80 bg-background px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {DEMO_ACCOUNTS.map((acc) => (
                 <option key={acc.email} value={acc.email}>
@@ -411,12 +409,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="min-w-0">
                 <div className="text-xs font-semibold truncate">{user.name}</div>
                 <div className="text-[11px] text-muted-foreground truncate">
-                  <span className="uppercase font-semibold">{user.role}</span> ·{" "}
+                  <span className="capitalize font-medium">{user.role}</span> ·{" "}
                   {user.plantIds.join(", ")}
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -427,7 +425,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 }}
                 title="Change password"
                 aria-label="Change password"
-                className="rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 transition-colors"
               >
                 <KeyRound className="h-3.5 w-3.5" />
               </button>
@@ -436,7 +434,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={handleLogout}
                 title="Sign out"
                 aria-label="Sign out"
-                className="rounded-md border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
@@ -458,8 +456,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {!isAuthPage && (
         <aside
           className={cn(
-            "no-print hidden lg:flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-150 sticky top-0 h-screen",
-            collapsed ? "w-16" : "w-60"
+            "no-print hidden lg:flex shrink-0 flex-col border-r border-sidebar-border/70 bg-sidebar transition-[width] duration-150 sticky top-0 h-screen",
+            collapsed ? "w-14" : "w-56"
           )}
         >
           {renderSidebarNav(undefined, collapsed)}
@@ -479,7 +477,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="no-print sticky top-0 z-40 h-14 border-b border-border bg-background/90 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-3">
+        <header className="no-print sticky top-0 z-40 h-13 py-2 border-b border-border/70 bg-background/85 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {!isAuthPage ? (
               <>
@@ -487,7 +485,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={() => setMobileOpen(true)}
                   aria-label="Toggle mobile menu"
-                  className="lg:hidden inline-flex items-center justify-center rounded-md border border-border p-2 hover:bg-muted min-h-[36px] min-w-[36px]"
+                  className="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted min-h-[34px] min-w-[34px]"
                 >
                   <Menu className="h-4 w-4" />
                 </button>
@@ -496,7 +494,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => setCollapsed((v) => !v)}
                   aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                   title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  className="hidden lg:inline-flex items-center justify-center rounded-md border border-border p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="hidden lg:inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
                   {collapsed ? (
                     <PanelLeftOpen className="h-4 w-4" />
@@ -508,33 +506,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="text-muted-foreground hidden sm:inline">
                     {activeEntry.group}
                   </span>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline shrink-0" />
-                  <span className="font-semibold text-foreground truncate">
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/70 hidden sm:inline shrink-0" />
+                  <span className="font-medium text-foreground truncate">
                     {activeEntry.item}
                   </span>
                 </div>
               </>
             ) : (
-              <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                  <Factory className="h-4 w-4" />
+              <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
+                  <Factory className="h-3.5 w-3.5" />
                 </span>
-                <span className="text-base">Lutic</span>
+                <span className="text-sm">Lutic</span>
               </Link>
             )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {!isAuthPage && (
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label="Open global search"
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 min-h-[34px]"
+                className="inline-flex items-center gap-2 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 min-h-[32px] transition-colors"
               >
                 <Search className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Search workspace...</span>
-                <kbd className="hidden sm:inline rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none">
+                <kbd className="hidden sm:inline rounded border border-border/80 bg-background px-1 py-0.5 font-mono text-[10px] leading-none">
                   Cmd+K
                 </kbd>
               </button>
@@ -551,17 +549,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }}
                   aria-expanded={bellOpen}
                   aria-label="Toggle notifications"
-                  className="relative inline-flex items-center justify-center rounded-md border border-border bg-background p-2 hover:bg-muted min-h-[34px] min-w-[34px]"
+                  className="relative inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted min-h-[32px] min-w-[32px] transition-colors"
                 >
                   <Bell className="h-3.5 w-3.5" />
                   {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive-foreground tabular-nums">
+                    <span className="absolute right-0.5 top-0.5 rounded-full bg-destructive px-1 py-0 text-[9px] font-bold leading-tight text-destructive-foreground tabular-nums">
                       {unreadCount}
                     </span>
                   )}
                 </button>
                 {bellOpen && (
-                  <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-2xl z-50 space-y-2.5 animate-lutic-modal">
+                  <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card p-3 shadow-xl z-50 space-y-2.5 animate-lutic-modal">
                     <div className="flex items-center justify-between text-xs font-semibold">
                       <span>Notifications ({unreadCount} unread)</span>
                       <button
@@ -582,10 +580,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <div
                             key={n.id}
                             className={cn(
-                              "rounded-md border p-2.5 text-xs space-y-0.5",
+                              "rounded-lg border p-2.5 text-xs space-y-0.5",
                               n.read
                                 ? "border-border/60 opacity-75"
-                                : "border-primary/40 bg-primary/5"
+                                : "border-primary/35 bg-primary/5"
                             )}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -602,7 +600,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Link
                       href="/notifications"
                       onClick={() => setBellOpen(false)}
-                      className="block w-full rounded-md border border-border bg-muted/60 py-1.5 text-center text-xs font-medium hover:bg-muted"
+                      className="block w-full rounded-md border border-border bg-muted/50 py-1.5 text-center text-xs font-medium hover:bg-muted"
                     >
                       Open Notifications &amp; Queues
                     </Link>
@@ -614,7 +612,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={cycleTheme}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted min-h-[34px]"
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted min-h-[32px] transition-colors"
               title="Switch theme (Light / Dark / High-Contrast)"
               aria-label="Switch display theme"
             >
@@ -631,7 +629,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setLocale(locale === "en" ? "es" : "en")}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs font-semibold hover:bg-muted min-h-[34px]"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted min-h-[32px] transition-colors"
               aria-label="Toggle language"
             >
               <Globe className="h-3.5 w-3.5" />
@@ -639,9 +637,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
 
             {user ? (
-              <Badge variant="secondary" className="uppercase hidden sm:inline-flex">
+              <span className="hidden sm:inline-flex items-center rounded-md bg-muted/70 px-2 py-1 text-[11px] font-medium capitalize text-muted-foreground">
                 {user.role}
-              </Badge>
+              </span>
             ) : (
               pathname !== "/login" && (
                 <Link href="/login" className={buttonVariants({ size: "sm" })}>

@@ -139,18 +139,15 @@ export default function DashboardsListPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-border/70 pb-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Semantic Analytics
-          </div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
             <span>Operational Dashboards</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {canWrite
-              ? "Build declarative dashboards from natural language or templates. Governed by semantic metrics and RBAC."
+              ? "Build declarative dashboards from natural language or templates under plant scope and RBAC."
               : "Read-only dashboard viewer. Widgets outside your role or plant scope show a locked placeholder."}
           </p>
         </div>

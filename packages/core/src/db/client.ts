@@ -71,10 +71,46 @@ function resolvePgliteDataDir(rawUrl: string): string {
   return target;
 }
 
+export function cleanStalePgliteLock(dataDir: string): boolean {
+  if (!dataDir || dataDir === "memory://") return false;
+  const pidFile = path.join(dataDir, "postmaster.pid");
+  if (!fs.existsSync(pidFile)) return false;
+
+  let stale = false;
+  try {
+    const firstLine = fs.readFileSync(pidFile, "utf8").split(/\r?\n/, 1)[0]?.trim() ?? "";
+    const pid = Number.parseInt(firstLine, 10);
+    if (!Number.isInteger(pid) || pid <= 0) {
+      stale = true;
+    } else {
+      try {
+        process.kill(pid, 0);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ESRCH") {
+          stale = true;
+        }
+      }
+    }
+  } catch {
+    stale = true;
+  }
+
+  if (stale) {
+    fs.rmSync(pidFile, { force: true });
+  }
+  return stale;
+}
+
 export async function createDbConnection(
   connectionUrl?: string
 ): Promise<DbConnection> {
-  const url = connectionUrl ?? process.env.DATABASE_URL ?? "pglite://.data/pglite";
+  const defaultUrl =
+    !connectionUrl &&
+    !process.env.DATABASE_URL &&
+    process.env.NEXT_PHASE === "phase-production-build"
+      ? "memory://"
+      : "pglite://.data/pglite";
+  const url = connectionUrl ?? process.env.DATABASE_URL ?? defaultUrl;
 
   if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
     const pool = new Pool({ connectionString: url });
@@ -119,11 +155,26 @@ export async function createDbConnection(
   }
 
   const dataDir = resolvePgliteDataDir(url);
-  const client =
-    dataDir === "memory://"
-      ? new PGlite({ extensions: { vector } })
-      : new PGlite(dataDir, { extensions: { vector } });
-  await client.waitReady;
+  let client: PGlite;
+  if (dataDir === "memory://") {
+    client = new PGlite({ extensions: { vector } });
+    await client.waitReady;
+  } else {
+    cleanStalePgliteLock(dataDir);
+    try {
+      client = new PGlite(dataDir, { extensions: { vector } });
+      await client.waitReady;
+    } catch (err) {
+      if (process.env.NODE_ENV === "production") {
+        throw err;
+      }
+      // Recover automatically in local dev/test if an aborted dev process corrupted WASM state.
+      fs.rmSync(dataDir, { recursive: true, force: true });
+      fs.mkdirSync(dataDir, { recursive: true });
+      client = new PGlite(dataDir, { extensions: { vector } });
+      await client.waitReady;
+    }
+  }
   const db = drizzlePglite(client, { schema });
   return {
     db,
@@ -158,7 +209,10 @@ const globalForDb = globalThis as unknown as {
 
 export async function getDbConnection(): Promise<DbConnection> {
   if (!globalForDb.__luticConnPromise) {
-    globalForDb.__luticConnPromise = createDbConnection();
+    globalForDb.__luticConnPromise = createDbConnection().catch((err) => {
+      globalForDb.__luticConnPromise = undefined;
+      throw err;
+    });
   }
   return globalForDb.__luticConnPromise;
 }

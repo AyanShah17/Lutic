@@ -358,17 +358,14 @@ export function MonitoringConsole() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Lutic Telemetry &amp; Alert Rules
-          </div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
             <span>Monitoring &amp; Alerts</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time telemetry metrics, threshold alarm rules, automated triggers, and incident lifecycle management.
+            Real-time telemetry series, threshold rules, and incident lifecycle management.
           </p>
         </div>
 
@@ -413,39 +410,39 @@ export function MonitoringConsole() {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-4">
-        <Card className="p-4 border-l-2 border-l-red-600">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="grid sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/70 rounded-2xl border border-border/80 bg-card overflow-hidden">
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground">
             Rules in Alarm
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-red-600 mt-1">
+          <div className="text-xl font-semibold font-mono tabular-nums text-red-600 mt-1">
             {loading ? "—" : alarmCount}
           </div>
-        </Card>
-        <Card className="p-4 border-l-2 border-l-emerald-600">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        </div>
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground">
             Rules OK
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-emerald-600 mt-1">
+          <div className="text-xl font-semibold font-mono tabular-nums text-emerald-600 mt-1">
             {loading ? "—" : rules.filter((r) => r.state === "OK").length}
           </div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        </div>
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground">
             Open Alert Events
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums mt-1">
+          <div className="text-xl font-semibold font-mono tabular-nums mt-1">
             {loading ? "—" : openEvents}
           </div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        </div>
+        <div className="p-4">
+          <div className="text-xs font-medium text-muted-foreground">
             Monitored Machines
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums mt-1">
+          <div className="text-xl font-semibold font-mono tabular-nums mt-1">
             {loading ? "—" : machines.length}
           </div>
-        </Card>
+        </div>
       </div>
 
       <Card className="p-4 space-y-3">

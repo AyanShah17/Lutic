@@ -117,7 +117,7 @@ const SCENARIO_CONFIG: Record<
 > = {
   steady: {
     label: "Steady Production",
-    statusTag: "NOMINAL // IN BAND",
+    statusTag: "Nominal · In Band",
     headline: "Routine runs stay tracked without manual spreadsheets",
     summary:
       "Lines run inside normal operating bands while verified manuals, maintenance queues, and plant scorecards stay aligned.",
@@ -131,7 +131,7 @@ const SCENARIO_CONFIG: Record<
   },
   without: {
     label: "Stoppage Without Lutic",
-    statusTag: "STALLED // MANUAL HUNT",
+    statusTag: "Stalled · Manual Hunt",
     headline: "One mid-shift fault stalls the line into disconnected guesswork",
     summary:
       "Teams split time hunting binders, radioing maintenance, and building end-of-shift explanations while output drops.",
@@ -145,7 +145,7 @@ const SCENARIO_CONFIG: Record<
   },
   with: {
     label: "Resolved With Lutic",
-    statusTag: "VERIFIED // HUMAN SIGNED",
+    statusTag: "Verified · Human Signed",
     headline: "From floor alert to human-approved fix in under five minutes",
     summary:
       "Lutic pinpoints the matching SOP, drafts the maintenance & spare-part action for sign-off, and updates plant KPIs automatically.",
@@ -257,23 +257,17 @@ export function LuticPlantAnatomy() {
   const stationHighlight = (id: StationId) => selectedStation === id;
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
-      {/* Top Instrument Control Bar (Static Rail) */}
-      <div className="flex flex-col gap-3 border-b border-border bg-muted/30 px-4 py-3.5 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="rounded-2xl border border-border/80 bg-card overflow-hidden">
+      {/* Minimal Control Bar */}
+      <div className="flex flex-col gap-3 border-b border-border/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              SYS-ANATOMY // ISA-95 L1-L4
-            </span>
-            <span className="text-border" aria-hidden="true">
-              /
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               Interactive Plant Anatomy
             </span>
             <Badge
               variant={isFaulted ? "warning" : isResolved ? "success" : "secondary"}
-              className="font-mono text-[10px]"
+              className="text-[10px]"
             >
               {model.statusTag}
             </Badge>
@@ -284,7 +278,7 @@ export function LuticPlantAnatomy() {
         <div
           role="group"
           aria-label="Operating scenario selector"
-          className="inline-flex flex-wrap items-center gap-1 rounded-lg border border-border bg-background p-1 shrink-0"
+          className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border/75 bg-muted/40 p-1 shrink-0"
         >
           {(["steady", "without", "with"] as AnatomyScenario[]).map((key) => {
             const active = scenario === key;
@@ -295,10 +289,10 @@ export function LuticPlantAnatomy() {
                 aria-pressed={active}
                 onClick={() => setScenario(key)}
                 className={cn(
-                  "rounded-md px-2.5 py-1.5 text-xs font-medium transition-[color,background-color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-[color,background-color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    ? "bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-border/70"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {SCENARIO_CONFIG[key].label}
@@ -310,12 +304,11 @@ export function LuticPlantAnatomy() {
 
       <div className="grid gap-0 lg:grid-cols-[1.35fr_0.95fr]">
         {/* Left Schematic Viewport */}
-        <div className="relative flex flex-col justify-between border-b border-border bg-background/60 lg:border-b-0 lg:border-r">
-          <div className="relative lutic-grid-bg p-3 sm:p-5">
-            {/* Corner Technical Readout Labels (Static) */}
-            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
-              <span>TOPOLOGY // 4-STATION LOOP</span>
-              <span>{model.flowActive ? "SIGNAL: ACTIVE" : "SIGNAL: INTERRUPTED"}</span>
+        <div className="relative flex flex-col justify-between border-b border-border/70 bg-background/40 lg:border-b-0 lg:border-r">
+          <div className="relative lutic-grid-bg p-4 sm:p-6">
+            <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground mb-1">
+              <span>4-Station Loop</span>
+              <span>{model.flowActive ? "Signal: Active" : "Signal: Interrupted"}</span>
             </div>
 
             <svg
@@ -324,25 +317,19 @@ export function LuticPlantAnatomy() {
               aria-label="Interactive isometric Lutic operations workflow across shop floor, manuals, maintenance dispatch, and leadership metrics"
               className="w-full h-auto select-none"
             >
-              {/* Orthographic Corner Reticle Ticks */}
-              <g stroke="hsl(var(--border))" strokeWidth={1.25} fill="none">
-                <path d="M 16 28 L 16 14 L 30 14" />
-                <path d="M 730 14 L 744 14 L 744 28" />
-                <path d="M 16 398 L 16 412 L 30 412" />
-                <path d="M 730 412 L 744 412 L 744 398" />
-              </g>
-
               {/* Architectural Datum Diamond */}
               <polygon
                 points="380,44 710,209 380,374 50,209"
-                fill="hsl(var(--card) / 0.85)"
+                fill="hsl(var(--card) / 0.88)"
                 stroke="hsl(var(--border))"
+                strokeOpacity={0.7}
                 strokeWidth={1}
               />
               <polygon
                 points="380,74 662,215 380,356 98,215"
                 fill="none"
                 stroke="hsl(var(--border))"
+                strokeOpacity={0.5}
                 strokeDasharray="4 6"
                 strokeWidth={1}
               />
@@ -779,11 +766,11 @@ export function LuticPlantAnatomy() {
         </div>
 
         {/* Right Station Diagnostic Dossier */}
-        <div className="flex flex-col justify-between p-4 sm:p-5 space-y-4 bg-card">
+        <div className="flex flex-col justify-between p-5 sm:p-6 space-y-4 bg-card">
           <div className="space-y-4">
             <div>
-              <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-muted-foreground mb-2">
-                Select Station Dossier
+              <div className="text-[11px] font-medium text-muted-foreground mb-2">
+                Select Station
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {STATIONS.map((station) => {
@@ -796,10 +783,10 @@ export function LuticPlantAnatomy() {
                       aria-pressed={active}
                       onClick={() => setSelectedStation(station.id)}
                       className={cn(
-                        "flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs font-medium transition-[color,background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-[color,background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         active
-                          ? "border-primary/60 bg-primary/10 text-foreground"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                          ? "border-primary/40 bg-primary/5 text-foreground"
+                          : "border-border/75 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                       )}
                     >
                       <StIcon
@@ -815,10 +802,10 @@ export function LuticPlantAnatomy() {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
+            <div className="space-y-3.5 rounded-xl border border-border/75 bg-muted/15 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] font-semibold text-primary">
+                  <span className="font-mono text-[11px] font-medium text-primary">
                     {activeSpec.code}
                   </span>
                   <div className="text-sm font-semibold text-foreground">{activeSpec.label}</div>
@@ -829,36 +816,36 @@ export function LuticPlantAnatomy() {
               </div>
 
               <div className="space-y-1">
-                <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  01 // Legacy Floor Reality
+                <div className="text-[11px] font-medium text-muted-foreground">
+                  Before
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {activeSpec.friction}
                 </p>
               </div>
 
-              <div className="space-y-1 border-l-2 border-primary pl-3">
-                <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.08em] text-primary">
-                  02 // Lutic Verified Pipeline
+              <div className="space-y-1 border-l border-primary/60 pl-3">
+                <div className="text-[11px] font-medium text-primary">
+                  With Lutic
                 </div>
                 <p className="text-xs leading-relaxed text-foreground">
                   {activeSpec.solution}
                 </p>
               </div>
 
-              <div className="flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2">
+              <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-background px-3 py-2">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
                 <span className="text-xs font-medium text-foreground">{activeSpec.outcome}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
               <span>Human sign-off enforced</span>
             </span>
-            <span className="inline-flex items-center gap-1 font-mono font-medium text-foreground">
+            <span className="inline-flex items-center gap-1 font-medium text-foreground">
               <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
               <span>Audit trail active</span>
             </span>

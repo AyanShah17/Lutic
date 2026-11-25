@@ -3,26 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 222 38% 10%;
+  --background: 0 0% 99%;
+  --foreground: 240 10% 6%;
   --card: 0 0% 100%;
-  --card-foreground: 222 38% 10%;
-  --sidebar: 214 22% 95.8%;
-  --sidebar-foreground: 222 32% 16%;
-  --sidebar-border: 216 16% 87.5%;
-  --primary: 20 90% 48%;
+  --card-foreground: 240 10% 6%;
+  --sidebar: 240 5% 97.6%;
+  --sidebar-foreground: 240 6% 18%;
+  --sidebar-border: 240 6% 90.5%;
+  --primary: 18 88% 48%;
   --primary-foreground: 0 0% 99.5%;
-  --secondary: 215 18% 93%;
-  --secondary-foreground: 222 35% 14%;
-  --muted: 215 16% 93.8%;
-  --muted-foreground: 218 13% 41%;
-  --accent: 215 18% 92%;
-  --accent-foreground: 222 38% 11%;
-  --destructive: 0 74% 48%;
+  --secondary: 240 5% 95.5%;
+  --secondary-foreground: 240 8% 12%;
+  --muted: 240 5% 95.5%;
+  --muted-foreground: 240 4% 43%;
+  --accent: 240 5% 94.5%;
+  --accent-foreground: 240 10% 8%;
+  --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 99%;
-  --border: 216 16% 87.5%;
-  --input: 216 16% 83%;
-  --ring: 20 90% 48%;
+  --border: 240 6% 90%;
+  --input: 240 6% 87%;
+  --ring: 18 88% 48%;
   --radius: 0.625rem;
   --radius-xl: 0.875rem;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -30,26 +30,26 @@
 }
 
 .dark {
-  --background: 224 24% 6.5%;
-  --foreground: 210 22% 95.5%;
-  --card: 224 20% 9.8%;
-  --card-foreground: 210 22% 95.5%;
-  --sidebar: 224 26% 5.2%;
-  --sidebar-foreground: 212 18% 88%;
-  --sidebar-border: 222 16% 16.5%;
-  --primary: 22 92% 54%;
+  --background: 240 7% 5.5%;
+  --foreground: 0 0% 96%;
+  --card: 240 6% 8%;
+  --card-foreground: 0 0% 96%;
+  --sidebar: 240 7% 4.5%;
+  --sidebar-foreground: 240 5% 86%;
+  --sidebar-border: 240 5% 14.5%;
+  --primary: 20 90% 54%;
   --primary-foreground: 0 0% 99.5%;
-  --secondary: 223 18% 15%;
-  --secondary-foreground: 210 22% 94%;
-  --muted: 223 18% 14%;
-  --muted-foreground: 218 13% 62%;
-  --accent: 223 18% 16%;
-  --accent-foreground: 210 22% 95.5%;
-  --destructive: 0 70% 50%;
+  --secondary: 240 5% 13%;
+  --secondary-foreground: 0 0% 94%;
+  --muted: 240 5% 12%;
+  --muted-foreground: 240 4% 60%;
+  --accent: 240 5% 14%;
+  --accent-foreground: 0 0% 96%;
+  --destructive: 0 68% 50%;
   --destructive-foreground: 0 0% 99%;
-  --border: 222 16% 17.5%;
-  --input: 222 16% 21%;
-  --ring: 22 92% 54%;
+  --border: 240 5% 15.5%;
+  --input: 240 5% 18%;
+  --ring: 20 90% 54%;
 }
 
 /* Bright factory floor high-contrast mode */
@@ -187,6 +187,10 @@
   animation: lutic-fade-up 380ms var(--ease-out-expo) 120ms both;
 }
 
+.lutic-reveal-delay-3 {
+  animation: lutic-fade-up 380ms var(--ease-out-expo) 180ms both;
+}
+
 .animate-lutic-modal {
   animation: lutic-modal-in 200ms var(--ease-out-expo) both;
 }
@@ -200,10 +204,16 @@
 }
 
 .lutic-grid-bg {
-  background-image:
-    linear-gradient(to right, hsl(var(--border) / 0.35) 1px, transparent 1px),
-    linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-image: radial-gradient(hsl(var(--border) / 0.75) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.lutic-hero-glow {
+  background-image: radial-gradient(
+    ellipse 65% 45% at 50% 0%,
+    hsl(var(--primary) / 0.06),
+    transparent 70%
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -215,6 +225,7 @@
   .lutic-reveal,
   .lutic-reveal-delay-1,
   .lutic-reveal-delay-2,
+  .lutic-reveal-delay-3,
   .animate-lutic-modal,
   .animate-lutic-drawer-left,
   .animate-lutic-drawer-right {

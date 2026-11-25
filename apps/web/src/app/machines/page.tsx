@@ -161,17 +161,14 @@ export default function MachinesPage() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 space-y-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between border-b border-border pb-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between border-b border-border/70 pb-4">
         <div>
-          <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-primary">
-            TOPOLOGY &amp; FLEET // ISA-95
-          </div>
-          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
             <Cpu className="h-5 w-5 text-primary" />
             <span>Machine Fleet &amp; Topology Canvas</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Scoped to your authorized plants: {user.plantIds.join(", ")}. Connections are grounded in uploaded engineering drawings, PDFs, and SOPs.
+            Scoped to {user.plantIds.join(", ")}. Connections extracted from uploaded drawings and SOPs.
           </p>
         </div>
 

@@ -54,7 +54,7 @@ export function SpotlightNavbar({
       }}
       onMouseLeave={() => setSpotX(null)}
       className={cn(
-        "relative inline-flex max-w-full flex-nowrap sm:flex-wrap overflow-x-auto items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)]",
+        "relative inline-flex max-w-full flex-nowrap sm:flex-wrap overflow-x-auto items-center gap-0.5 rounded-lg border border-border/75 bg-muted/40 p-1",
         className
       )}
       role="tablist"
@@ -62,7 +62,7 @@ export function SpotlightNavbar({
       {spotX !== null && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 w-28 -translate-x-1/2 bg-gradient-to-r from-transparent via-primary/10 to-transparent transition-opacity duration-150"
+          className="pointer-events-none absolute inset-y-0 w-28 -translate-x-1/2 bg-gradient-to-r from-transparent via-foreground/[0.045] to-transparent transition-opacity duration-150"
           style={{ left: spotX }}
         />
       )}
@@ -81,10 +81,10 @@ export function SpotlightNavbar({
             onKeyDown={(e) => handleKeyDown(e, idx)}
             onClick={() => onSelect(item.id)}
             className={cn(
-              "relative z-10 inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985] min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+              "relative z-10 inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-[color,background-color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985] min-h-[30px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
               active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                ? "bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)] ring-1 ring-border/70"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
             )}
           >
             {item.icon}
@@ -92,10 +92,10 @@ export function SpotlightNavbar({
             {item.badge !== undefined && (
               <span
                 className={cn(
-                  "rounded-sm px-1.5 py-0.5 text-[10px] font-mono tabular-nums leading-none",
+                  "rounded px-1.5 py-0.5 text-[10px] font-mono tabular-nums leading-none",
                   active
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-muted text-foreground"
+                    : "bg-muted/80 text-muted-foreground"
                 )}
               >
                 {item.badge}

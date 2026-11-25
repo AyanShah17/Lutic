@@ -306,39 +306,39 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 space-y-7">
-      <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-border pb-6">
-        <div className="space-y-2 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-sm border border-border bg-card px-2 py-0.5 font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-border/70 pb-6">
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-            <span>
-              {user ? `${user.role.toUpperCase()} · ${user.plantIds.join(", ")}` : "Lutic Operations Platform"}
+            <span className="capitalize">
+              {user ? `${user.role} · ${user.plantIds.join(", ")}` : "Lutic Operations Platform"}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
             Lutic Industrial Operations PaaS
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Role-governed AI chat, visual workflow automation, live telemetry monitoring, messaging queues, and semantic dashboards in one workspace.
+            Role-governed AI guidance, machine topology, workflow automation, live telemetry, and semantic dashboards.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {user ? (
             <>
-              <Link href="/machines" className={buttonVariants({ size: "lg" })}>
+              <Link href="/machines" className={buttonVariants({ size: "default" })}>
                 <Cpu className="h-4 w-4" />
-                <span>Open Machine Topology</span>
+                <span>Machine Topology</span>
               </Link>
               <Link
                 href={primaryMachineHref}
-                className={buttonVariants({ variant: "outline", size: "lg" })}
+                className={buttonVariants({ variant: "outline", size: "default" })}
               >
                 <QrCode className="h-4 w-4" />
                 <span>{primaryMachineLabel}</span>
               </Link>
             </>
           ) : (
-            <Link href="/login" className={buttonVariants({ size: "lg" })}>
+            <Link href="/login" className={buttonVariants({ size: "default" })}>
               <span>{demoMode ? "Sign in with Demo Role" : "Sign in"}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -349,13 +349,13 @@ export default async function HomePage() {
       {snapshot && (
         <section
           aria-label="Operational Snapshot"
-          className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border rounded-xl border border-border bg-card overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+          className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-border/70 rounded-2xl border border-border/80 bg-card overflow-hidden"
         >
           <div className="p-4">
-            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <div className="text-xs font-medium text-muted-foreground">
               Fleet Running
             </div>
-            <div className="mt-1.5 text-xl font-bold font-mono tabular-nums">
+            <div className="mt-1 text-xl font-semibold font-mono tabular-nums">
               {snapshot.runningMachines}
               <span className="text-xs font-normal text-muted-foreground">
                 /{snapshot.totalMachines}
@@ -363,12 +363,12 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="p-4">
-            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <div className="text-xs font-medium text-muted-foreground">
               Active Faults
             </div>
             <div
               className={cn(
-                "mt-1.5 text-xl font-bold font-mono tabular-nums",
+                "mt-1 text-xl font-semibold font-mono tabular-nums",
                 snapshot.faultMachines > 0 ? "text-destructive" : "text-foreground"
               )}
             >
@@ -376,18 +376,18 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="p-4">
-            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <div className="text-xs font-medium text-muted-foreground">
               Open Alerts
             </div>
-            <div className="mt-1.5 text-xl font-bold font-mono tabular-nums">
+            <div className="mt-1 text-xl font-semibold font-mono tabular-nums">
               {snapshot.openAlerts ?? "—"}
             </div>
           </div>
           <div className="p-4">
-            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <div className="text-xs font-medium text-muted-foreground">
               Active Workflows
             </div>
-            <div className="mt-1.5 text-xl font-bold font-mono tabular-nums">
+            <div className="mt-1 text-xl font-semibold font-mono tabular-nums">
               {snapshot.enabledWorkflows ?? "—"}
             </div>
           </div>
@@ -398,14 +398,14 @@ export default async function HomePage() {
         <GlowBorderCard>
           <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
                 <AlertTriangle className="h-4 w-4" />
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold">
                     {snapshot?.spotlightMachine
-                      ? `Active Machine Spotlight: ${snapshot.spotlightMachine.name}`
+                      ? `Spotlight: ${snapshot.spotlightMachine.name}`
                       : "Live Active Fault: Line 3 Rotary Filler #1"}
                   </span>
                   <Badge variant="destructive" className="font-mono">
@@ -424,7 +424,7 @@ export default async function HomePage() {
 
             <LineHoverLink
               href={user ? primaryMachineHref : "/login"}
-              className="shrink-0 py-1 font-semibold"
+              className="shrink-0 py-1 font-medium"
             >
               {user
                 ? `Inspect ${snapshot?.spotlightMachine?.id ?? "mach-l3-filler-01"}`
@@ -437,41 +437,36 @@ export default async function HomePage() {
 
       <section className="space-y-6">
         {groups.map((group) => (
-          <div key={group.code} className="space-y-2.5">
+          <div key={group.code} className="space-y-2">
             <div className="flex flex-wrap items-baseline justify-between gap-2 px-0.5">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] font-semibold text-primary tabular-nums">
-                  {group.code}
-                </span>
-                <h2 className="text-sm font-semibold tracking-tight">{group.title}</h2>
-              </div>
-              <span className="text-xs text-muted-foreground">{group.subtitle}</span>
+              <h2 className="text-xs font-medium text-muted-foreground">{group.title}</h2>
+              <span className="text-[11px] text-muted-foreground/80">{group.subtitle}</span>
             </div>
 
-            <Card className="divide-y divide-border overflow-hidden rounded-xl">
+            <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl">
               {group.items.map(({ href, title, description, tag, Icon }) => (
                 <Link
                   key={href + title}
                   href={href}
-                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-muted/35"
+                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-muted/30"
                 >
                   <div className="flex items-start sm:items-center gap-3 min-w-0">
                     <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 mt-0.5 sm:mt-0 transition-colors duration-150" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-150">
+                        <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-150">
                           {title}
                         </span>
-                        <Badge variant="outline" className="text-[10px] font-mono">
+                        <span className="text-[11px] font-mono text-muted-foreground/80">
                           {tag}
-                        </Badge>
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate sm:whitespace-normal">
                         {description}
                       </p>
                     </div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] shrink-0 hidden sm:block" />
+                  <ArrowRight className="h-4 w-4 text-muted-foreground/60 group-hover:text-primary group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] shrink-0 hidden sm:block" />
                 </Link>
               ))}
             </Card>
