@@ -71,21 +71,19 @@ interface SyncLogItem {
 }
 
 const FEATURED_SLUGS = [
-  "lutic-cloud",
-  "lutic-api",
   "github",
   "slack",
   "linear",
   "jira",
   "notion",
   "stripe",
+  "hubspot",
+  "discord",
+  "google-drive",
+  "gmail",
   "servicenow",
-  "sap-pm",
-  "modbus-tcp",
-  "mqtt-broker"
+  "sap-pm"
 ];
-
-const BUILTIN_SLUGS = new Set(["cmms", "historian", "mes", "parts-erp", "docs"]);
 
 function statusBadgeVariant(status: string): "success" | "warning" | "destructive" | "outline" {
   if (status === "connected" || status === "success") return "success";
@@ -101,9 +99,9 @@ function formatTransportLabel(transport: string): string {
     case "utcp_http":
       return "OpenAPI Spec";
     case "in_memory_mcp":
-      return "Lutic Native";
+      return "Local MCP";
     case "lutic_protocol":
-      return "Lutic Protocol";
+      return "Direct Protocol";
     case "simulated":
       return "Sandbox Adapter";
     case "http":
@@ -782,17 +780,15 @@ export function ConnectorsConsole() {
                             <RefreshCw className="h-3 w-3" />
                             <span>Sync</span>
                           </Button>
-                          {!BUILTIN_SLUGS.has(selected.slug) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Disconnect ${selected.name}`}
-                              onClick={() => void handleDisconnect(selected)}
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Disconnect ${selected.name}`}
+                            onClick={() => void handleDisconnect(selected)}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -990,7 +986,7 @@ export function ConnectorsConsole() {
                   <Input
                     value={pickerSearch}
                     onChange={(e) => setPickerSearch(e.target.value)}
-                    placeholder="Search 2,100+ apps (GitHub, Slack, Linear, SAP, MCP, OpenAPI)..."
+                    placeholder="Search 2,100+ integrations (GitHub, Slack, Linear, Jira, Stripe, SAP)..."
                     aria-label="Search integrations"
                     className="pl-8"
                   />

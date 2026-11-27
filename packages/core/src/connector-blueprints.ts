@@ -206,7 +206,7 @@ export function getConnectorAuthBlueprint(entry: {
     entry.credentialFields?.find((f) => f.key === "endpointUrl" || f.key === "endpoint")
       ?.defaultValue ?? "";
 
-  if (slug === "lutic-cloud" || slug === "lutic-bridge" || entry.transport === "remote_mcp") {
+  if (entry.transport === "remote_mcp" || slug.endsWith("-mcp")) {
     const defaultUrl = catalogDefaultUrl || "https://mcp.example.com/mcp";
     return {
       slug,
@@ -269,7 +269,7 @@ export function getConnectorAuthBlueprint(entry: {
     };
   }
 
-  if (slug === "lutic-api" || entry.transport === "utcp_http") {
+  if (entry.transport === "utcp_http") {
     const defaultUrl = catalogDefaultUrl || "https://api.example.com/openapi.json";
     return {
       slug,

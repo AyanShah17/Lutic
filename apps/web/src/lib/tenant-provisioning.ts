@@ -2,8 +2,6 @@ import crypto from "node:crypto";
 import {
   auditLog,
   boardIssues,
-  CONNECTOR_CATALOG,
-  connectorConnections,
   dashboards,
   dashboardVersions,
   installCoreToolkits,
@@ -46,7 +44,7 @@ async function runTx<T>(
 
 /**
  * Atomically provisions a dedicated, isolated tenant workspace with core toolkits,
- * native connectors, starter board issues, starter AI Canvas DAG workflow,
+ * starter board issues, starter AI Canvas DAG workflow,
  * starter AI Dashboard, and pub/sub + queue channels.
  */
 export async function provisionTenantWorkspace(
@@ -130,8 +128,6 @@ export async function provisionTenantWorkspace(
     version: 1
   };
 
-  const localConnectors = CONNECTOR_CATALOG.filter((c) => c.transport === "in_memory_mcp");
-
   const userRow = await runTx(db, async (tx) => {
     await tx.insert(tenants).values({
       id: tenantId,
@@ -170,25 +166,6 @@ export async function provisionTenantWorkspace(
     });
 
     await installCoreToolkits(tx, tenantId, `${tenantId}-`);
-
-    if (localConnectors.length > 0) {
-      await tx.insert(connectorConnections).values(
-        localConnectors.map((entry) => ({
-          id: `conn-${tenantId}-${entry.slug}`,
-          tenantId,
-          slug: entry.slug,
-          name: entry.name,
-          category: entry.category,
-          transport: entry.transport,
-          endpointUrl: `mcp://${entry.slug}`,
-          status: "connected" as const,
-          encryptedCredentials: "",
-          config: { mode: "local" },
-          discoveredTools: entry.defaultTools,
-          lastSyncAt: now
-        }))
-      );
-    }
 
     await tx.insert(topics).values({
       id: `topic-${tenantId}-plant-alerts`,

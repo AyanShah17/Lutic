@@ -3403,7 +3403,7 @@
     "name": "apaleo",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect apaleo data, operations, and workflows with Lutic.",
+    "description": "Connect apaleo data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_properties",
@@ -4105,7 +4105,7 @@
   },
   {
     "slug": "appgrowing-mcp",
-    "name": "AppGrowing Global Lutic",
+    "name": "AppGrowing Global MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Copy your API key from Personal Center → Enterprise → Overview at https://appgrowing-global.youcloud.com/dashboard?finance=/team/info. Connecting c...",
@@ -4130,7 +4130,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "AppGrowing Global Lutic Endpoint",
+        "label": "AppGrowing Global MCP Endpoint",
         "defaultValue": "https://appgrowing.net/"
       },
       {
@@ -4561,7 +4561,7 @@
     "name": "arXiv",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect arXiv data, operations, and workflows with Lutic.",
+    "description": "Connect arXiv data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "search_papers",
@@ -6030,7 +6030,7 @@
     "name": "Baidu Netdisk",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Baidu Netdisk data, operations, and workflows with Lutic.",
+    "description": "Connect Baidu Netdisk data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_account",
@@ -6131,7 +6131,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -7355,7 +7355,7 @@
     "name": "bioRxiv and medRxiv",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect bioRxiv and medRxiv data, operations, and workflows with Lutic.",
+    "description": "Connect bioRxiv and medRxiv data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_preprints",
@@ -7429,7 +7429,7 @@
     "name": "Bitbucket",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Bitbucket data, operations, and workflows with Lutic.",
+    "description": "Connect Bitbucket data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_user",
@@ -9154,10 +9154,10 @@
   },
   {
     "slug": "bt-mcp",
-    "name": "BT Panel Lutic",
+    "name": "BT Panel MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Operate a BT Panel instance through its installed Lutic endpoint.",
+    "description": "Operate a BT Panel instance through its installed MCP endpoint.",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -9165,18 +9165,18 @@
       },
       {
         "name": "call_tool",
-        "description": "Call a current BT Panel Lutic tool with JSON arguments. Discover the tool fir..."
+        "description": "Call a current BT Panel MCP tool with JSON arguments. Discover the tool fir..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "BT Panel Lutic Endpoint",
+        "label": "BT Panel MCP Endpoint",
         "defaultValue": "https://www.bt.cn"
       },
       {
         "key": "apiKey",
-        "label": "Lutic connector URL",
+        "label": "MCP Server URL",
         "secret": true
       }
     ]
@@ -9844,7 +9844,7 @@
     "name": "Cal.com",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Cal.com data, operations, and workflows with Lutic.",
+    "description": "Connect Cal.com data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_my_profile",
@@ -10276,7 +10276,7 @@
     "name": "Canva",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Canva data, operations, and workflows with Lutic.",
+    "description": "Connect Canva data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_user",
@@ -10313,7 +10313,7 @@
     "name": "Canva China",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Canva China data, operations, and workflows with Lutic.",
+    "description": "Connect Canva China data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "canva_cn_execute",
@@ -12383,7 +12383,7 @@
   },
   {
     "slug": "clickup-mcp",
-    "name": "ClickUp Lutic",
+    "name": "ClickUp MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Search and manage ClickUp work through ClickUp",
@@ -12408,7 +12408,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "ClickUp Lutic Endpoint",
+        "label": "ClickUp MCP Endpoint",
         "defaultValue": "https://developer.clickup.com/docs/connect-an-ai-assistant-to-clickups-mcp-server"
       },
       {
@@ -12497,7 +12497,7 @@
     "name": "ClinicalTrials.gov",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect ClinicalTrials.gov data, operations, and workflows with Lutic.",
+    "description": "Connect ClinicalTrials.gov data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "search_studies",
@@ -12769,7 +12769,7 @@
     "name": "Cloudflare Docs",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Cloudflare Docs data, operations, and workflows with Lutic.",
+    "description": "Connect Cloudflare Docs data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "search_cloudflare_documentation",
@@ -12795,10 +12795,10 @@
   },
   {
     "slug": "cloudflare-mcp",
-    "name": "Cloudflare Lutic",
+    "name": "Cloudflare MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Search Cloudflare documentation and API schemas, then manage Cloudflare resources through the official unified Lutic service. API tokens connect di...",
+    "description": "Search Cloudflare documentation and API schemas, then manage Cloudflare resources through the official unified MCP service. API tokens connect di...",
     "defaultTools": [
       {
         "name": "docs",
@@ -12816,7 +12816,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Cloudflare Lutic Endpoint",
+        "label": "Cloudflare MCP Endpoint",
         "defaultValue": "https://github.com/cloudflare/mcp"
       },
       {
@@ -13045,7 +13045,7 @@
     "name": "Cochrane",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Cochrane data, operations, and workflows with Lutic.",
+    "description": "Connect Cochrane data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_review_metadata",
@@ -16963,7 +16963,7 @@
     "name": "DealNews",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect DealNews data, operations, and workflows with Lutic.",
+    "description": "Connect DealNews data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "dealnews_execute",
@@ -17338,7 +17338,7 @@
     "name": "Demio",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Demio data, operations, and workflows with Lutic.",
+    "description": "Connect Demio data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_events",
@@ -17881,7 +17881,7 @@
     "name": "Dida365",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Dida365 data, operations, and workflows with Lutic.",
+    "description": "Connect Dida365 data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_user_project",
@@ -17945,7 +17945,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -18162,10 +18162,10 @@
   },
   {
     "slug": "dingtalk-mcp",
-    "name": "DingTalk Lutic",
+    "name": "DingTalk MCP",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Discover and call live DingTalk tools through an official DingTalk Lutic marketplace service, such as DingTalk Docs, Calendar, or Contacts.",
+    "description": "Discover and call live DingTalk tools through an official DingTalk MCP marketplace service, such as DingTalk Docs, Calendar, or Contacts.",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -18173,18 +18173,18 @@
       },
       {
         "name": "call_tool",
-        "description": "Call a current DingTalk Lutic tool with JSON arguments. Discover the tool fir..."
+        "description": "Call a current DingTalk MCP tool with JSON arguments. Discover the tool fir..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "DingTalk Lutic Endpoint",
+        "label": "DingTalk MCP Endpoint",
         "defaultValue": "https://www.dingtalk.com"
       },
       {
         "key": "apiKey",
-        "label": "Lutic URL",
+        "label": "MCP URL",
         "secret": true
       }
     ]
@@ -18700,7 +18700,7 @@
     "name": "Docsend2pdf",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Docsend2pdf data, operations, and workflows with Lutic.",
+    "description": "Connect Docsend2pdf data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "convert",
@@ -19467,10 +19467,10 @@
   },
   {
     "slug": "drawio-mcp",
-    "name": "draw.io Lutic",
+    "name": "draw.io MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Create draw.io diagrams from Mermaid or draw.io XML and search the draw.io shape library through the draw.io Lutic connector.",
+    "description": "Create draw.io diagrams from Mermaid or draw.io XML and search the draw.io shape library through the draw.io MCP server.",
     "defaultTools": [
       {
         "name": "create_diagram",
@@ -19484,12 +19484,12 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "draw.io Lutic Endpoint",
+        "label": "draw.io MCP Endpoint",
         "defaultValue": "https://www.drawio.com"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Endpoint URL",
+        "label": "MCP Endpoint URL",
         "secret": true
       }
     ]
@@ -19713,7 +19713,7 @@
     "name": "Dropbox",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Dropbox data, operations, and workflows with Lutic.",
+    "description": "Connect Dropbox data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_account",
@@ -20178,7 +20178,7 @@
     "name": "Eastmoney Miaoxiang",
     "category": "erp",
     "transport": "simulated",
-    "description": "Get a Miaoxiang Skills API key at https://marketing.dfcfs.com/views/finskillshub/. Use the Skills key (MXAPIKEY), not the separate Lutic key (EMAPI...",
+    "description": "Get a Miaoxiang Skills API key at https://marketing.dfcfs.com/views/finskillshub/. Use the Skills key (MXAPIKEY), not the separate MCP key (EMAPI...",
     "defaultTools": [
       {
         "name": "query_financial_data",
@@ -20429,7 +20429,7 @@
     "name": "Ecologi",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect Ecologi data, operations, and workflows with Lutic.",
+    "description": "Connect Ecologi data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "purchase_trees",
@@ -21692,7 +21692,7 @@
     "name": "Europe PMC",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Europe PMC data, operations, and workflows with Lutic.",
+    "description": "Connect Europe PMC data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "search_publications",
@@ -22047,14 +22047,14 @@
   },
   {
     "slug": "excalidraw-mcp",
-    "name": "Excalidraw Lutic",
+    "name": "Excalidraw MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Draw and inspect Excalidraw diagrams through the Excalidraw Lutic connector.",
+    "description": "Draw and inspect Excalidraw diagrams through the Excalidraw MCP server.",
     "defaultTools": [
       {
         "name": "read_me",
-        "description": "Fetch the Excalidraw element format guide and drawing tips from the Lutic con..."
+        "description": "Fetch the Excalidraw element format guide and drawing tips from the MCP con..."
       },
       {
         "name": "create_view",
@@ -22064,12 +22064,12 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Excalidraw Lutic Endpoint",
+        "label": "Excalidraw MCP Endpoint",
         "defaultValue": "https://excalidraw.com"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Endpoint URL",
+        "label": "MCP Endpoint URL",
         "secret": true
       }
     ]
@@ -22582,29 +22582,29 @@
   },
   {
     "slug": "fastmoss-mcp",
-    "name": "FastMoss Lutic",
+    "name": "FastMoss MCP",
     "category": "erp",
     "transport": "simulated",
-    "description": "Sign in to https://developers.fastmoss.com/ to create an Lutic API key and manage Lutic Credits. Copy the key following https://developer.fastmoss....",
+    "description": "Sign in to https://developers.fastmoss.com/ to create an MCP API key and manage API Credits. Copy the key following https://developer.fastmoss....",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover current FastMoss Lutic tools, live argument schemas and behavior ann..."
+        "description": "Discover current FastMoss MCP tools, live argument schemas and behavior ann..."
       },
       {
         "name": "call_tool",
-        "description": "Call any current FastMoss Lutic tool after inspecting listtools. Arguments mu..."
+        "description": "Call any current FastMoss MCP tool after inspecting listtools. Arguments mu..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "FastMoss Lutic Endpoint",
+        "label": "FastMoss MCP Endpoint",
         "defaultValue": "https://www.fastmoss.com/zh"
       },
       {
         "key": "apiKey",
-        "label": "Lutic API Key",
+        "label": "MCP API Key",
         "secret": true
       }
     ]
@@ -24177,19 +24177,19 @@
     "defaultTools": [
       {
         "name": "memo_update",
-        "description": "Update an existing flomo memo through the flomo Max Lutic connector. The exac..."
+        "description": "Update an existing flomo memo through the flomo Max MCP server. The exac..."
       },
       {
         "name": "memo_search",
-        "description": "Search flomo memos through the flomo Max Lutic connector by keywords, tags, t..."
+        "description": "Search flomo memos through the flomo Max MCP server by keywords, tags, t..."
       },
       {
         "name": "memo_batch_get",
-        "description": "Fetch multiple flomo memos through the flomo Max Lutic connector in a single..."
+        "description": "Fetch multiple flomo memos through the flomo Max MCP server in a single..."
       },
       {
         "name": "memo_recommended",
-        "description": "Find flomo memos related to a target memo through the flomo Max Lutic connector."
+        "description": "Find flomo memos related to a target memo through the flomo Max MCP server."
       }
     ],
     "credentialFields": [
@@ -26026,7 +26026,7 @@
     "name": "GatherUp",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect GatherUp data, operations, and workflows with Lutic.",
+    "description": "Connect GatherUp data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_businesses",
@@ -26541,7 +26541,7 @@
     "name": "GetResponse",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect GetResponse data, operations, and workflows with Lutic.",
+    "description": "Connect GetResponse data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_campaigns",
@@ -26726,7 +26726,7 @@
     "name": "Gildata Data Map",
     "category": "erp",
     "transport": "simulated",
-    "description": "The JYAPIKEY used to access Gildata Data Map Lutic financial data services. Request access through the official Data Map product page at https://ww...",
+    "description": "The JYAPIKEY used to access Gildata Data Map MCP financial data services. Request access through the official Data Map product page at https://ww...",
     "defaultTools": [
       {
         "name": "query_financial_data",
@@ -27960,7 +27960,7 @@
     "name": "Google Docs",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Google Docs data, operations, and workflows with Lutic.",
+    "description": "Connect Google Docs data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "create_document_markdown",
@@ -28108,7 +28108,7 @@
     "name": "Google Photos",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Google Photos data, operations, and workflows with Lutic.",
+    "description": "Connect Google Photos data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_albums",
@@ -28536,11 +28536,11 @@
     "name": "Granola",
     "category": "http",
     "transport": "simulated",
-    "description": "For Granola REST API actions on Business or Enterprise plans. Create a key in Granola Settings > Connectors > API keys. Use OAuth for Lutic access,...",
+    "description": "For Granola REST API actions on Business or Enterprise plans. Create a key in Granola Settings > Connectors > API keys. Use OAuth for MCP access,...",
     "defaultTools": [
       {
         "name": "list_notes",
-        "description": "List Granola notes with OAuth or an API key. Lutic lists meetings from the la..."
+        "description": "List Granola notes with OAuth or an API key. MCP lists meetings from the la..."
       },
       {
         "name": "get_note",
@@ -28552,7 +28552,7 @@
       },
       {
         "name": "list_meetings",
-        "description": "List recent Granola meetings with OAuth or an API key. OAuth uses Lutic"
+        "description": "List recent Granola meetings with OAuth or an API key. OAuth uses MCP"
       }
     ],
     "credentialFields": [
@@ -29108,7 +29108,7 @@
     "name": "Hacker News",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Hacker News data, operations, and workflows with Lutic.",
+    "description": "Connect Hacker News data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_item",
@@ -29647,7 +29647,7 @@
     "name": "Heartbeat",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Heartbeat data, operations, and workflows with Lutic.",
+    "description": "Connect Heartbeat data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_users",
@@ -29721,15 +29721,15 @@
     "name": "Helium 10",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Helium 10 data, operations, and workflows with Lutic.",
+    "description": "Connect Helium 10 data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover Helium 10 Lutic tools that are both in the official V1 read-only cat..."
+        "description": "Discover Helium 10 MCP tools that are both in the official V1 read-only cat..."
       },
       {
         "name": "call_tool",
-        "description": "Call a Helium 10 Lutic tool after verifying it against the official V1 read-o..."
+        "description": "Call a Helium 10 MCP tool after verifying it against the official V1 read-o..."
       }
     ],
     "credentialFields": [
@@ -29853,7 +29853,7 @@
     "name": "Help Scout",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Help Scout data, operations, and workflows with Lutic.",
+    "description": "Connect Help Scout data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_inboxes",
@@ -31062,7 +31062,7 @@
     "name": "HubSpot",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect HubSpot data, operations, and workflows with Lutic.",
+    "description": "Connect HubSpot data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "search_crm_objects",
@@ -31070,11 +31070,11 @@
       },
       {
         "name": "get_crm_objects",
-        "description": "Fetch one or more HubSpot CRM objects by ID through the Lutic connector."
+        "description": "Fetch one or more HubSpot CRM objects by ID through the MCP server."
       },
       {
         "name": "manage_crm_objects",
-        "description": "Create or update HubSpot CRM records or activities through the Lutic connector."
+        "description": "Create or update HubSpot CRM records or activities through the MCP server."
       },
       {
         "name": "search_contacts",
@@ -31314,10 +31314,10 @@
   },
   {
     "slug": "huodingdong-mcp",
-    "name": "Huodingdong ERP Lutic",
+    "name": "Huodingdong ERP MCP",
     "category": "erp",
     "transport": "simulated",
-    "description": "Sign in at https://www.huodingdong.com/login, open System > Open Platform > Lutic Management, and copy the access key. The key is bound to your Huo...",
+    "description": "Sign in at https://www.huodingdong.com/login, open System > Open Platform > MCP Management, and copy the access key. The key is bound to your Huo...",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -31325,13 +31325,13 @@
       },
       {
         "name": "call_tool",
-        "description": "Call a current Huodingdong ERP Lutic tool after discovering its schema with l..."
+        "description": "Call a current Huodingdong ERP MCP tool after discovering its schema with l..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Huodingdong ERP Lutic Endpoint",
+        "label": "Huodingdong ERP MCP Endpoint",
         "defaultValue": "https://www.huodingdong.com"
       },
       {
@@ -32050,7 +32050,7 @@
     "name": "Indeed",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Indeed data, operations, and workflows with Lutic.",
+    "description": "Connect Indeed data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_user",
@@ -32124,7 +32124,7 @@
     "name": "Indiegogo",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect Indiegogo data, operations, and workflows with Lutic.",
+    "description": "Connect Indiegogo data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_creator",
@@ -32564,7 +32564,7 @@
     "name": "Intercom",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Intercom data, operations, and workflows with Lutic.",
+    "description": "Connect Intercom data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_admin",
@@ -32601,7 +32601,7 @@
     "name": "InternetData",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect InternetData data, operations, and workflows with Lutic.",
+    "description": "Connect InternetData data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "lookup_ip",
@@ -32763,24 +32763,24 @@
   },
   {
     "slug": "investoday-mcp",
-    "name": "Investoday Lutic",
+    "name": "Investoday MCP",
     "category": "erp",
     "transport": "simulated",
-    "description": "Sign in to https://data-api.investoday.net and open Personal Center > My Applications to create a personalized Lutic application, authorize at leas...",
+    "description": "Sign in to https://data-api.investoday.net and open Personal Center > My Applications to create a personalized MCP application, authorize at leas...",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover the current Investoday financial market data and research Lutic tool..."
+        "description": "Discover the current Investoday financial market data and research MCP tool..."
       },
       {
         "name": "call_tool",
-        "description": "Call a current Investoday Lutic tool with JSON arguments after checking its l..."
+        "description": "Call a current Investoday MCP tool with JSON arguments after checking its l..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Investoday Lutic Endpoint",
+        "label": "Investoday MCP Endpoint",
         "defaultValue": "https://data-api.investoday.net/mcp"
       },
       {
@@ -32832,7 +32832,7 @@
     "name": "Invoice Ninja",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect Invoice Ninja data, operations, and workflows with Lutic.",
+    "description": "Connect Invoice Ninja data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_clients",
@@ -33738,11 +33738,11 @@
     "name": "Jin10",
     "category": "erp",
     "transport": "simulated",
-    "description": "Jin10 Lutic API key used as a Bearer token for https://mcp.jin10.com/mcp. Sign in, activate, and copy your Lutic Token from the Jin10 Intelligent O...",
+    "description": "Jin10 MCP API key used as a Bearer token for https://mcp.jin10.com/mcp. Sign in, activate, and copy your MCP Token from the Jin10 Intelligent O...",
     "defaultTools": [
       {
         "name": "list_quote_codes",
-        "description": "List quote instrument codes supported by Jin10 from the quote://codes Lutic r..."
+        "description": "List quote instrument codes supported by Jin10 from the quote://codes MCP r..."
       },
       {
         "name": "get_quote",
@@ -34063,7 +34063,7 @@
     "name": "JumpServer",
     "category": "http",
     "transport": "simulated",
-    "description": "Inspect assets, nodes, accounts, users, permissions, and sessions through an official JumpServer Lutic connector.",
+    "description": "Inspect assets, nodes, accounts, users, permissions, and sessions through an official JumpServer MCP server.",
     "defaultTools": [
       {
         "name": "jumpserver_execute",
@@ -34078,7 +34078,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic SSE Endpoint",
+        "label": "MCP SSE Endpoint",
         "secret": true
       }
     ]
@@ -35461,10 +35461,10 @@
   },
   {
     "slug": "kolsprite-mcp",
-    "name": "KOLSprite Lutic",
+    "name": "KOLSprite MCP",
     "category": "erp",
     "transport": "simulated",
-    "description": "Follow https://o.kolsprite.com/doc/api.htmlmcp-config to contact the administrator, enable Lutic access, and obtain your secret-key. Lutic Keys and...",
+    "description": "Follow https://o.kolsprite.com/doc/api.htmlmcp-config to contact the administrator, enable MCP access, and obtain your secret-key. MCP Keys and...",
     "defaultTools": [
       {
         "name": "creator_search",
@@ -35486,12 +35486,12 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "KOLSprite Lutic Endpoint",
+        "label": "KOLSprite MCP Endpoint",
         "defaultValue": "https://www.kolsprite.com"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -35526,7 +35526,7 @@
     "name": "Kommo",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Kommo data, operations, and workflows with Lutic.",
+    "description": "Connect Kommo data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_account",
@@ -37069,7 +37069,7 @@
     "name": "Linear",
     "category": "http",
     "transport": "simulated",
-    "description": "Linear through its API: typed operations and triggers on issue events, with OAuth or an API key. Linear Lutic offers Linear",
+    "description": "Linear through its API: typed operations and triggers on issue events, with OAuth or an API key. Linear MCP offers Linear",
     "defaultTools": [
       {
         "name": "create_attachment",
@@ -37103,7 +37103,7 @@
   },
   {
     "slug": "linear-mcp",
-    "name": "Linear Lutic",
+    "name": "Linear MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Read Linear issues, comments, teams, projects, workflow states and labels, and create or update issues and comments, through Linear",
@@ -37128,7 +37128,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Linear Lutic Endpoint",
+        "label": "Linear MCP Endpoint",
         "defaultValue": "https://linear.app/docs/mcp"
       },
       {
@@ -37202,29 +37202,29 @@
   },
   {
     "slug": "lingxing-mcp",
-    "name": "Lingxing Lutic",
+    "name": "Lingxing MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Discover and call live Lingxing ERP tools through the official Lingxing HTTPS service.",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover the current Lingxing ERP Lutic tools, behavior annotations, and live..."
+        "description": "Discover the current Lingxing ERP MCP tools, behavior annotations, and live..."
       },
       {
         "name": "call_tool",
-        "description": "Call a current Lingxing ERP Lutic tool with JSON arguments. Discover the tool..."
+        "description": "Call a current Lingxing ERP MCP tool with JSON arguments. Discover the tool..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Lingxing Lutic Endpoint",
+        "label": "Lingxing MCP Endpoint",
         "defaultValue": "https://www.lingxing.com/help/article/mcp"
       },
       {
         "key": "apiKey",
-        "label": "Lutic connector URL",
+        "label": "MCP Server URL",
         "secret": true
       }
     ]
@@ -37234,7 +37234,7 @@
     "name": "LinkedIn",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect LinkedIn data, operations, and workflows with Lutic.",
+    "description": "Connect LinkedIn data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_member",
@@ -37345,7 +37345,7 @@
     "name": "Linkhut",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Linkhut data, operations, and workflows with Lutic.",
+    "description": "Connect Linkhut data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "add_bookmark",
@@ -37456,7 +37456,7 @@
     "name": "Linux DO",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Linux DO data, operations, and workflows with Lutic.",
+    "description": "Connect Linux DO data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_top_topics",
@@ -38049,7 +38049,7 @@
     "name": "Longbridge",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect Longbridge data, operations, and workflows with Lutic.",
+    "description": "Connect Longbridge data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_securities",
@@ -38407,7 +38407,7 @@
     "name": "Luckin Coffee",
     "category": "http",
     "transport": "simulated",
-    "description": "Find Luckin Coffee stores and products, preview orders, and manage orders through the official Lutic service.",
+    "description": "Find Luckin Coffee stores and products, preview orders, and manage orders through the official MCP service.",
     "defaultTools": [
       {
         "name": "queryShopList",
@@ -38434,7 +38434,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic Token",
+        "label": "MCP Token",
         "secret": true
       }
     ]
@@ -39160,7 +39160,7 @@
     "name": "Mailjet",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Mailjet data, operations, and workflows with Lutic.",
+    "description": "Connect Mailjet data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_contacts",
@@ -39818,7 +39818,7 @@
     "name": "Mautic",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Mautic data, operations, and workflows with Lutic.",
+    "description": "Connect Mautic data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_contacts",
@@ -39911,7 +39911,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic Token",
+        "label": "MCP Token",
         "secret": true
       }
     ]
@@ -40341,7 +40341,7 @@
     "name": "Mendeley",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Mendeley data, operations, and workflows with Lutic.",
+    "description": "Connect Mendeley data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_documents",
@@ -41774,7 +41774,7 @@
   },
   {
     "slug": "moneyforward-mcp",
-    "name": "Money Forward クラウド会計 Lutic",
+    "name": "Money Forward クラウド会計 MCP",
     "category": "erp",
     "transport": "simulated",
     "description": "Read and write Money Forward クラウド会計 books (offices, accounts, journals, trial balances, transition reports, bank and card transactions) through Mon...",
@@ -41799,7 +41799,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Money Forward クラウド会計 Lutic Endpoint",
+        "label": "Money Forward クラウド会計 MCP Endpoint",
         "defaultValue": "https://developers.biz.moneyforward.com/mcp/"
       },
       {
@@ -44115,7 +44115,7 @@
   },
   {
     "slug": "notion-mcp",
-    "name": "Notion Lutic",
+    "name": "Notion MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Search, read, create, update and comment on Notion pages through Notion",
@@ -44140,7 +44140,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Notion Lutic Endpoint",
+        "label": "Notion MCP Endpoint",
         "defaultValue": "https://www.notion.so"
       },
       {
@@ -45632,7 +45632,7 @@
     "name": "OpenAlex",
     "category": "http",
     "transport": "simulated",
-    "description": "OpenAlex through its public API: search, get and autocomplete works and other entities with an API key. OpenAlex Lutic adds analysis, alerts and yo...",
+    "description": "OpenAlex through its public API: search, get and autocomplete works and other entities with an API key. OpenAlex MCP adds analysis, alerts and yo...",
     "defaultTools": [
       {
         "name": "list_entities",
@@ -45666,7 +45666,7 @@
   },
   {
     "slug": "openalex-mcp",
-    "name": "OpenAlex Lutic",
+    "name": "OpenAlex MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Search the OpenAlex research catalog — works, authors, institutions, sources, topics, keywords and funders — analyze sets of works, resolve and che...",
@@ -45691,7 +45691,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "OpenAlex Lutic Endpoint",
+        "label": "OpenAlex MCP Endpoint",
         "defaultValue": "https://help.openalex.org/access/connector/"
       },
       {
@@ -45768,7 +45768,7 @@
     "name": "OpenFootball World Cup",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect OpenFootball World Cup data, operations, and workflows with Lutic.",
+    "description": "Connect OpenFootball World Cup data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_matches",
@@ -46012,24 +46012,24 @@
   },
   {
     "slug": "openseo-mcp",
-    "name": "OpenSEO Lutic",
+    "name": "OpenSEO MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Research keywords, track search rankings, and review site audits and reports",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover OpenSEO Lutic tools and their current input/output schemas and behav..."
+        "description": "Discover OpenSEO MCP tools and their current input/output schemas and behav..."
       },
       {
         "name": "call_tool",
-        "description": "Call an OpenSEO Lutic tool discovered with listtools. Use listprojects to obt..."
+        "description": "Call an OpenSEO MCP tool discovered with listtools. Use listprojects to obt..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "OpenSEO Lutic Endpoint",
+        "label": "OpenSEO MCP Endpoint",
         "defaultValue": "https://openseo.so"
       },
       {
@@ -46406,7 +46406,7 @@
     "name": "ORCID",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect ORCID data, operations, and workflows with Lutic.",
+    "description": "Connect ORCID data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_record",
@@ -47511,10 +47511,10 @@
   },
   {
     "slug": "patsnap-mcp",
-    "name": "Patsnap Lutic",
+    "name": "Patsnap MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Lutic/API Key for Patsnap core patents, patent landscape analytics, and design infringement search, sent as a Bearer header. Access to at least one...",
+    "description": "MCP/API Key for Patsnap core patents, patent landscape analytics, and design infringement search, sent as a Bearer header. Access to at least one...",
     "defaultTools": [
       {
         "name": "transfer_data",
@@ -47536,12 +47536,12 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Patsnap Lutic Endpoint",
+        "label": "Patsnap MCP Endpoint",
         "defaultValue": "https://open.patsnap.com/marketplace/mcp-servers"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -47662,7 +47662,7 @@
     "name": "PayPal",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect PayPal data, operations, and workflows with Lutic.",
+    "description": "Connect PayPal data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_transactions",
@@ -47921,7 +47921,7 @@
       },
       {
         "name": "call_tool",
-        "description": "Call a PDFCraft Lutic tool using its live schema from listtools. Results pres..."
+        "description": "Call a PDFCraft MCP tool using its live schema from listtools. Results pres..."
       },
       {
         "name": "submit_transform",
@@ -49238,7 +49238,7 @@
     "name": "PKULaw",
     "category": "http",
     "transport": "simulated",
-    "description": "Access Token used for PKULaw Lutic Bearer authentication. Create one and enable Lutic services at https://mcp.pkulaw.com/console/apps.",
+    "description": "Access Token used for PKULaw MCP Bearer authentication. Create one and enable MCP services at https://mcp.pkulaw.com/console/apps.",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -52440,7 +52440,7 @@
     "name": "QuickChart",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect QuickChart data, operations, and workflows with Lutic.",
+    "description": "Connect QuickChart data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "build_chart_url",
@@ -57048,7 +57048,7 @@
     "name": "SellerSpace",
     "category": "http",
     "transport": "simulated",
-    "description": "SellerSpace Lutic key sent in the x-api-key header. Create it by following https://www.sellerspace.com/help/doc/how-to-get-your-sellerspace-mcp-key .",
+    "description": "SellerSpace MCP key sent in the x-api-key header. Create it by following https://www.sellerspace.com/help/doc/how-to-get-your-sellerspace-mcp-key .",
     "defaultTools": [
       {
         "name": "list_stores",
@@ -57075,7 +57075,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -57119,29 +57119,29 @@
   },
   {
     "slug": "sellersprite-mcp",
-    "name": "SellerSprite Lutic",
+    "name": "SellerSprite MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "SellerSprite through its Lutic service: typed tools for ASINs, reviews, keywords, categories and ads, plus live tools. With an Open API key, use Se...",
+    "description": "SellerSprite through its MCP service: typed tools for ASINs, reviews, keywords, categories and ads, plus live tools. With an Open API key, use Se...",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover the current SellerSprite Amazon research and market-data Lutic tools..."
+        "description": "Discover the current SellerSprite Amazon research and market-data MCP tools..."
       },
       {
         "name": "call_tool",
-        "description": "Call a current SellerSprite Lutic tool with JSON arguments after inspecting i..."
+        "description": "Call a current SellerSprite MCP tool with JSON arguments after inspecting i..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "SellerSprite Lutic Endpoint",
+        "label": "SellerSprite MCP Endpoint",
         "defaultValue": "https://open.sellersprite.com/mcp"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Secret Key",
+        "label": "MCP Secret Key",
         "secret": true
       }
     ]
@@ -57665,7 +57665,7 @@
     "name": "Sentry",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Sentry data, operations, and workflows with Lutic.",
+    "description": "Connect Sentry data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_organization_integrations",
@@ -58840,7 +58840,7 @@
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -60665,7 +60665,7 @@
   },
   {
     "slug": "sorftime-mcp",
-    "name": "Sorftime Lutic",
+    "name": "Sorftime MCP",
     "category": "erp",
     "transport": "simulated",
     "description": "Discover and call Sorftime",
@@ -60690,12 +60690,12 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Sorftime Lutic Endpoint",
+        "label": "Sorftime MCP Endpoint",
         "defaultValue": "https://www.sorftime.com/"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Key",
+        "label": "API Key",
         "secret": true
       }
     ]
@@ -61215,7 +61215,7 @@
     "name": "Spotify",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Spotify data, operations, and workflows with Lutic.",
+    "description": "Connect Spotify data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_user_profile",
@@ -62400,7 +62400,7 @@
     "name": "Strava",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Strava data, operations, and workflows with Lutic.",
+    "description": "Connect Strava data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_authenticated_athlete",
@@ -62804,24 +62804,24 @@
   },
   {
     "slug": "sunsama-mcp",
-    "name": "Sunsama Lutic",
+    "name": "Sunsama MCP",
     "category": "http",
     "transport": "simulated",
     "description": "Work with Sunsama daily planning tasks and workflows through Sunsama",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover the current Sunsama task and daily planning Lutic tools with their l..."
+        "description": "Discover the current Sunsama task and daily planning MCP tools with their l..."
       },
       {
         "name": "call_tool",
-        "description": "Call a current Sunsama Lutic tool with JSON arguments after checking its live..."
+        "description": "Call a current Sunsama MCP tool with JSON arguments after checking its live..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Sunsama Lutic Endpoint",
+        "label": "Sunsama MCP Endpoint",
         "defaultValue": "https://help.sunsama.com/docs/integrations/mcp/"
       },
       {
@@ -64612,7 +64612,7 @@
   },
   {
     "slug": "tencent-meeting-mcp",
-    "name": "Tencent Meeting Lutic",
+    "name": "Tencent Meeting MCP",
     "category": "messaging",
     "transport": "simulated",
     "description": "Sign in at https://meeting.tencent.com/ai-skill/ and copy your Token. Switch to a personal account if your enterprise account does not yet have acc...",
@@ -64637,7 +64637,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Tencent Meeting Lutic Endpoint",
+        "label": "Tencent Meeting MCP Endpoint",
         "defaultValue": "https://meeting.tencent.com/"
       },
       {
@@ -65826,10 +65826,10 @@
   },
   {
     "slug": "tiktok-business-mcp",
-    "name": "TikTok for Business Lutic",
+    "name": "TikTok for Business MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Use the official TikTok for Business Lutic tools for advertising workflows.",
+    "description": "Use the official TikTok for Business MCP tools for advertising workflows.",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -65837,13 +65837,13 @@
       },
       {
         "name": "call_tool",
-        "description": "Call a current TikTok for Business Lutic tool with JSON arguments. Discover t..."
+        "description": "Call a current TikTok for Business MCP tool with JSON arguments. Discover t..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "TikTok for Business Lutic Endpoint",
+        "label": "TikTok for Business MCP Endpoint",
         "defaultValue": "https://business.tiktok.com"
       },
       {
@@ -66080,7 +66080,7 @@
     "name": "TiMEM Space",
     "category": "http",
     "transport": "simulated",
-    "description": "TiMEM Space Agent API Key used to connect its hosted Lutic service. Sign in at https://space.timem.cloud/console/connections, connect an Agent, and...",
+    "description": "TiMEM Space Agent API Key used to connect its hosted MCP service. Sign in at https://space.timem.cloud/console/connections, connect an Agent, and...",
     "defaultTools": [
       {
         "name": "search_memories",
@@ -66603,7 +66603,7 @@
     "name": "Tongdaxin",
     "category": "erp",
     "transport": "simulated",
-    "description": "Query Tongdaxin market data, screening, news, announcements, and research through its official Lutic service.",
+    "description": "Query Tongdaxin market data, screening, news, announcements, and research through its official MCP service.",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -66611,7 +66611,7 @@
       },
       {
         "name": "call_tool",
-        "description": "Call one supported read-only Tongdaxin financial data Lutic tool with argumen..."
+        "description": "Call one supported read-only Tongdaxin financial data MCP tool with argumen..."
       }
     ],
     "credentialFields": [
@@ -69757,7 +69757,7 @@
     "name": "Vimeo",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Vimeo data, operations, and workflows with Lutic.",
+    "description": "Connect Vimeo data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_user",
@@ -70514,7 +70514,7 @@
     "name": "Weights & Biases",
     "category": "http",
     "transport": "simulated",
-    "description": "Query W&B experiments, Weave traces, artifacts, registries, automations, and reports through the official W&B Lutic connector.",
+    "description": "Query W&B experiments, Weave traces, artifacts, registries, automations, and reports through the official W&B MCP server.",
     "defaultTools": [
       {
         "name": "query_weave_traces",
@@ -71053,7 +71053,7 @@
     "name": "Webex",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Webex data, operations, and workflows with Lutic.",
+    "description": "Connect Webex data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_people",
@@ -71338,10 +71338,10 @@
   },
   {
     "slug": "wecom-mcp",
-    "name": "WeCom Lutic",
+    "name": "WeCom MCP",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Discover and call live WeCom tools through the Lutic URL of a WeCom API-mode bot. For group webhook messages or typed smart bot operations, use WeC...",
+    "description": "Discover and call live WeCom tools through the MCP URL of a WeCom API-mode bot. For group webhook messages or typed smart bot operations, use WeC...",
     "defaultTools": [
       {
         "name": "list_tools",
@@ -71349,18 +71349,18 @@
       },
       {
         "name": "call_tool",
-        "description": "Call a current WeCom Lutic tool with JSON arguments. Discover the tool first..."
+        "description": "Call a current WeCom MCP tool with JSON arguments. Discover the tool first..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "WeCom Lutic Endpoint",
+        "label": "WeCom MCP Endpoint",
         "defaultValue": "https://work.weixin.qq.com"
       },
       {
         "key": "apiKey",
-        "label": "Lutic URL",
+        "label": "MCP URL",
         "secret": true
       }
     ]
@@ -71679,7 +71679,7 @@
     "name": "WHO Global Health Observatory",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect WHO Global Health Observatory data, operations, and workflows with Lutic.",
+    "description": "Connect WHO Global Health Observatory data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_dimensions",
@@ -72692,10 +72692,10 @@
   },
   {
     "slug": "wps-mcp",
-    "name": "WPS Lutic",
+    "name": "WPS MCP",
     "category": "http",
     "transport": "simulated",
-    "description": "Search, inspect, read, and create WPS cloud files through the official WPS Lutic service.",
+    "description": "Search, inspect, read, and create WPS cloud files through the official WPS MCP service.",
     "defaultTools": [
       {
         "name": "search_files",
@@ -72717,7 +72717,7 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "WPS Lutic Endpoint",
+        "label": "WPS MCP Endpoint",
         "defaultValue": "https://www.wps.cn"
       },
       {
@@ -72798,7 +72798,7 @@
     "name": "wttr.in",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect wttr.in data, operations, and workflows with Lutic.",
+    "description": "Connect wttr.in data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_weather",
@@ -72930,7 +72930,7 @@
     "name": "Xero",
     "category": "erp",
     "transport": "simulated",
-    "description": "Connect Xero data, operations, and workflows with Lutic.",
+    "description": "Connect Xero data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "list_organisations",
@@ -73038,18 +73038,18 @@
   },
   {
     "slug": "xydc-mcp",
-    "name": "XYDC Lutic",
+    "name": "XYDC MCP",
     "category": "erp",
     "transport": "simulated",
-    "description": "Copy your Lutic Token from the XYDC platform console for Authorization bearer authentication. Follow https://platform.xydc.com/docs/mcp-access. Use...",
+    "description": "Copy your MCP Token from the XYDC platform console for Authorization bearer authentication. Follow https://platform.xydc.com/docs/mcp-access. Use...",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover the current XYDC Lutic tools, behavior annotations, and live input s..."
+        "description": "Discover the current XYDC MCP tools, behavior annotations, and live input s..."
       },
       {
         "name": "call_tool",
-        "description": "Call a current XYDC Lutic tool with JSON arguments matching its live schema...."
+        "description": "Call a current XYDC MCP tool with JSON arguments matching its live schema...."
       },
       {
         "name": "read_category_insight_guide",
@@ -73059,12 +73059,12 @@
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "XYDC Lutic Endpoint",
+        "label": "XYDC MCP Endpoint",
         "defaultValue": "https://platform.xydc.com/mcp"
       },
       {
         "key": "apiKey",
-        "label": "Lutic Token",
+        "label": "MCP Token",
         "secret": true
       }
     ]
@@ -73178,24 +73178,24 @@
   },
   {
     "slug": "yingmi-mcp",
-    "name": "Yingmi Lutic",
+    "name": "Yingmi MCP",
     "category": "erp",
     "transport": "simulated",
     "description": "API Key sent in the x-api-key header. Apply and copy it from https://qieman.com/mcp/account.",
     "defaultTools": [
       {
         "name": "list_tools",
-        "description": "Discover the current Yingmi financial data, research, and advisory Lutic tool..."
+        "description": "Discover the current Yingmi financial data, research, and advisory MCP tool..."
       },
       {
         "name": "call_tool",
-        "description": "Call a current Yingmi Lutic tool with JSON arguments after checking its live..."
+        "description": "Call a current Yingmi MCP tool with JSON arguments after checking its live..."
       }
     ],
     "credentialFields": [
       {
         "key": "endpointUrl",
-        "label": "Yingmi Lutic Endpoint",
+        "label": "Yingmi MCP Endpoint",
         "defaultValue": "https://qieman.com/mcp/mcp-market"
       },
       {
@@ -73321,7 +73321,7 @@
     "name": "YouTube",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect YouTube data, operations, and workflows with Lutic.",
+    "description": "Connect YouTube data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "search",
@@ -73864,7 +73864,7 @@
     "name": "Zeplin",
     "category": "http",
     "transport": "simulated",
-    "description": "Connect Zeplin data, operations, and workflows with Lutic.",
+    "description": "Connect Zeplin data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_current_user",
@@ -74522,7 +74522,7 @@
     "name": "Zoom",
     "category": "messaging",
     "transport": "simulated",
-    "description": "Connect Zoom data, operations, and workflows with Lutic.",
+    "description": "Connect Zoom data, operations, and workflows via API.",
     "defaultTools": [
       {
         "name": "get_user",

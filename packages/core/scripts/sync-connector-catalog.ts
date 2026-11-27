@@ -22,17 +22,8 @@ const BANNED_VENDOR_RE =
 const HAS_BANNED_VENDOR_RE =
   /\b(clamav|clamd|litellm|metorial|openconnectors|open-connector|openconnector|slates|pglite|utcp)\b/i;
 
-// Pre-seeded canonical IDs for built-in core/enterprise/OT connectors + internal names to exclude.
+// Pre-seeded canonical IDs for enterprise/OT connectors + internal names to exclude.
 const RESERVED_CANON = new Set([
-  "cmms",
-  "historian",
-  "mes",
-  "partserp",
-  "docs",
-  "http",
-  "luticcloud",
-  "luticbridge",
-  "luticapi",
   "sappm",
   "sapmm",
   "sappp",
@@ -79,12 +70,9 @@ function sanitizeText(input: string, maxLen = 150): string {
     .replace(/<[^>]*>/g, " ")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/[`*_#]/g, "")
-    .replace(BANNED_VENDOR_RE, "Lutic")
-    .replace(/\bMagic MCP\b/gi, "Lutic Cloud")
+    .replace(BANNED_VENDOR_RE, "MCP")
+    .replace(/\bMagic MCP\b/gi, "MCP")
     .replace(/\bStreamable HTTP MCP\b/gi, "HTTPS")
-    .replace(/\bMCP server(s)?\b/gi, "Lutic connector$1")
-    .replace(/\bMCP tool(s)?\b/gi, "Lutic tool$1")
-    .replace(/\bMCP\b/g, "Lutic")
     .replace(/\s+/g, " ")
     .trim();
   if (out.length > maxLen) {
@@ -260,8 +248,6 @@ function run() {
 
   const seenCanon = new Set<string>(RESERVED_CANON);
   const usedSlugs = new Set<string>([
-    "cmms", "historian", "mes", "parts-erp", "docs", "http",
-    "lutic-cloud", "lutic-bridge", "lutic-api",
     "sap-pm", "sap-mm", "sap-pp", "sap-qm",
     "aws-iot", "aws-s3", "aws-cloudwatch",
     "servicenow", "mqtt-broker", "opc-ua", "modbus-tcp"

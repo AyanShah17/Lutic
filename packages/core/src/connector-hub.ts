@@ -44,139 +44,6 @@ export interface CatalogConnectorEntry {
 
 export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
   {
-    slug: "cmms",
-    name: "Lutic CMMS Hub",
-    category: "mcp",
-    transport: "in_memory_mcp",
-    description: "Work orders, machine repair history, ISO failure modes, and draft creation.",
-    defaultTools: [
-      { name: "get_work_orders", description: "List maintenance work orders" },
-      { name: "get_machine_history", description: "Repair and alarm history for machine" },
-      { name: "find_similar_faults", description: "Search historical fault resolutions" },
-      { name: "draft_work_order", description: "Create confirmed maintenance work order" }
-    ],
-    credentialFields: [
-      { key: "endpoint", label: "CMMS Endpoint", defaultValue: "mock://cmms.local" },
-      { key: "apiKey", label: "API Key", secret: true, defaultValue: "cmms-demo-key" }
-    ]
-  },
-  {
-    slug: "historian",
-    name: "Lutic Historian & SCADA Hub",
-    category: "scada",
-    transport: "in_memory_mcp",
-    description: "Live machine states, active alarms, and time-binned sensor telemetry.",
-    defaultTools: [
-      { name: "list_machines", description: "List authorized machines and statuses" },
-      { name: "get_machine", description: "Get ISA-95 machine asset details" },
-      { name: "get_machine_status", description: "Get live temperature/vibration/pressure" },
-      { name: "get_active_alarms", description: "Fetch uncleared machine alarms" },
-      { name: "get_recent_readings", description: "Aggregated date_bin sensor telemetry" }
-    ],
-    credentialFields: [
-      { key: "endpoint", label: "Historian Endpoint", defaultValue: "mock://historian.local" },
-      { key: "token", label: "Access Token", secret: true, defaultValue: "historian-demo-token" }
-    ]
-  },
-  {
-    slug: "mes",
-    name: "Lutic MES Production Hub",
-    category: "mcp",
-    transport: "in_memory_mcp",
-    description: "Semantic OEE, downtime, quality, throughput, and declarative dashboards.",
-    defaultTools: [
-      { name: "list_metrics", description: "List 12 semantic metrics" },
-      { name: "query_metric", description: "Query plant/line/machine metrics" },
-      { name: "compare_metrics", description: "Compare two metrics across dimensions" },
-      { name: "create_dashboard_draft", description: "Build declarative dashboard spec" }
-    ],
-    credentialFields: [
-      { key: "endpoint", label: "MES Endpoint", defaultValue: "mock://mes.local" },
-      { key: "apiKey", label: "API Key", secret: true, defaultValue: "mes-demo-key" }
-    ]
-  },
-  {
-    slug: "parts-erp",
-    name: "Lutic Parts & Inventory Hub",
-    category: "erp",
-    transport: "in_memory_mcp",
-    description: "Spare parts inventory levels, BOM links, lead times, and reservations.",
-    defaultTools: [
-      { name: "get_parts_inventory", description: "Check stock and min levels" },
-      { name: "find_part_for_fault", description: "Lookup compatible parts by fault code" },
-      { name: "reserve_part", description: "Reserve spare part with confirmation" }
-    ],
-    credentialFields: [
-      { key: "endpoint", label: "ERP Endpoint", defaultValue: "mock://parts-erp.local" },
-      { key: "clientSecret", label: "Client Secret", secret: true, defaultValue: "erp-demo-secret" }
-    ]
-  },
-  {
-    slug: "docs",
-    name: "Lutic Knowledge & SOP Hub",
-    category: "mcp",
-    transport: "in_memory_mcp",
-    description: "Hybrid vector + FTS search over OEM manuals, SOPs, and safety policies.",
-    defaultTools: [
-      { name: "search_documents", description: "Search current plant manuals & SOPs" },
-      { name: "get_document_section", description: "Retrieve exact document passage" }
-    ],
-    credentialFields: [
-      { key: "rootPath", label: "Manuals Store Path", defaultValue: "/knowledge/manuals" }
-    ]
-  },
-  {
-    slug: "http",
-    name: "Lutic Outbound Webhook Bridge",
-    category: "http",
-    transport: "simulated",
-    description: "Connect external SCADA webhooks, REST endpoints, or custom industrial APIs.",
-    defaultTools: [
-      { name: "http_probe", description: "Probe configured endpoint health" },
-      { name: "dispatch_webhook", description: "Send JSON payload to endpoint" }
-    ],
-    credentialFields: [
-      { key: "endpointUrl", label: "Endpoint URL", defaultValue: "mock://custom-scada.local" },
-      { key: "apiKey", label: "API Key / Secret", secret: true }
-    ]
-  },
-  {
-    slug: "lutic-cloud",
-    name: "Lutic Cloud Connectors (600+ Integrations)",
-    category: "mcp",
-    transport: "remote_mcp",
-    description: "Connect managed Lutic Cloud connector endpoints over HTTPS.",
-    defaultTools: [],
-    credentialFields: [
-      { key: "endpointUrl", label: "Lutic Cloud Connector URL", defaultValue: "https://connectors.lutic.app/cloud" },
-      { key: "apiKey", label: "Bearer Token / API Key", secret: true }
-    ]
-  },
-  {
-    slug: "lutic-bridge",
-    name: "Lutic Enterprise Bridge (400+ SaaS & ERP)",
-    category: "mcp",
-    transport: "remote_mcp",
-    description: "Connect self-hosted Lutic Bridge endpoints for enterprise SaaS and ERP systems.",
-    defaultTools: [],
-    credentialFields: [
-      { key: "endpointUrl", label: "Lutic Enterprise Bridge URL", defaultValue: "https://bridge.lutic.app/stream" },
-      { key: "apiKey", label: "Bearer Token / API Key", secret: true }
-    ]
-  },
-  {
-    slug: "lutic-api",
-    name: "Lutic Direct API Connector (OpenAPI)",
-    category: "http",
-    transport: "utcp_http",
-    description: "Import any OpenAPI 3.x spec or Lutic tool manifest for direct HTTPS tool invocation.",
-    defaultTools: [],
-    credentialFields: [
-      { key: "endpointUrl", label: "OpenAPI or Lutic Manifest JSON URL", defaultValue: "https://api.example.com/openapi.json" },
-      { key: "apiKey", label: "Bearer Token / API Key", secret: true }
-    ]
-  },
-  {
     slug: "sap-pm",
     name: "SAP S/4HANA PM (Plant Maintenance)",
     category: "erp",
@@ -269,7 +136,7 @@ export const CONNECTOR_CATALOG: CatalogConnectorEntry[] = [
       { name: "aws_s3_get_archive_manifest", description: "Read manifest metadata for compliance audit objects" }
     ],
     credentialFields: [
-      { key: "endpointUrl", label: "AWS S3 Bucket URI", defaultValue: "https://lutic-plant-datalake.s3.us-east-1.amazonaws.com" },
+      { key: "endpointUrl", label: "AWS S3 Bucket URI", defaultValue: "https://plant-datalake.s3.us-east-1.amazonaws.com" },
       { key: "apiKey", label: "AWS IAM Credentials / STS Token", secret: true }
     ]
   },
@@ -627,7 +494,7 @@ export async function syncConnectorConnection(
     latencyMs,
     message: ok
       ? `Discovered ${discoveredTools.length} ${
-          isExternalBridge ? (conn.transport === "remote_mcp" ? "Lutic Cloud" : "Lutic Direct API") : demo ? "demo" : "Lutic native"
+          isExternalBridge ? (conn.transport === "remote_mcp" ? "remote MCP" : "OpenAPI") : demo ? "demo" : "native"
         } tool(s) for ${conn.name}`
       : failureMessage,
     payload: { tools: discoveredTools.map((t) => t.name) }

@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { CONNECTOR_CATALOG } from "../connector-hub";
 import { hashPassword } from "../crypto";
 import { requireDeploymentSecret, requireProductionDatabaseUrl } from "../production-config";
 import { createDbConnection, type DbConnection } from "./client";
 import { installCoreToolkits } from "./core-toolkits";
 import { ensureSchema } from "./migrate";
-import { connectorConnections, plants, queues, tenants, topics, userPlants, users } from "./schema";
+import { plants, queues, tenants, topics, userPlants, users } from "./schema";
 
 const bootstrapSchema = z.object({
   LUTIC_TENANT_NAME: z.string().trim().min(1).max(200),
@@ -45,26 +44,6 @@ export async function bootstrapDatabase(conn: DbConnection, env: NodeJS.ProcessE
     });
     await tx.insert(userPlants).values({ tenantId, userId, plantId });
     await installCoreToolkits(tx, tenantId, `${tenantId}-`);
-
-    const localConnectors = CONNECTOR_CATALOG.filter((c) => c.transport === "in_memory_mcp");
-    if (localConnectors.length > 0) {
-      await tx.insert(connectorConnections).values(
-        localConnectors.map((entry) => ({
-          id: `conn-${tenantId}-${entry.slug}`,
-          tenantId,
-          slug: entry.slug,
-          name: entry.name,
-          category: entry.category,
-          transport: entry.transport,
-          endpointUrl: `mcp://${entry.slug}`,
-          status: "connected" as const,
-          encryptedCredentials: "",
-          config: { mode: "local" },
-          discoveredTools: entry.defaultTools,
-          lastSyncAt: new Date()
-        }))
-      );
-    }
 
     await tx.insert(topics).values({
       id: `topic-${tenantId}-plant-alerts`,

@@ -207,6 +207,14 @@ describe("Clerk Free-Tier Auth, Plan Provisioning, White-Label, Enterprise/OT Co
     expect(CONNECTOR_CATALOG.length).toBeGreaterThan(2000);
     const catalogSlugs = CONNECTOR_CATALOG.map((entry) => entry.slug);
     expect(new Set(catalogSlugs).size).toBe(catalogSlugs.length);
+    expect(
+      CONNECTOR_CATALOG.some(
+        (entry) =>
+          entry.transport === "in_memory_mcp" ||
+          entry.slug.startsWith("lutic-") ||
+          /\blutic\b/i.test(entry.name)
+      )
+    ).toBe(false);
 
     for (const popular of ["slack", "github", "jira", "linear", "stripe", "digicert", "tabapi"]) {
       const found = CONNECTOR_CATALOG.find((entry) => entry.slug === popular);
@@ -238,6 +246,21 @@ describe("Clerk Free-Tier Auth, Plan Provisioning, White-Label, Enterprise/OT Co
     expect(listBody.connectors.some((c) => c.slug === "servicenow")).toBe(true);
     expect(listBody.connectors.some((c) => c.slug === "opc-ua")).toBe(true);
     expect(listBody.connectors.some((c) => c.slug === "modbus-tcp")).toBe(true);
+    expect(
+      listBody.connectors.some((c) =>
+        [
+          "cmms",
+          "historian",
+          "mes",
+          "parts-erp",
+          "docs",
+          "ops-webhook",
+          "lutic-cloud",
+          "lutic-bridge",
+          "lutic-api"
+        ].includes(c.slug)
+      )
+    ).toBe(false);
 
     // Invoke SAP PM and OPC-UA simulated tools via Connector Playground endpoint
     const sapRes = await connectorInvokePost(

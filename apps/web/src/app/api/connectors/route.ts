@@ -42,6 +42,18 @@ const CreateConnectorSchema = z.object({
   config: z.record(z.string(), z.unknown()).optional().default({})
 });
 
+const LEGACY_INTERNAL_SLUGS = new Set([
+  "cmms",
+  "historian",
+  "mes",
+  "parts-erp",
+  "docs",
+  "ops-webhook",
+  "lutic-cloud",
+  "lutic-bridge",
+  "lutic-api"
+]);
+
 function isPlaceholderUrl(url: string): boolean {
   const clean = url.trim().toLowerCase();
   if (!clean) return true;
@@ -77,11 +89,17 @@ export async function GET(req: Request) {
         listConnectorSyncLogs(db, user.tenantId, undefined, 25)
       ]);
 
+      const isInternal = (r: { transport: string; slug: string }) =>
+        r.transport === "in_memory_mcp" || LEGACY_INTERNAL_SLUGS.has(r.slug.toLowerCase());
+      const visibleRows = rows.filter((r) => !isInternal(r));
+      const hiddenIds = new Set(rows.filter(isInternal).map((r) => r.id));
+      const visibleLogs = logs.filter((l) => !hiddenIds.has(l.connectionId));
+
       const catalog = CONNECTOR_CATALOG;
       return NextResponse.json({
-        connectors: rows.map(sanitizeConnector),
+        connectors: visibleRows.map(sanitizeConnector),
         catalog,
-        logs,
+        logs: visibleLogs,
         capabilities: { codeMode: isCodeModeEnabled() }
       });
     });
@@ -154,14 +172,12 @@ export async function POST(req: Request) {
       | "simulated" =
       body.transport ??
       (body.authScheme === "remote_mcp" ||
-      kind === "lutic-cloud" ||
-      kind === "lutic-bridge" ||
+      rawSlug.endsWith("-mcp") ||
       kind === "metorial" ||
       kind === "open-connector" ||
       kind === "remote_mcp"
         ? "remote_mcp"
         : body.authScheme === "openapi" ||
-            kind === "lutic-api" ||
             kind === "utcp" ||
             kind === "utcp-http" ||
             kind === "utcp_http"

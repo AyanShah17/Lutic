@@ -147,7 +147,7 @@ describe("Self-Serve AI SaaS Signup, Dedicated Workspace Provisioning & Cross-Se
     expect(initDash.status).toBe(200);
     expect(((await initDash.json()) as { dashboards: unknown[] }).dashboards.length).toBeGreaterThanOrEqual(1);
     expect(initConn.status).toBe(200);
-    expect(((await initConn.json()) as { connectors: unknown[] }).connectors.length).toBeGreaterThanOrEqual(5);
+    expect(((await initConn.json()) as { connectors: unknown[] }).connectors).toEqual([]);
 
     // 3. User creates persistent custom artifacts across services inside their tenant
     const createdBoardRes = await boardPost(

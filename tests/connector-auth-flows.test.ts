@@ -45,16 +45,15 @@ describe("Composio / MCP / OpenAPI Auth Blueprints & OAuth 2.0 + PKCE Live Flows
     expect(gh.defaultEndpointUrl).toBe("https://api.github.com");
 
     const cloud = getConnectorAuthBlueprint({
-      slug: "lutic-cloud",
-      name: "Lutic Cloud Connectors",
-      transport: "remote_mcp"
+      slug: "cloudflare-mcp",
+      name: "Cloudflare MCP"
     });
     expect(cloud.defaultScheme).toBe("remote_mcp");
     expect(cloud.supportedSchemes).toContain("remote_mcp");
 
     const spec = getConnectorAuthBlueprint({
-      slug: "lutic-api",
-      name: "Lutic Direct API",
+      slug: "custom-openapi",
+      name: "Custom OpenAPI Service",
       transport: "utcp_http"
     });
     expect(spec.defaultScheme).toBe("openapi");
@@ -135,7 +134,7 @@ describe("Composio / MCP / OpenAPI Auth Blueprints & OAuth 2.0 + PKCE Live Flows
           },
           body: JSON.stringify({
             slug: "github",
-            name: "Lutic GitHub Workspace",
+            name: "Acme GitHub Workspace",
             endpointUrl: baseUrl,
             authorizationUrl: `${baseUrl}/oauth/authorize`,
             tokenUrl: `${baseUrl}/oauth/token`,
@@ -178,7 +177,7 @@ describe("Composio / MCP / OpenAPI Auth Blueprints & OAuth 2.0 + PKCE Live Flows
       const listJson = (await listRes.json()) as {
         connectors: Array<{ id: string; name: string; transport: string; hasCredentials: boolean }>;
       };
-      const ghConn = listJson.connectors.find((c) => c.name === "Lutic GitHub Workspace")!;
+      const ghConn = listJson.connectors.find((c) => c.name === "Acme GitHub Workspace")!;
       expect(ghConn).toBeDefined();
       expect(ghConn.transport).toBe("http");
       expect(ghConn.hasCredentials).toBe(true);

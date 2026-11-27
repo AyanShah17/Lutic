@@ -100,21 +100,7 @@ describe("production deployment", () => {
         expect.objectContaining({ tenantId: tenant.id, name: "knowledge" }),
         expect.objectContaining({ tenantId: tenant.id, name: "paas" })
       ]));
-      const bootstrappedConnectors = await conn.db.query.connectorConnections.findMany();
-      expect(bootstrappedConnectors.map((c) => c.slug).sort()).toEqual([
-        "cmms",
-        "docs",
-        "historian",
-        "mes",
-        "parts-erp"
-      ]);
-      for (const c of bootstrappedConnectors) {
-        expect(c.tenantId).toBe(tenant.id);
-        expect(c.transport).toBe("in_memory_mcp");
-        expect(c.endpointUrl).toBe(`mcp://${c.slug}`);
-        expect(c.encryptedCredentials).toBe("");
-        expect(c.discoveredTools.length).toBeGreaterThan(0);
-      }
+      await expect(conn.db.query.connectorConnections.findMany()).resolves.toEqual([]);
       await expect(conn.db.query.topics.findMany()).resolves.toEqual([
         expect.objectContaining({ tenantId: tenant.id, name: "plant-alerts" })
       ]);
