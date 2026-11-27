@@ -7,11 +7,11 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  BookOpen,
   Bot,
   CheckCircle2,
   Cpu,
   Kanban,
-  KeyRound,
   Moon,
   Network,
   Plug,
@@ -33,13 +33,13 @@ interface ServiceCard {
   Icon: React.ComponentType<{ className?: string }>;
 }
 
-const PAAS_SERVICES: ServiceCard[] = [
+const SAAS_SERVICES: ServiceCard[] = [
   {
     id: "ai-dashboard",
     title: "AI Dashboard",
     tag: "Semantic Analytics",
     description:
-      "Ask in plain English and get governed KPI boards with 5-version history, client undo/redo, and tenant-isolated metrics.",
+      "Ask in plain English and get live KPI scorecards with 5-version history, client undo/redo, and team sharing.",
     Icon: BarChart3
   },
   {
@@ -47,7 +47,7 @@ const PAAS_SERVICES: ServiceCard[] = [
     title: "AI Board",
     tag: "Kanban + List",
     description:
-      "Linear and Jira-style execution board where autonomous agents and teams track incidents, tasks, and escalations end-to-end.",
+      "Linear and Jira-style execution board where autonomous agents and teams track tasks and escalations end-to-end.",
     Icon: Kanban
   },
   {
@@ -55,7 +55,7 @@ const PAAS_SERVICES: ServiceCard[] = [
     title: "AI Gateway",
     tag: "Model Router",
     description:
-      "Unified multi-model inference routing with per-tenant budgets, token latency telemetry, and role-governed tool calls.",
+      "Unified multi-model inference routing with token latency telemetry and governed tool execution.",
     Icon: Cpu
   },
   {
@@ -63,7 +63,7 @@ const PAAS_SERVICES: ServiceCard[] = [
     title: "Autonomous Agents",
     tag: "Swarms + Copilot",
     description:
-      "Specialist multi-agent orchestrator plus a screen-aware Floating AI Copilot on every page for live operational changes.",
+      "Specialist multi-agent orchestrator plus a screen-aware Floating AI Copilot on every page for live changes.",
     Icon: Bot
   },
   {
@@ -71,31 +71,31 @@ const PAAS_SERVICES: ServiceCard[] = [
     title: "Connectors Hub",
     tag: "2,100+ Integrations",
     description:
-      "Connect SAP, AWS, ServiceNow, Slack, Linear, GitHub, MQTT, OPC-UA, Modbus, and OpenAPI tools through audited interfaces.",
+      "Connect SAP, AWS, ServiceNow, Slack, Linear, GitHub, MQTT, OPC-UA, Modbus, and OpenAPI tools cleanly.",
     Icon: Plug
   },
   {
-    id: "iam-for-agents",
-    title: "IAM for Agents",
-    tag: "RBAC + RLS",
+    id: "knowledge-rag",
+    title: "Knowledge & Citations",
+    tag: "Hybrid RAG",
     description:
-      "Six-step policy checks, core toolkits, AES-256-GCM credentials, row-level tenant isolation, and exportable audit trails.",
-    Icon: KeyRound
+      "Upload PDFs, manuals, and SOPs so teams and agents answer questions with verified source citations.",
+    Icon: BookOpen
   },
   {
     id: "ai-canvas",
     title: "AI Canvas",
     tag: "Visual DAG Builder",
     description:
-      "n8n-style node-and-edge workflow automation builder paired with a color-coded document-grounded machine topology canvas.",
+      "Visual node-and-edge workflow automation builder paired with interactive color-coded system topology.",
     Icon: Workflow
   },
   {
     id: "agent-hitl",
-    title: "Agent HITL",
+    title: "Human-in-the-Loop",
     tag: "Safety Verifier",
     description:
-      "Mandatory Human-in-the-Loop confirmation gates and Before / After diffs before any agent writes to production systems.",
+      "Explicit approval gates and Before / After diffs before any agent writes changes to your connected systems.",
     Icon: ShieldCheck
   },
   {
@@ -103,21 +103,21 @@ const PAAS_SERVICES: ServiceCard[] = [
     title: "Custom AI Solutions",
     tag: "Lutic Studio",
     description:
-      "Bespoke AI engineering, production consulting, workflow design, and 24/7 ongoing monitoring tailored to your stack.",
+      "Bespoke AI engineering, production consulting, workflow design, and 24/7 ongoing monitoring for your stack.",
     Icon: Sparkles
   }
 ];
 
 const MARQUEE_ITEMS = [
-  "AI PaaS Workspaces",
+  "AI SaaS Workspaces",
   "AI Dashboard",
   "AI Board",
   "AI Gateway",
   "Autonomous Agents",
   "Connectors Hub",
-  "IAM for Agents",
+  "Knowledge & RAG",
   "AI Canvas",
-  "Agent HITL",
+  "Human-in-the-Loop",
   "Custom AI Solutions",
   "Production Consulting",
   "24/7 AI Support"
@@ -136,7 +136,7 @@ const LOOP_TRACE = [
     step: "02",
     verb: "Decide",
     stage: "DECIDE · POLICY",
-    detail: "Hybrid RAG cites your SOPs and evaluates IAM role & scope boundaries",
+    detail: "Hybrid RAG cites your SOPs and evaluates workspace permissions",
     meta: "00:01.8s",
     active: false
   },
@@ -151,8 +151,8 @@ const LOOP_TRACE = [
   {
     step: "04",
     verb: "Verify",
-    stage: "VERIFY · AGENT HITL",
-    detail: "Before / After diff approved by human lead · Audit sealed",
+    stage: "VERIFY · HITL GATE",
+    detail: "Before / After diff approved by human lead · Trace saved",
     meta: "Verified",
     active: true
   }
@@ -162,22 +162,22 @@ const STUDIO_PROCESS = [
   {
     num: "1",
     title: "Sign Up or Discover",
-    body: "Launch an isolated AI PaaS tenant on lutic.app in seconds, or scope your custom automation use case with our studio engineers."
+    body: "Start free on lutic.app in seconds, or scope your custom AI automation use case with our studio engineers."
   },
   {
     num: "2",
     title: "Wire AI Canvas & Tools",
-    body: "Connect ERP, SaaS, cloud, and industrial data sources inside Connectors Hub and orchestrate them visually on AI Canvas."
+    body: "Connect SaaS, ERP, cloud, and industrial data sources inside Connectors Hub and orchestrate them on AI Canvas."
   },
   {
     num: "3",
-    title: "Gate with IAM & HITL",
-    body: "Bind every agent toolkit to explicit RBAC roles, row-level tenant isolation, and human-approved Before / After execution diffs."
+    title: "Approve with HITL Diffs",
+    body: "Review proposed AI changes with clear Before / After diffs and one-click human approval before dispatch."
   },
   {
     num: "4",
     title: "Persist & Scale 24/7",
-    body: "Every workflow, board item, dashboard, and agent change persists across sessions with full monitoring, alerts, and queues."
+    body: "Every workflow, board item, dashboard, and agent change stays saved across every session automatically."
   }
 ];
 
@@ -193,12 +193,12 @@ const TEAM_PROFILES: TeamProfile[] = [
   {
     id: "founders",
     role: "AI Product & Platform Teams",
-    headline: "Launch multi-tenant AI workflows without rebuilding plumbing.",
+    headline: "Ship AI workflows in minutes instead of building plumbing.",
     summary:
-      "Every signup receives a private tenant pre-wired with AI Gateway, Connectors Hub, Agent HITL, and persistent boards, canvases, and dashboards.",
+      "Sign up to open a private workspace pre-wired with AI Gateway, Connectors Hub, Agent HITL, and persistent boards, canvases, and dashboards.",
     wins: [
-      "Instant isolated workspace per signup",
-      "Full session persistence across logins and restarts",
+      "Instant cloud workspace on signup",
+      "Full session persistence across every login",
       "Unified AI Canvas and Autonomous Agent orchestration"
     ]
   },
@@ -211,7 +211,7 @@ const TEAM_PROFILES: TeamProfile[] = [
     wins: [
       "Consistent governed KPIs without raw SQL drift",
       "Natural-language dashboard drafts with 5-version undo",
-      "Role- and plant-scoped executive boards in minutes"
+      "Shareable executive boards in minutes"
     ]
   },
   {
@@ -223,19 +223,19 @@ const TEAM_PROFILES: TeamProfile[] = [
     wins: [
       "Cited RAG answers from your approved documents",
       "AI Canvas triggers wired directly to dispatch queues",
-      "Mandatory Agent HITL sign-off before live changes"
+      "Mandatory Human-in-the-Loop sign-off before live changes"
     ]
   },
   {
     id: "security",
-    role: "Security & Governance Leads",
-    headline: "Keep every tenant isolated and every agent action accounted for.",
+    role: "Security & Risk Leads",
+    headline: "Keep every workspace isolated and every agent action accounted for.",
     summary:
-      "Enforce six-step tool authorization, AES-256-GCM connector vaults, row-level isolation, and exportable audit logs on every request.",
+      "Enforce six-step tool authorization, encrypted connector vaults, strict workspace boundaries, and exportable activity logs on every request.",
     wins: [
-      "Strict cross-tenant & workspace isolation",
-      "IAM policies bound per role and toolkit",
-      "Immutable audit history for compliance review"
+      "Strict workspace isolation per customer account",
+      "Encrypted credentials across every integration",
+      "Complete review trail for every automated action"
     ]
   }
 ];
@@ -246,7 +246,7 @@ const ECOSYSTEM_ITEMS = [
   "AWS IoT SiteWise · S3 · CloudWatch",
   "ServiceNow · Jira · Linear · Slack",
   "MQTT · OPC-UA · Modbus TCP",
-  "PostgreSQL RLS · AES-256-GCM"
+  "AES-256-GCM Encrypted Vault"
 ];
 
 export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
@@ -256,7 +256,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
   const [rotIndex, setRotIndex] = useState(0);
 
   const rotatingPhrases = [
-    "AI PaaS workspaces",
+    "AI workspaces",
     "autonomous agents",
     "agentic automations",
     "custom AI solutions"
@@ -320,7 +320,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
               )}
             </button>
             <Link href="/signup" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-              <span>Create Workspace</span>
+              <span>Start Free</span>
             </Link>
             <Link href="/login" className={buttonVariants({ size: "sm" })}>
               <span>Sign in</span>
@@ -337,7 +337,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
             <div className="lg:col-span-7 space-y-6 lutic-reveal">
               <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1 text-[11px] font-medium text-muted-foreground">
                 <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
-                <span>AI PaaS · Independent AI Studio · lutic.app</span>
+                <span>AI SaaS · Independent AI Studio · lutic.app</span>
               </div>
 
               <h1 className="text-4xl sm:text-[56px] font-medium tracking-[-0.035em] text-foreground leading-[1.04]">
@@ -352,12 +352,12 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
               </p>
 
               <p className="text-base sm:text-[17px] text-muted-foreground leading-relaxed max-w-xl">
-                Launch your own persistent multi-tenant AI PaaS workspace in seconds—or partner with Lutic Studio to ship custom AI solutions, autonomous agents, AI Canvas workflows, and governed enterprise integrations.
+                Start your persistent Lutic AI workspace in seconds—or partner with Lutic Studio to ship custom AI solutions, autonomous agents, AI Canvas workflows, and connected automations.
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <Link href="/signup" className={buttonVariants({ size: "lg" })}>
-                  <span>Start Your Free Tenant</span>
+                  <span>Start Free</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link href="/login" className={buttonVariants({ variant: "outline", size: "lg" })}>
@@ -373,20 +373,20 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 border-t-2 border-foreground pt-5">
                 <div>
-                  <div className="text-2xl font-medium tracking-tight tabular-nums">12+</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Core AI PaaS services</div>
+                  <div className="text-2xl font-medium tracking-tight tabular-nums">9+</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Core AI SaaS modules</div>
                 </div>
                 <div>
                   <div className="text-2xl font-medium tracking-tight tabular-nums">100%</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Session &amp; tenant persistence</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Saved across sessions</div>
                 </div>
                 <div>
                   <div className="text-2xl font-medium tracking-tight tabular-nums">2,100+</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Connectors ready</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Integrations ready</div>
                 </div>
                 <div>
                   <div className="text-2xl font-medium tracking-tight tabular-nums">24/7</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">Monitoring &amp; custom support</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Monitoring &amp; AI support</div>
                 </div>
               </div>
             </div>
@@ -414,7 +414,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#52d27c]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#52d27c]" aria-hidden="true" />
-                    <span>Tenant Isolated</span>
+                    <span>Workspace Isolated</span>
                   </span>
                 </div>
                 <div className="divide-y divide-[#26262b]">
@@ -470,28 +470,28 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
         </div>
       </div>
 
-      {/* Nine AI PaaS & Custom Studio Services Grid (.gp Lutic-UI cards) */}
+      {/* Nine AI SaaS & Custom Studio Services Grid (.gp Lutic-UI cards) */}
       <section id="services" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 space-y-10">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2 max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-primary">
-              THE LUTIC AI PAAS &amp; STUDIO
+              THE LUTIC AI SAAS &amp; STUDIO
             </span>
             <h2 className="text-3xl sm:text-4xl font-medium tracking-[-0.03em]">
-              Every AI service, persistent in your own tenant.
+              Every AI capability, ready in one cloud workspace.
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Sign up once to provision your isolated workspace with every core service ready—or engage Lutic for custom AI solutions and production consulting.
+              Sign up to launch your private workspace with AI Canvas, AI Board, Dashboards, and Agents—or work with Lutic Studio on custom AI solutions.
             </p>
           </div>
           <Link href="/signup" className={buttonVariants({ size: "default" })}>
-            <span>Provision Tenant</span>
+            <span>Start Free</span>
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PAAS_SERVICES.map((svc) => {
+          {SAAS_SERVICES.map((svc) => {
             const Icon = svc.Icon;
             return (
               <Link
@@ -651,13 +651,13 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#ee5414]">
               <Activity className="h-3.5 w-3.5" />
-              <span>AI PaaS · Persistent Workspaces</span>
+              <span>AI SaaS · Persistent Workspaces</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-medium tracking-[-0.03em]">
-              Launch your tenant, or tell us what to automate first.
+              Start free in Lutic Cloud, or tell us what to automate first.
             </h2>
             <p className="text-sm text-[#a9a9b2] leading-relaxed">
-              Sign up to get an isolated tenant with AI Canvas, AI Board, AI Dashboard, Connectors Hub, IAM, and Agent HITL—with every workflow and change persisted across sessions.
+              Sign up to launch your private workspace with AI Canvas, AI Board, AI Dashboard, Connectors Hub, and Agent HITL—saved across every session.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -665,7 +665,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
               href="/signup"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ee5414] px-5 py-3 text-sm font-medium text-white transition-transform duration-150 hover:-translate-y-0.5 hover:bg-[#ee5414]/90"
             >
-              <span>Create Free Tenant</span>
+              <span>Start Free</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
@@ -685,7 +685,7 @@ export function LuticLandingPage({ demoMode }: { demoMode: boolean }) {
             <span>Lutic · lutic.app</span>
           </div>
           <div>
-            AI PaaS and independent AI studio for custom solutions, autonomous agents, and production automation.
+            AI SaaS and independent AI studio for custom solutions, autonomous agents, and production automation.
           </div>
         </div>
       </footer>

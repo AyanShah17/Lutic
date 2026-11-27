@@ -16,7 +16,7 @@ import { GET as workflowsGet, POST as workflowsPost } from "../apps/web/src/app/
 import { GET as dashboardsGet, POST as dashboardsPost } from "../apps/web/src/app/api/dashboards/route";
 import { GET as connectorsGet, POST as connectorsPost } from "../apps/web/src/app/api/connectors/route";
 
-describe("Self-Serve AI PaaS Signup, Dedicated Tenant Provisioning & Cross-Session Persistence", () => {
+describe("Self-Serve AI SaaS Signup, Dedicated Workspace Provisioning & Cross-Session Persistence", () => {
   let conn: DbConnection;
 
   beforeAll(async () => {

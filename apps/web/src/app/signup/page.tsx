@@ -24,23 +24,23 @@ import { AnimatedButton } from "@/components/vengeance/animated-button";
 
 const PROVISIONED_CAPABILITIES = [
   {
-    title: "Dedicated Isolated Tenant",
-    detail: "Private PostgreSQL RLS tenant & persistent workspace saved across every login session.",
+    title: "Persistent Cloud Workspace",
+    detail: "Private workspace where your AI agents, workflows, and boards remain saved across every login.",
     Icon: ShieldCheck
   },
   {
     title: "AI Canvas & Autonomous Agents",
-    detail: "Visual workflow DAG builder, Floating AI Copilot, and Agent HITL Before/After verification.",
+    detail: "Visual workflow builder, Floating AI Copilot, and Human-in-the-Loop Before/After approvals.",
     Icon: Workflow
   },
   {
     title: "AI Dashboard & AI Board",
-    detail: "Governed semantic KPI scorecards plus Kanban/List boards pre-loaded to customize.",
+    detail: "Live KPI dashboards plus Kanban and List boards ready to customize right away.",
     Icon: BarChart3
   },
   {
-    title: "2,100+ Connectors & IAM",
-    detail: "Encrypted credential vault, core agent toolkits, and role-scoped permissions ready day one.",
+    title: "2,100+ Ready Integrations",
+    detail: "Connect SAP, AWS, ServiceNow, Slack, Linear, GitHub, and custom endpoints cleanly.",
     Icon: Plug
   }
 ];
@@ -94,10 +94,10 @@ export default function SignupPage() {
           <LuticLogo className="h-9 w-9" />
           <div>
             <h1 className="text-2xl sm:text-3xl font-medium tracking-tight">
-              Launch Your Lutic AI PaaS Tenant
+              Create Your Lutic Account
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Sign up to provision a dedicated, persistent AI workspace across AI Canvas, AI Board, Connectors, and Agents.
+              Start a free Lutic AI workspace with AI Canvas, AI Board, Dashboards, Connectors, and Agents.
             </p>
           </div>
         </div>
@@ -118,10 +118,10 @@ export default function SignupPage() {
               <CardHeader className="border-b border-border/60 pb-4">
                 <CardTitle className="flex items-center gap-2 text-base font-medium">
                   <KeyRound className="h-4 w-4 text-primary" />
-                  <span>Create Your Tenant Workspace</span>
+                  <span>Start Free Workspace</span>
                 </CardTitle>
                 <CardDescription>
-                  Your workspace, workflows, boards, connectors, and AI configurations persist across every session.
+                  Your workflows, boards, integrations, and AI configurations persist across every session.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-5">
@@ -156,7 +156,7 @@ export default function SignupPage() {
                       id="signup-workspace"
                       type="text"
                       autoComplete="organization"
-                      placeholder="Acme Automation Studio"
+                      placeholder="Acme AI Studio"
                       disabled={disabled}
                       value={workspaceName}
                       onChange={(e) => setWorkspaceName(e.target.value)}
@@ -195,12 +195,12 @@ export default function SignupPage() {
                   </div>
 
                   <AnimatedButton type="submit" disabled={disabled} className="w-full h-10">
-                    <span>{loading ? "Provisioning workspace..." : "Create Workspace"}</span>
+                    <span>{loading ? "Creating workspace..." : "Create Workspace"}</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </AnimatedButton>
 
                   <div className="pt-2 border-t border-border text-center text-xs text-muted-foreground">
-                    Already provisioned?{" "}
+                    Already registered?{" "}
                     <Link href="/login" className="text-primary font-medium hover:underline">
                       Sign in to continue
                     </Link>
@@ -215,10 +215,10 @@ export default function SignupPage() {
           <div className="rounded-3xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary">
               <Bot className="h-3.5 w-3.5" />
-              <span>Included In Every Tenant</span>
+              <span>Included In Your Workspace</span>
             </div>
             <h2 className="text-xl font-medium tracking-tight">
-              Full-stack AI PaaS, persisted end-to-end.
+              Full-stack AI SaaS, saved automatically.
             </h2>
             <div className="grid gap-3">
               {PROVISIONED_CAPABILITIES.map((cap) => {

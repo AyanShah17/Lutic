@@ -8,11 +8,9 @@ import {
   Cpu,
   GitBranch,
   Kanban,
-  KeyRound,
   Layers,
   Plug,
-  QrCode,
-  ShieldCheck
+  QrCode
 } from "lucide-react";
 import {
   alarms,
@@ -263,31 +261,6 @@ export default async function HomePage() {
           Icon: Layers
         }
       ]
-    },
-    {
-      code: "04",
-      title: "Governance",
-      subtitle: "IAM permissions, knowledge revisions, audit logs, and licensing",
-      items: [
-        {
-          id: "admin",
-          href: "/admin",
-          title: "IAM & Admin Console",
-          description:
-            "Role-based permissions, AES-256-GCM credentials, toolkits, knowledge ingestion, and audit logs.",
-          tag: "RBAC",
-          Icon: ShieldCheck
-        },
-        {
-          id: "activate",
-          href: "/activate",
-          title: "License Activation",
-          description:
-            "Manage instance activation keys and online verification against the license server.",
-          tag: "License",
-          Icon: KeyRound
-        }
-      ]
     }
   ];
 
@@ -311,15 +284,13 @@ export default async function HomePage() {
         <div className="space-y-1.5 max-w-2xl">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <LuticLogo className="h-4 w-4" />
-            <span className="capitalize">
-              {user ? `${user.role} · ${user.plantIds.join(", ")}` : "Lutic AI PaaS Platform"}
-            </span>
+            <span>{user ? `${user.name} · Lutic Cloud` : "Lutic AI Workspace"}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground">
-            Lutic Industrial Operations PaaS
+            Lutic AI Workspace
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Your persistent AI PaaS workspace across AI Canvas, AI Board, Semantic Dashboards, Connectors Hub, IAM, and Agent HITL.
+            Your persistent AI workspace across AI Canvas, AI Board, Semantic Dashboards, Connectors, and Agents.
           </p>
         </div>
 

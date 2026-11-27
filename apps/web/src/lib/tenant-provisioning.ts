@@ -242,15 +242,15 @@ export async function provisionTenantWorkspace(
         tenantId,
         plantId,
         identifier: "LUT-103",
-        title: "Upload knowledge documents & configure IAM for Agents",
+        title: "Ask Lutic AI Copilot & review Before / After diffs",
         description:
-          "Add PDFs or SOPs in Admin Console and review role toolkits and safety verifier gates.",
+          "Open the floating Lutic AI assistant on any screen to propose edits, verify diffs, and persist changes.",
         status: "backlog",
         priority: "low",
         category: "operations",
         assigneeName: displayName,
-        labels: ["knowledge", "iam"],
-        sourceRef: "IAM & Knowledge",
+        labels: ["ai-copilot", "hitl"],
+        sourceRef: "Lutic AI",
         createdBy: userId
       }
     ]);
@@ -313,7 +313,7 @@ export async function provisionTenantWorkspace(
       args: { email, workspaceName: orgName, plan: "free" },
       resultHash: "",
       status: "allowed",
-      reason: "Auto-provisioned isolated AI PaaS tenant workspace",
+      reason: "Auto-provisioned Lutic SaaS workspace",
       latencyMs: 1
     });
 

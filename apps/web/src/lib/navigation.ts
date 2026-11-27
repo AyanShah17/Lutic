@@ -5,11 +5,11 @@ export interface NavItemConfig {
   href: string;
   labelKey: string;
   keywords: string[];
-  groupId: "operations" | "automation" | "messaging" | "governance";
+  groupId: "operations" | "automation" | "messaging";
 }
 
 export interface NavGroupConfig {
-  id: "operations" | "automation" | "messaging" | "governance";
+  id: "operations" | "automation" | "messaging";
   labelKey: string;
   items: NavItemConfig[];
 }
@@ -95,26 +95,6 @@ const NAV_GROUPS: NavGroupConfig[] = [
         groupId: "messaging"
       }
     ]
-  },
-  {
-    id: "governance",
-    labelKey: "nav.group.governance",
-    items: [
-      {
-        id: "admin",
-        href: "/admin",
-        labelKey: "nav.admin",
-        keywords: ["admin", "iam", "rbac", "users", "toolkits", "knowledge", "audit", "usage"],
-        groupId: "governance"
-      },
-      {
-        id: "activate",
-        href: "/activate",
-        labelKey: "nav.license",
-        keywords: ["license", "activate", "key", "billing"],
-        groupId: "governance"
-      }
-    ]
   }
 ];
 
@@ -141,9 +121,7 @@ export function isNavItemVisible(user: SessionUser | null, id: string): boolean 
     case "notifications":
       return !user || can(user, "notification:read");
     case "admin":
-      return Boolean(user && (can(user, "admin:users") || can(user, "license:manage")));
     case "activate":
-      return Boolean(user && can(user, "license:manage"));
     default:
       return false;
   }

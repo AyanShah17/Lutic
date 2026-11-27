@@ -11,12 +11,10 @@ import {
   Cpu,
   GitBranch,
   Home,
-  KeyRound,
   Layers,
   MessageSquare,
   Plug,
   Search,
-  ShieldCheck,
   X
 } from "lucide-react";
 import { can } from "@lutic/core/rbac";
@@ -44,9 +42,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   workflows: GitBranch,
   connectors: Plug,
   notifications: Bell,
-  queues: Layers,
-  admin: ShieldCheck,
-  activate: KeyRound
+  queues: Layers
 };
 
 export function CommandSearch({

@@ -155,12 +155,11 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     expect(admGroups.map((g) => g.label)).toEqual([
       "Operations",
       "Automation & Data",
-      "Messaging",
-      "Governance"
+      "Messaging"
     ]);
     const admHrefs = admGroups.flatMap((g) => g.items.map((i) => i.href));
-    expect(admHrefs).toContain("/admin");
-    expect(admHrefs).toContain("/activate");
+    expect(admHrefs).not.toContain("/admin");
+    expect(admHrefs).not.toContain("/activate");
 
     const unauthHrefs = getNavGroupsForUser(null, tEn).flatMap((g) =>
       g.items.map((i) => i.href)
@@ -172,8 +171,7 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     expect(esGroups.map((g) => g.label)).toEqual([
       "Operaciones",
       "Automatización y Datos",
-      "Mensajería",
-      "Gobernanza"
+      "Mensajería"
     ]);
   });
 
@@ -377,9 +375,9 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     const admHtml = renderToStaticMarkup(
       React.createElement(AppShell, null, React.createElement("div", null, "Body"))
     );
-    expect(admHtml).toContain("Governance");
-    expect(admHtml).toContain('href="/admin"');
-    expect(admHtml).toContain('href="/activate"');
+    expect(admHtml).not.toContain("Governance");
+    expect(admHtml).not.toContain('href="/admin"');
+    expect(admHtml).not.toContain('href="/activate"');
 
     const cmdHtml = renderToStaticMarkup(
       React.createElement(CommandSearch, { open: true, onOpenChange: () => {} })
@@ -404,7 +402,7 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
 
     mockedSessionUser = makeUser("engineer", ["plant-detroit"]);
     const engHtml = renderToStaticMarkup(await HomePage());
-    expect(engHtml).toContain("Lutic Industrial Operations PaaS");
+    expect(engHtml).toContain("Lutic AI Workspace");
     expect(engHtml).toContain("Fleet Running");
     expect(engHtml).toContain("mach-l3-filler-01");
     expect(engHtml).not.toContain('href="/admin"');
@@ -412,13 +410,12 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
 
     mockedSessionUser = makeUser("engineer", ["plant-austin"]);
     const austinHtml = renderToStaticMarkup(await HomePage());
-    expect(austinHtml).toContain("plant-austin");
     expect(austinHtml).not.toContain("mach-l3-filler-01");
 
     mockedSessionUser = makeUser("admin", ["plant-detroit", "plant-austin"]);
     const admHtml = renderToStaticMarkup(await HomePage());
-    expect(admHtml).toContain('href="/admin"');
-    expect(admHtml).toContain('href="/activate"');
+    expect(admHtml).not.toContain('href="/admin"');
+    expect(admHtml).not.toContain('href="/activate"');
 
     // In production / non-demo mode, HomePage drops demo CTA
     const prevDemo = process.env.LUTIC_DEMO_MODE;
@@ -455,7 +452,10 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
 
     // 1. Unauthenticated access shows Login or AuthGate / 403 cleanly
     mockedSessionUser = null;
-    expect(renderToStaticMarkup(React.createElement(LoginPage))).toContain("engineer@acme.demo");
+    const loginHtml = renderToStaticMarkup(React.createElement(LoginPage));
+    expect(loginHtml).toContain("Sign in to Lutic");
+    expect(loginHtml).toContain('href="/signup"');
+    expect(loginHtml).not.toContain("Demo Personas");
     for (const elem of [
       withQuery(React.createElement(MachinesPage)),
       withQuery(React.createElement(DashboardsListPage)),
@@ -547,8 +547,8 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
     );
     expect(admHtml).toContain("py-2.5 space-y-3");
     expect(admHtml).toContain("min-h-[32px]");
-    expect(admHtml).toContain("Governance");
-    expect(admHtml).toContain('href="/activate"');
+    expect(admHtml).not.toContain("Governance");
+    expect(admHtml).not.toContain('href="/activate"');
 
     const wfSrc = fs.readFileSync(
       path.resolve(__dirname, "../apps/web/src/components/workflow-canvas.tsx"),

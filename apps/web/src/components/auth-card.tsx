@@ -277,8 +277,8 @@ export function LuticAuthCard({ mode }: { mode: "sign-in" | "sign-up" }) {
           {step === "verify_email"
             ? "Confirm your email address to launch your Lutic workspace."
             : mode === "sign-up"
-              ? "Start with Google, Microsoft, or work email on Free / Individual, or join your invited Enterprise workspace."
-              : "Authenticate with Google, Microsoft, or your Lutic account credentials."}
+              ? "Start free with Google, Microsoft, or work email."
+              : "Sign in with Google, Microsoft, or your Lutic account credentials."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

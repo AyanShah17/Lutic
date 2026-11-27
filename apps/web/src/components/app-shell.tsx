@@ -25,11 +25,9 @@ import {
   PanelLeftOpen,
   Plug,
   Search,
-  ShieldCheck,
   Sun,
   X
 } from "lucide-react";
-import { can } from "@lutic/core/rbac";
 import { getNavGroupsForUser } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useAppContext } from "./providers";
@@ -41,14 +39,6 @@ import { Button, buttonVariants } from "./ui/button";
 import { Dialog } from "./ui/dialog";
 import { Input } from "./ui/input";
 
-const DEMO_ACCOUNTS = [
-  { email: "engineer@acme.demo", label: "Engineer (Detroit)" },
-  { email: "austin.engineer@acme.demo", label: "Engineer (Austin)" },
-  { email: "analyst@acme.demo", label: "Analyst (All Plants)" },
-  { email: "manager@acme.demo", label: "Manager (All Plants)" },
-  { email: "admin@acme.demo", label: "Admin (OT/IT)" }
-];
-
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   overview: Home,
   board: Kanban,
@@ -59,9 +49,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   workflows: GitBranch,
   connectors: Plug,
   notifications: Bell,
-  queues: Layers,
-  admin: ShieldCheck,
-  activate: KeyRound
+  queues: Layers
 };
 
 interface NavNotification {
@@ -76,23 +64,17 @@ interface NavNotification {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, locale, setLocale, t, refreshSession, setUser, demoEnabled, signOutExternal } = useAppContext();
+  const { user, locale, setLocale, t, refreshSession, setUser, signOutExternal } = useAppContext();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const [switching, setSwitching] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const [notifs, setNotifs] = useState<NavNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [licenseStatus, setLicenseStatus] = useState<{
-    active: boolean;
-    status: string;
-    enforced: boolean;
-  } | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -131,7 +113,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const activeTheme = mounted ? (theme ?? "light") : "light";
   const navGroups = getNavGroupsForUser(user, t);
-  const canManageLicense = Boolean(user && can(user, "license:manage"));
 
   const activeEntry = (() => {
     for (const group of navGroups) {
@@ -172,12 +153,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     void loadNotifications();
-    fetch("/api/license", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d) setLicenseStatus(d);
-      })
-      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId, user?.role]);
 
@@ -189,24 +164,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
     if (res.ok) {
       await loadNotifications();
-    }
-  };
-
-  const handleDemoSwitch = async (email: string) => {
-    if (!email) return;
-    setSwitching(true);
-    try {
-      const res = await fetch("/api/auth/demo-switch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-      if (res.ok) {
-        await refreshSession();
-        router.refresh();
-      }
-    } finally {
-      setSwitching(false);
     }
   };
 
@@ -341,62 +298,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       {user && (
-        <div className="border-t border-sidebar-border/70 p-3 space-y-2.5 shrink-0">
-          {!compact && licenseStatus && (
-            canManageLicense ? (
-              <Link
-                href="/activate"
-                onClick={onNavigate}
-                className="flex items-center justify-between rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground transition-colors"
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <KeyRound className="h-3 w-3" />
-                  <span>License</span>
-                </span>
-                <Badge
-                  variant={licenseStatus.active ? "success" : "warning"}
-                  className="capitalize text-[10px]"
-                >
-                  {licenseStatus.status}
-                </Badge>
-              </Link>
-            ) : (
-              <div className="flex items-center justify-between rounded-md px-2 py-1 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <KeyRound className="h-3 w-3" />
-                  <span>License</span>
-                </span>
-                <Badge
-                  variant={licenseStatus.active ? "success" : "warning"}
-                  className="capitalize text-[10px]"
-                >
-                  {licenseStatus.status}
-                </Badge>
-              </div>
-            )
-          )}
-
-          {!compact && demoEnabled && (
-            <select
-              aria-label={onNavigate ? "Mobile demo role switcher" : "Demo role switcher"}
-              value={user.email}
-              disabled={switching}
-              onChange={(e) => handleDemoSwitch(e.target.value)}
-              className="h-8 w-full rounded-md border border-border/80 bg-background px-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {DEMO_ACCOUNTS.map((acc) => (
-                <option key={acc.email} value={acc.email}>
-                  {acc.label}
-                </option>
-              ))}
-              {!DEMO_ACCOUNTS.some((a) => a.email === user.email) && (
-                <option value={user.email}>
-                  Your Workspace: {user.name} ({user.role})
-                </option>
-              )}
-            </select>
-          )}
-
+        <div className="border-t border-sidebar-border/70 p-3 shrink-0">
           <div
             className={cn(
               "flex items-center gap-2 px-0.5",
@@ -407,8 +309,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="min-w-0">
                 <div className="text-xs font-semibold truncate">{user.name}</div>
                 <div className="text-[11px] text-muted-foreground truncate">
-                  <span className="capitalize font-medium">{user.role}</span> ·{" "}
-                  {user.plantIds.join(", ")}
+                  {user.email}
                 </div>
               </div>
             )}
@@ -632,16 +533,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span>{locale.toUpperCase()}</span>
             </button>
 
-            {user ? (
-              <span className="hidden sm:inline-flex items-center rounded-md bg-muted/70 px-2 py-1 text-[11px] font-medium capitalize text-muted-foreground">
-                {user.role}
-              </span>
-            ) : (
-              pathname !== "/login" && (
-                <Link href="/login" className={buttonVariants({ size: "sm" })}>
-                  Sign in
-                </Link>
-              )
+            {!user && pathname !== "/login" && (
+              <Link href="/login" className={buttonVariants({ size: "sm" })}>
+                Sign in
+              </Link>
             )}
           </div>
         </header>
