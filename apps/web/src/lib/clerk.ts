@@ -1,14 +1,9 @@
-import crypto from "node:crypto";
 import {
   and,
-  auditLog,
-  boardIssues,
   eq,
   getLicenseStatus,
   isNull,
-  plants,
   RoleSchema,
-  tenants,
   userPlants,
   users,
   withTenantScope,
@@ -16,6 +11,7 @@ import {
   type SessionUser
 } from "@lutic/core";
 import { getWebAdministrativeDb, withWebTenantDb } from "./db";
+import { provisionTenantWorkspace } from "./tenant-provisioning";
 
 export interface ClerkIdentityInput {
   externalAuthId: string;
@@ -43,15 +39,6 @@ function isUniqueConstraintError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const e = err as { code?: unknown; cause?: { code?: unknown } };
   return e.code === "23505" || e.cause?.code === "23505";
-}
-
-async function runTx<T>(
-  db: LuticDatabase,
-  fn: (tx: LuticDatabase) => Promise<T>
-): Promise<T> {
-  return (db as unknown as {
-    transaction: (cb: (tx: LuticDatabase) => Promise<T>) => Promise<T>;
-  }).transaction(fn);
 }
 
 export async function resolveClerkSessionUser(
@@ -126,110 +113,15 @@ export async function resolveClerkSessionUser(
         return null;
       }
 
-      const tenantId = `tenant-${crypto.randomUUID().slice(0, 12)}`;
-      const plantId = `plant-${crypto.randomUUID().slice(0, 12)}`;
-      const userId = `user-${crypto.randomUUID().slice(0, 12)}`;
-      const slug = `ws-${crypto.randomUUID().slice(0, 10)}`;
-
       try {
-        dbUser = await runTx(db, async (tx) => {
-          await tx.insert(tenants).values({
-            id: tenantId,
-            name: `${displayName}'s Workspace`,
-            slug,
-            plan: "free"
-          });
-          await tx.insert(plants).values({
-            id: plantId,
-            tenantId,
-            name: "Primary Plant",
-            code: "PLT-01",
-            timezone: "UTC",
-            location: ""
-          });
-          const insertedUsers = await tx
-            .insert(users)
-            .values({
-              id: userId,
-              tenantId,
-              email,
-              name: displayName,
-              passwordHash: "clerk-managed-no-local-password",
-              role: "admin",
-              active: true,
-              externalAuthId
-            })
-            .returning();
-          await tx.insert(userPlants).values({
-            tenantId,
-            userId,
-            plantId
-          });
-          await tx.insert(boardIssues).values([
-            {
-              id: `brd-${crypto.randomUUID().slice(0, 10)}`,
-              tenantId,
-              plantId,
-              identifier: "LUT-101",
-              title: "Connect enterprise ERP, cloud, or plant-floor systems",
-              description:
-                "Configure SAP modules, AWS IoT/S3, ServiceNow, MQTT, OPC-UA, or Modbus endpoints in the Connectors Hub.",
-              status: "todo",
-              priority: "high",
-              category: "connector",
-              assigneeName: displayName,
-              labels: ["onboarding", "connectors"],
-              sourceRef: "Lutic Setup",
-              createdBy: userId
-            },
-            {
-              id: `brd-${crypto.randomUUID().slice(0, 10)}`,
-              tenantId,
-              plantId,
-              identifier: "LUT-102",
-              title: "Build first automated multi-step workflow",
-              description:
-                "Combine machine alerts, approvals, and downstream ServiceNow/SAP notifications in Workflows.",
-              status: "in_progress",
-              priority: "medium",
-              category: "automation",
-              assigneeName: displayName,
-              labels: ["automation"],
-              sourceRef: "Workflow Studio",
-              createdBy: userId
-            },
-            {
-              id: `brd-${crypto.randomUUID().slice(0, 10)}`,
-              tenantId,
-              plantId,
-              identifier: "LUT-103",
-              title: "Upload operating manuals and verify scanner readiness",
-              description:
-                "Add SOP PDFs so Lutic Security Scanner indexes cited procedures for instant shift guidance.",
-              status: "backlog",
-              priority: "low",
-              category: "operations",
-              assigneeName: displayName,
-              labels: ["knowledge"],
-              sourceRef: "Lutic Workspace",
-              createdBy: userId
-            }
-          ]);
-          await tx.insert(auditLog).values({
-            id: `aud-${crypto.randomUUID().slice(0, 12)}`,
-            tenantId,
-            userId,
-            role: "admin",
-            action: "signup_provisioned",
-            toolName: "auth.clerk_provision",
-            args: { email, plan: "free" },
-            resultHash: "",
-            status: "allowed",
-            reason: "Auto-provisioned personal workspace",
-            latencyMs: 1
-          });
-          return insertedUsers[0];
+        const provisioned = await provisionTenantWorkspace(db, {
+          email,
+          name: displayName,
+          passwordHash: "clerk-managed-no-local-password",
+          externalAuthId,
+          authSource: "auth.clerk_provision"
         });
+        dbUser = provisioned.userRow;
       } catch (err) {
         if (!isUniqueConstraintError(err)) throw err;
         dbUser = (

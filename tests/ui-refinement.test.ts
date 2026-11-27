@@ -394,7 +394,7 @@ describe("Lutic UI Refinement — Categorized Navigation, Search, Shadcn/Vengean
 
     mockedSessionUser = null;
     const unauthHtml = renderToStaticMarkup(await HomePage());
-    expect(unauthHtml).toContain("Turn Every Plant Issue Into a Fast, Safe, Verified Fix.");
+    expect(unauthHtml).toContain("Lutic builds AI systems that work.");
     expect(unauthHtml).toContain("lutic.app");
     expect(unauthHtml).toContain("Interactive Plant Anatomy");
     expect(unauthHtml).toContain("Explore Interactive Demo");

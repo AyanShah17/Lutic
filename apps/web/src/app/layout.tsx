@@ -9,9 +9,12 @@ import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lutic.app"),
-  title: "Lutic — AI Systems & Industrial Operations Platform",
+  title: {
+    default: "Lutic | AI PaaS, Agentic Automation & Custom AI Studio",
+    template: "%s | Lutic"
+  },
   description:
-    "Lutic turns shop-floor alerts, enterprise systems, AI automations, agentic dashboards, and multi-agent workflows into verified human-approved outcomes."
+    "Self-serve AI PaaS workspaces, custom AI solutions, autonomous agents, AI Canvas workflows, governed dashboards, and enterprise connectors."
 };
 
 export const dynamic = "force-dynamic";

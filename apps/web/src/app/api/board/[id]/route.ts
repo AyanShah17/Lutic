@@ -9,7 +9,7 @@ import {
   problemResponse,
   verifyCsrfOrigin
 } from "@/lib/auth";
-import { BOARD_CATEGORIES, BOARD_PRIORITIES, BOARD_STATUSES } from "../route";
+import { BOARD_CATEGORIES, BOARD_PRIORITIES, BOARD_STATUSES } from "@/lib/board-constants";
 
 const UpdateIssueSchema = z.object({
   title: z.string().trim().min(2).max(200).optional(),

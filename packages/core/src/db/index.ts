@@ -3,6 +3,7 @@ export * from "./client";
 export * from "./migrate";
 export { rotateStoredCredentials, type CredentialRotationSummary } from "./rotate-keys";
 export { seedDatabase, DEMO_PASSWORD } from "./seed";
+export { installCoreToolkits } from "./core-toolkits";
 export {
   and,
   asc,

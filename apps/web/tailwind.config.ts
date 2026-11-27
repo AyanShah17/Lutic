@@ -11,13 +11,14 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "IBM Plex Sans",
-          "Plus Jakarta Sans",
+          "Geist",
+          "system-ui",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
           "sans-serif"
         ],
+        serif: ["Instrument Serif", "Georgia", "serif"],
         mono: [
           "JetBrains Mono",
           "SF Mono",

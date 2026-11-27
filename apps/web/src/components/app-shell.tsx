@@ -10,7 +10,6 @@ import {
   Bell,
   ChevronRight,
   Cpu,
-  Factory,
   GitBranch,
   Globe,
   Home,
@@ -36,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { useAppContext } from "./providers";
 import { CommandSearch } from "./command-search";
 import { FloatingAiAssistant } from "./floating-ai-assistant";
+import { LuticLogo } from "./lutic-logo";
 import { Badge } from "./ui/badge";
 import { Button, buttonVariants } from "./ui/button";
 import { Dialog } from "./ui/dialog";
@@ -261,9 +261,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClick={onNavigate}
           className="flex items-center gap-2.5 min-w-0"
         >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background">
-            <Factory className="h-3.5 w-3.5" />
-          </span>
+          <LuticLogo className="h-7 w-7" />
           {!compact && (
             <div className="min-w-0 flex items-baseline gap-1.5">
               <span className="text-sm font-semibold tracking-tight text-foreground">
@@ -393,7 +391,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
               {!DEMO_ACCOUNTS.some((a) => a.email === user.email) && (
                 <option value={user.email}>
-                  {user.name} ({user.role})
+                  Your Workspace: {user.name} ({user.role})
                 </option>
               )}
             </select>
@@ -514,9 +512,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </>
             ) : (
               <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
-                  <Factory className="h-3.5 w-3.5" />
-                </span>
+                <LuticLogo className="h-7 w-7" />
                 <span className="text-sm">Lutic</span>
               </Link>
             )}

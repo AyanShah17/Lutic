@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Factory, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowRight, KeyRound, ShieldCheck } from "lucide-react";
 import { useAppContext } from "@/components/providers";
 import { LuticAuthCard } from "@/components/auth-card";
+import { LuticLogo } from "@/components/lutic-logo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -124,20 +126,24 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12 space-y-6">
-      <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-5">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-foreground text-background">
-            <Factory className="h-4 w-4" />
-          </span>
+          <LuticLogo className="h-9 w-9" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-medium tracking-tight">
               Sign in to Lutic
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Role-governed industrial operations AI across manuals, telemetry, workflows, and dashboards.
+              Resume your persistent AI PaaS workspace across AI Canvas, AI Board, Dashboards, Connectors, and Agents.
             </p>
           </div>
         </div>
+        <Link
+          href="/signup"
+          className="text-xs font-medium text-primary hover:underline shrink-0"
+        >
+          New to Lutic? Create a free workspace
+        </Link>
       </div>
 
       <div className={demoEnabled ? "grid gap-6 lg:grid-cols-12 items-start" : "mx-auto max-w-md"}>
@@ -206,6 +212,13 @@ export default function LoginPage() {
                 <span>{loading ? "Signing in..." : "Sign in"}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </AnimatedButton>
+
+              <div className="pt-2 border-t border-border text-center text-xs text-muted-foreground">
+                New to Lutic?{" "}
+                <Link href="/signup" className="text-primary font-medium hover:underline">
+                  Create a free workspace
+                </Link>
+              </div>
             </form>
           </CardContent>
         </Card>

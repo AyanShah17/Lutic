@@ -38,6 +38,7 @@ import { Card } from "@/components/ui/card";
 import { GlowBorderCard } from "@/components/vengeance/glow-border-card";
 import { LineHoverLink } from "@/components/vengeance/line-hover-link";
 import { LuticLandingPage } from "@/components/landing-page";
+import { LuticLogo } from "@/components/lutic-logo";
 
 interface ModuleItem {
   id: string;
@@ -309,25 +310,29 @@ export default async function HomePage() {
       <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-border/70 pb-6">
         <div className="space-y-1.5 max-w-2xl">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+            <LuticLogo className="h-4 w-4" />
             <span className="capitalize">
-              {user ? `${user.role} · ${user.plantIds.join(", ")}` : "Lutic Operations Platform"}
+              {user ? `${user.role} · ${user.plantIds.join(", ")}` : "Lutic AI PaaS Platform"}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground">
             Lutic Industrial Operations PaaS
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Role-governed AI guidance, machine topology, workflow automation, live telemetry, and semantic dashboards.
+            Your persistent AI PaaS workspace across AI Canvas, AI Board, Semantic Dashboards, Connectors Hub, IAM, and Agent HITL.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           {user ? (
             <>
-              <Link href="/machines" className={buttonVariants({ size: "default" })}>
-                <Cpu className="h-4 w-4" />
-                <span>Machine Topology</span>
+              <Link href="/workflows" className={buttonVariants({ size: "default" })}>
+                <GitBranch className="h-4 w-4" />
+                <span>AI Canvas</span>
+              </Link>
+              <Link href="/board" className={buttonVariants({ variant: "outline", size: "default" })}>
+                <Kanban className="h-4 w-4" />
+                <span>AI Board</span>
               </Link>
               <Link
                 href={primaryMachineHref}

@@ -21,6 +21,7 @@ import {
   X
 } from "lucide-react";
 import type { AiChangeProposal, ChangeDiffRow } from "@/app/api/ai/changes/route";
+import { LuticLogo } from "@/components/lutic-logo";
 import { useAppContext } from "@/components/providers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -579,14 +580,13 @@ export function FloatingAiAssistant() {
         onClick={() => setOpen((v) => !v)}
         aria-label="Open Lutic AI Assistant"
         className={cn(
-          "no-print fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-border/30 bg-foreground px-3.5 py-2 text-xs font-medium text-background shadow-lg transition-[transform,opacity,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:opacity-95 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "no-print fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-border/30 bg-foreground px-3.5 py-2 text-xs font-medium text-background shadow-lg transition-[transform,opacity,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-primary hover:text-primary-foreground active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           open && "ring-2 ring-ring"
         )}
       >
-        <span className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
-        <Bot className="h-3.5 w-3.5" />
+        <LuticLogo className="h-4 w-4" />
         <span>Lutic AI</span>
-        <span className="hidden sm:inline text-[10px] opacity-70">
+        <span className="hidden sm:inline text-[10px] opacity-75">
           {screenCtx.label}
         </span>
       </button>

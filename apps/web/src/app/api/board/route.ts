@@ -16,25 +16,7 @@ import {
   problemResponse,
   verifyCsrfOrigin
 } from "@/lib/auth";
-
-export const BOARD_STATUSES = [
-  "backlog",
-  "todo",
-  "in_progress",
-  "in_review",
-  "done",
-  "canceled"
-] as const;
-
-export const BOARD_PRIORITIES = ["urgent", "high", "medium", "low"] as const;
-
-export const BOARD_CATEGORIES = [
-  "operations",
-  "automation",
-  "incident",
-  "connector",
-  "agent"
-] as const;
+import { BOARD_CATEGORIES, BOARD_PRIORITIES, BOARD_STATUSES } from "@/lib/board-constants";
 
 const CreateIssueSchema = z.object({
   title: z.string().trim().min(2).max(200),
