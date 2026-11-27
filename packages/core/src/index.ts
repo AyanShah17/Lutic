@@ -16,5 +16,7 @@ export * from "./ingestion-tokens";
 export * from "./messaging";
 export * from "./workflows";
 export * from "./connector-hub";
+export * from "./connector-blueprints";
+export * from "./connector-auth";
 export * from "./external-connectors";
 export * from "./live-adapters";

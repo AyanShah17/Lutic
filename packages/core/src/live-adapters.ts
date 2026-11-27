@@ -16,7 +16,15 @@ const LIVE_REST_SLUGS = new Set([
   "sap-qm",
   "jira",
   "linear",
-  "slack"
+  "slack",
+  "github",
+  "notion",
+  "stripe",
+  "discord",
+  "hubspot",
+  "gitlab",
+  "asana",
+  "zendesk"
 ]);
 
 function isPlaceholderHost(hostname: string): boolean {
@@ -75,6 +83,8 @@ export function getLiveProtocolKind(connector: {
   slug?: string;
   transport: string;
   endpointUrl: string;
+  encryptedCredentials?: string;
+  hasCredentials?: boolean;
 }): "modbus" | "mqtt" | "rest" | null {
   if (connector.transport === "simulated") return null;
   const url = connector.endpointUrl.trim();
@@ -95,7 +105,8 @@ export function getLiveProtocolKind(connector: {
       return null;
     }
   }
-  if (LIVE_REST_SLUGS.has(slug)) {
+  const hasCreds = Boolean(connector.encryptedCredentials || connector.hasCredentials);
+  if (LIVE_REST_SLUGS.has(slug) || (connector.transport === "http" && hasCreds)) {
     try {
       const parsed = new URL(url);
       const allowHttp = process.env.LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS === "true";
@@ -115,6 +126,8 @@ export function hasLiveAdapterSupport(connector: {
   slug?: string;
   transport: string;
   endpointUrl: string;
+  encryptedCredentials?: string;
+  hasCredentials?: boolean;
 }): boolean {
   return getLiveProtocolKind(connector) !== null;
 }
@@ -519,6 +532,50 @@ async function invokeRestAdapterTool(
       body = JSON.stringify(args);
     } else {
       targetUrl = `${base}/conversations.list?limit=${Math.min(Number(args.limit ?? 20) || 20, 100)}`;
+    }
+  } else if (kind === "github") {
+    headers["Accept"] = "application/vnd.github+json";
+    headers["User-Agent"] = "Lutic-Connector-Gateway/1.0";
+    if (toolName === "health_probe") {
+      targetUrl = `${base}/user`;
+    } else if (toolName.includes("create_issue") && typeof args.owner === "string" && typeof args.repo === "string") {
+      method = "POST";
+      targetUrl = `${base}/repos/${encodeURIComponent(args.owner)}/${encodeURIComponent(args.repo)}/issues`;
+      body = JSON.stringify(args);
+    } else if (typeof args.owner === "string" && typeof args.repo === "string") {
+      targetUrl = `${base}/repos/${encodeURIComponent(args.owner)}/${encodeURIComponent(args.repo)}/issues`;
+    } else {
+      targetUrl = `${base}/user/repos?per_page=10`;
+    }
+  } else if (kind === "notion") {
+    headers["Notion-Version"] = "2022-06-28";
+    if (toolName === "health_probe") {
+      targetUrl = `${base}/users/me`;
+    } else {
+      method = "POST";
+      targetUrl = `${base}/search`;
+      body = JSON.stringify(args);
+    }
+  } else if (kind === "stripe") {
+    if (toolName === "health_probe") {
+      targetUrl = `${base}/balance`;
+    } else if (toolName.includes("invoice")) {
+      targetUrl = `${base}/invoices?limit=10`;
+    } else {
+      targetUrl = `${base}/customers?limit=10`;
+    }
+  } else if (kind === "discord") {
+    targetUrl = `${base}/users/@me`;
+  } else if (kind === "hubspot") {
+    targetUrl = `${base}/crm/v3/objects/contacts?limit=10`;
+  } else if (typeof args._path === "string" && args._path.trim().startsWith("/")) {
+    method = typeof args._method === "string" ? args._method.toUpperCase() : "GET";
+    targetUrl = `${base}${args._path.trim()}`;
+    if (method !== "GET" && method !== "HEAD" && method !== "DELETE") {
+      const restBody = { ...args };
+      delete restBody._path;
+      delete restBody._method;
+      body = JSON.stringify(restBody);
     }
   }
 

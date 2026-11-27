@@ -10,7 +10,8 @@
     "./db": "./src/db/index.ts",
     "./semantic": "./src/semantic/index.ts",
     "./metrics": "./src/semantic/registry.ts",
-    "./dashboard": "./src/dashboard/schema.ts"
+    "./dashboard": "./src/dashboard/schema.ts",
+    "./connector-blueprints": "./src/connector-blueprints.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

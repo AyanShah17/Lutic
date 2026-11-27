@@ -136,19 +136,42 @@ export function buildAuthHeaders(creds?: Record<string, unknown>): Record<string
   const headers: Record<string, string> = {};
   if (!creds) return headers;
 
-  const bearer =
-    (typeof creds.token === "string" && creds.token.trim()) ||
-    (typeof creds.accessToken === "string" && creds.accessToken.trim()) ||
-    (typeof creds.apiKey === "string" && creds.apiKey.trim()) ||
-    (typeof creds.secret === "string" && creds.secret.trim()) ||
-    "";
+  const scheme = typeof creds.authScheme === "string" ? creds.authScheme : "";
+  const customHeader =
+    typeof creds.headerName === "string" && /^[a-zA-Z0-9-]+$/.test(creds.headerName.trim())
+      ? creds.headerName.trim()
+      : "";
 
-  if (bearer) {
-    headers["Authorization"] = `Bearer ${bearer}`;
+  if (
+    (scheme === "basic" || (!creds.token && !creds.accessToken && !creds.apiKey)) &&
+    typeof creds.username === "string" &&
+    typeof creds.password === "string" &&
+    creds.username.length > 0
+  ) {
+    headers["Authorization"] = `Basic ${Buffer.from(`${creds.username}:${creds.password}`).toString("base64")}`;
+  } else {
+    const bearer =
+      (typeof creds.token === "string" && creds.token.trim()) ||
+      (typeof creds.accessToken === "string" && creds.accessToken.trim()) ||
+      (typeof creds.apiKey === "string" && creds.apiKey.trim()) ||
+      (typeof creds.secret === "string" && creds.secret.trim()) ||
+      "";
+
+    if (scheme === "api_key" && customHeader) {
+      if (bearer) {
+        headers[customHeader] =
+          customHeader.toLowerCase() === "authorization" && !/^Bearer\s+/i.test(bearer)
+            ? `Bearer ${bearer}`
+            : bearer;
+      }
+    } else if (bearer) {
+      headers["Authorization"] = `Bearer ${bearer}`;
+      if (scheme !== "oauth2" && scheme !== "bearer" && typeof creds.apiKey === "string" && creds.apiKey.trim()) {
+        headers["x-api-key"] = creds.apiKey.trim();
+      }
+    }
   }
-  if (typeof creds.apiKey === "string" && creds.apiKey.trim()) {
-    headers["x-api-key"] = creds.apiKey.trim();
-  }
+
   if (creds.headers && typeof creds.headers === "object" && !Array.isArray(creds.headers)) {
     for (const [k, v] of Object.entries(creds.headers as Record<string, unknown>)) {
       if (typeof v === "string" && /^[a-zA-Z0-9-]+$/.test(k)) {

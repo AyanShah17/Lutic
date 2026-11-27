@@ -4,14 +4,23 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CheckCircle2,
+  ExternalLink,
+  KeyRound,
+  Lock,
   Play,
   Plug,
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   X,
   Zap
 } from "lucide-react";
+import {
+  AUTH_SCHEME_LABELS,
+  getConnectorAuthBlueprint,
+  type ConnectorAuthScheme
+} from "@lutic/core/connector-blueprints";
 import { useAppContext } from "./providers";
 import { AuthGate } from "./ui/auth-gate";
 import { Badge } from "./ui/badge";
@@ -35,6 +44,7 @@ interface ConnectorHubItem {
   endpointUrl: string;
   status: string;
   hasCredentials: boolean;
+  config?: Record<string, unknown>;
   discoveredTools: Array<{ name: string; description?: string }>;
   lastSyncAt: string | null;
   lastError: string | null;
@@ -46,7 +56,7 @@ interface CatalogItem {
   category: string;
   transport: string;
   description: string;
-  credentialFields?: Array<{ key: string; defaultValue?: string }>;
+  credentialFields?: Array<{ key: string; label: string; secret?: boolean; defaultValue?: string }>;
 }
 
 interface SyncLogItem {
@@ -60,6 +70,23 @@ interface SyncLogItem {
   createdAt: string;
 }
 
+const FEATURED_SLUGS = [
+  "lutic-cloud",
+  "lutic-api",
+  "github",
+  "slack",
+  "linear",
+  "jira",
+  "notion",
+  "stripe",
+  "servicenow",
+  "sap-pm",
+  "modbus-tcp",
+  "mqtt-broker"
+];
+
+const BUILTIN_SLUGS = new Set(["cmms", "historian", "mes", "parts-erp", "docs"]);
+
 function statusBadgeVariant(status: string): "success" | "warning" | "destructive" | "outline" {
   if (status === "connected" || status === "success") return "success";
   if (status === "degraded" || status === "partial") return "warning";
@@ -70,20 +97,31 @@ function statusBadgeVariant(status: string): "success" | "warning" | "destructiv
 function formatTransportLabel(transport: string): string {
   switch (transport) {
     case "remote_mcp":
-      return "Lutic Cloud";
+      return "Remote MCP";
     case "utcp_http":
-      return "Lutic Direct API";
+      return "OpenAPI Spec";
     case "in_memory_mcp":
       return "Lutic Native";
     case "lutic_protocol":
       return "Lutic Protocol";
     case "simulated":
-      return "Managed Adapter";
+      return "Sandbox Adapter";
     case "http":
-      return "HTTPS";
+      return "HTTPS API";
     default:
       return transport;
   }
+}
+
+function formatAuthSchemeLabel(conn: ConnectorHubItem): string {
+  const cfgScheme = typeof conn.config?.authScheme === "string" ? conn.config.authScheme : "";
+  if (cfgScheme && cfgScheme in AUTH_SCHEME_LABELS) {
+    return AUTH_SCHEME_LABELS[cfgScheme as ConnectorAuthScheme];
+  }
+  if (conn.transport === "remote_mcp") return "Remote MCP";
+  if (conn.transport === "utcp_http") return "OpenAPI Spec";
+  if (conn.transport === "in_memory_mcp") return "Native";
+  return conn.hasCredentials ? "Vault Secret" : "Sandbox";
 }
 
 export function getConnectorRuntimeTier(entry: {
@@ -103,9 +141,21 @@ export function getConnectorRuntimeTier(entry: {
     url.startsWith("modbus://") ||
     url.startsWith("mqtt://") ||
     url.startsWith("mqtts://") ||
-    ["servicenow", "sap-pm", "sap-mm", "sap-pp", "sap-qm", "jira", "linear", "slack"].some(
-      (s) => slug === s || slug.startsWith(`${s}-`)
-    )
+    [
+      "servicenow",
+      "sap-pm",
+      "sap-mm",
+      "sap-pp",
+      "sap-qm",
+      "jira",
+      "linear",
+      "slack",
+      "github",
+      "notion",
+      "stripe",
+      "discord",
+      "hubspot"
+    ].some((s) => slug === s || slug.startsWith(`${s}-`))
   ) {
     return "Live Protocol";
   }
@@ -113,7 +163,7 @@ export function getConnectorRuntimeTier(entry: {
 }
 
 export function isConnectorSupportedInRuntime(
-  connector: { slug?: string; transport: string; endpointUrl: string },
+  connector: { slug?: string; transport: string; endpointUrl: string; hasCredentials?: boolean },
   demoEnabled: boolean
 ): boolean {
   if (demoEnabled) return true;
@@ -124,10 +174,24 @@ export function isConnectorSupportedInRuntime(
     return !/\.(?:local|internal|example|invalid)(?:[:/]|$)/i.test(connector.endpointUrl);
   }
   const slug = String(connector.slug ?? "").toLowerCase();
+  const isKnownRest = [
+    "servicenow",
+    "sap-pm",
+    "sap-mm",
+    "sap-pp",
+    "sap-qm",
+    "jira",
+    "linear",
+    "slack",
+    "github",
+    "notion",
+    "stripe",
+    "discord",
+    "hubspot"
+  ].some((s) => slug === s || slug.startsWith(`${s}-`));
+
   if (
-    ["servicenow", "sap-pm", "sap-mm", "sap-pp", "sap-qm", "jira", "linear", "slack"].some(
-      (s) => slug === s || slug.startsWith(`${s}-`)
-    ) &&
+    (isKnownRest || (connector.transport === "http" && Boolean(connector.hasCredentials))) &&
     /^https:\/\//i.test(connector.endpointUrl.trim())
   ) {
     return !/\.(?:local|internal|example|invalid)(?:[:/]|$)/i.test(connector.endpointUrl);
@@ -158,20 +222,28 @@ export function ConnectorsConsole() {
   const [invokeOutput, setInvokeOutput] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    kind: "http",
-    templateSlug: "",
-    endpointUrl: "",
-    apiKey: ""
-  });
+
   const CATALOG_PAGE_SIZE = 60;
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
-  const [registerOpen, setRegisterOpen] = useState(false);
+
+  // Per-integration Auth Blueprint & Connected Account Dialog State
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [selectedApp, setSelectedApp] = useState<CatalogItem | null>(null);
+  const [activeScheme, setActiveScheme] = useState<ConnectorAuthScheme>("api_key");
+  const [connectionLabel, setConnectionLabel] = useState("");
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [oauthClientId, setOauthClientId] = useState("");
+  const [oauthClientSecret, setOauthClientSecret] = useState("");
+  const [oauthCustomAuthUrl, setOauthCustomAuthUrl] = useState("");
+  const [oauthCustomTokenUrl, setOauthCustomTokenUrl] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [originUrl, setOriginUrl] = useState("");
 
   const isAdmin = user?.role === "admin";
 
-  const load = async () => {
+  const load = async (selectIdAfter?: string) => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -189,6 +261,11 @@ export function ConnectorsConsole() {
         setLogs(data.logs ?? []);
         setCodeModeEnabled(data.capabilities?.codeMode === true);
         setSelectedId((prev) => {
+          if (selectIdAfter && list.some((c) => c.id === selectIdAfter)) {
+            const match = list.find((c) => c.id === selectIdAfter);
+            if (match) setToolName(match.discoveredTools?.[0]?.name ?? "");
+            return selectIdAfter;
+          }
           const stillExists = prev && list.some((c) => c.id === prev);
           if (stillExists) return prev;
           const first = list[0];
@@ -210,10 +287,81 @@ export function ConnectorsConsole() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location) {
+      setOriginUrl(window.location.origin ?? "");
+      const qp = new URLSearchParams(window.location.search ?? "");
+      const connectedName = qp.get("connected");
+      const oauthErr = qp.get("oauth_error");
+      if (connectedName) {
+        setNotice(`Connected ${connectedName} via OAuth 2.0 + PKCE vault.`);
+      } else if (oauthErr) {
+        setNotice(`OAuth error: ${oauthErr}`);
+      }
+    }
     if (user) void load();
     else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const openAppConnect = (app: CatalogItem) => {
+    const bp = getConnectorAuthBlueprint(app);
+    const defaults: Record<string, string> = {};
+    for (const f of bp.fieldsByScheme[bp.defaultScheme] ?? []) {
+      defaults[f.key] = f.defaultValue ?? "";
+    }
+    setSelectedApp(app);
+    setActiveScheme(bp.defaultScheme);
+    setConnectionLabel(app.name);
+    setFieldValues(defaults);
+    setOauthClientId("");
+    setOauthClientSecret("");
+    setOauthCustomAuthUrl(bp.oauthProvider?.authorizationUrl ?? "");
+    setOauthCustomTokenUrl(bp.oauthProvider?.tokenUrl ?? "");
+    setConnectError(null);
+    setConnectOpen(true);
+  };
+
+  const openNewConnectionPicker = () => {
+    setSelectedApp(null);
+    setPickerSearch("");
+    setConnectError(null);
+    setConnectOpen(true);
+  };
+
+  const switchAuthScheme = (scheme: ConnectorAuthScheme) => {
+    if (!selectedApp) return;
+    const bp = getConnectorAuthBlueprint(selectedApp);
+    const nextFields: Record<string, string> = {};
+    for (const f of bp.fieldsByScheme[scheme] ?? []) {
+      nextFields[f.key] = fieldValues[f.key] || f.defaultValue || "";
+    }
+    setActiveScheme(scheme);
+    setFieldValues(nextFields);
+    setConnectError(null);
+  };
+
+  const blueprint = useMemo(
+    () => (selectedApp ? getConnectorAuthBlueprint(selectedApp) : null),
+    [selectedApp]
+  );
+
+  const pickerCatalog = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase();
+    if (!q) {
+      const featured = FEATURED_SLUGS.map((slug) =>
+        catalog.find((c) => c.slug === slug)
+      ).filter((c): c is CatalogItem => Boolean(c));
+      return featured.length > 0 ? featured : catalog.slice(0, 12);
+    }
+    return catalog
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.slug.toLowerCase().includes(q) ||
+          c.category.toLowerCase().includes(q)
+      )
+      .slice(0, 18);
+  }, [catalog, pickerSearch]);
 
   const selected = useMemo(
     () => connectors.find((c) => c.id === selectedId) ?? connectors[0] ?? null,
@@ -278,36 +426,114 @@ export function ConnectorsConsole() {
     return (
       <AuthGate
         title="Sign in to view Connectors Hub"
-        description="MCP, SCADA, CMMS, ERP, and webhook connector configurations require authentication."
+        description="Connected accounts, OAuth integrations, MCP servers, and API bridges require authentication."
       />
     );
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleOAuthAuthorize = async () => {
+    if (!selectedApp || !isAdmin) return;
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const res = await fetch("/api/connectors/oauth/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: selectedApp.slug,
+          name: connectionLabel.trim() || selectedApp.name,
+          endpointUrl: blueprint?.defaultEndpointUrl,
+          clientId: oauthClientId.trim() || undefined,
+          clientSecret: oauthClientSecret.trim() || undefined,
+          authorizationUrl: oauthCustomAuthUrl.trim() || undefined,
+          tokenUrl: oauthCustomTokenUrl.trim() || undefined
+        })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        authorizationUrl?: string;
+        detail?: string;
+      };
+      if (!res.ok || !data.authorizationUrl) {
+        setConnectError(data.detail ?? "Unable to start OAuth authorization flow.");
+        return;
+      }
+      window.location.assign(data.authorizationUrl);
+    } catch {
+      setConnectError("Failed to initiate OAuth handshake.");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDirectConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !isAdmin) return;
+    if (!selectedApp || !isAdmin) return;
+    setConnecting(true);
+    setConnectError(null);
+
+    const endpointUrl = (fieldValues.endpointUrl ?? blueprint?.defaultEndpointUrl ?? "").trim();
+    const credentials: Record<string, unknown> = { authScheme: activeScheme };
+    for (const [k, v] of Object.entries(fieldValues)) {
+      if (k !== "endpointUrl" && v.trim()) {
+        credentials[k] = v.trim();
+      }
+    }
+
     try {
       const res = await fetch("/api/connectors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.name.trim(),
-          kind: form.templateSlug || form.kind,
-          endpointUrl: form.endpointUrl.trim() || undefined,
-          credentials: form.apiKey ? { apiKey: form.apiKey } : undefined
+          name: connectionLabel.trim() || selectedApp.name,
+          kind: selectedApp.slug,
+          authScheme: activeScheme,
+          endpointUrl: endpointUrl || undefined,
+          credentials
         })
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        detail?: string;
+      };
+      if (!res.ok || !data.id) {
+        setConnectError(data.detail ?? "Failed to save connected account.");
+        return;
+      }
+
+      if (activeScheme === "remote_mcp" || activeScheme === "openapi") {
+        await fetch(`/api/connectors/${data.id}/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        }).catch(() => {});
+      }
+
+      setNotice(
+        `Connected ${connectionLabel.trim() || selectedApp.name} (${AUTH_SCHEME_LABELS[activeScheme]} stored in AES-256-GCM vault).`
+      );
+      setConnectOpen(false);
+      setViewTab("connections");
+      await load(data.id);
+    } catch {
+      setConnectError("Connection request failed.");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async (conn: ConnectorHubItem) => {
+    try {
+      const res = await fetch(`/api/connectors/${conn.id}`, { method: "DELETE" });
       if (res.ok) {
-        setNotice(`Registered connector ${form.name}`);
-        setForm({ name: "", kind: "http", templateSlug: "", endpointUrl: "", apiKey: "" });
-        setRegisterOpen(false);
+        setNotice(`Disconnected ${conn.name}.`);
+        setInvokeOutput(null);
         await load();
       } else {
         const d = (await res.json().catch(() => ({}))) as { detail?: string };
-        setNotice(d.detail ?? "Registration failed");
+        setNotice(d.detail ?? `Unable to disconnect ${conn.name}.`);
       }
     } catch {
-      setNotice("Registration request failed");
+      setNotice("Disconnect request failed.");
     }
   };
 
@@ -320,7 +546,7 @@ export function ConnectorsConsole() {
             <span>Connectors Hub</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Discover Lutic connectors, invoke governed tools, verify health, and inspect sync logs.
+            Connect OAuth 2.0 apps, API keys, remote MCP servers, and OpenAPI tools into an encrypted per-workspace vault.
           </p>
         </div>
 
@@ -348,23 +574,13 @@ export function ConnectorsConsole() {
             ))}
           </Select>
           {isAdmin && (
-            <Button
-              size="sm"
-              onClick={() => setRegisterOpen(true)}
-              className="shrink-0"
-            >
+            <Button size="sm" onClick={openNewConnectionPicker} className="shrink-0">
               <Plus className="h-3.5 w-3.5" />
-              <span>Add Connector</span>
+              <span>New Connection</span>
             </Button>
           )}
         </div>
       </div>
-
-      {!demoEnabled && (
-        <div className="rounded-md border border-border bg-muted/40 px-3.5 py-2 text-xs text-muted-foreground">
-          Production mode: native Lutic adapters (<code className="font-mono">lutic://</code>), Lutic Cloud / Enterprise Bridge connectors, and Lutic Direct API specs over HTTPS execute live tool discovery and invocations. Unimplemented raw HTTP/SCADA/ERP/webhook entries store configuration only and return HTTP 501.
-        </div>
-      )}
 
       {notice && (
         <div className="rounded-md border border-border bg-muted/60 px-3.5 py-2 text-xs font-medium flex items-center justify-between gap-2 min-w-0">
@@ -414,16 +630,22 @@ export function ConnectorsConsole() {
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2 space-y-3 min-w-0">
                 {filteredConnectors.length === 0 ? (
-                  <Card className="p-8 text-center text-xs text-muted-foreground">
-                    {connectors.length === 0
-                      ? (loadError ?? "No connectors configured for this tenant yet.")
-                      : "No connectors match your search."}
+                  <Card className="p-8 text-center text-xs text-muted-foreground space-y-3">
+                    <div>
+                      {connectors.length === 0
+                        ? (loadError ?? "No connected accounts in this workspace yet.")
+                        : "No connectors match your search."}
+                    </div>
+                    {isAdmin && connectors.length === 0 && (
+                      <Button size="sm" onClick={openNewConnectionPicker}>
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Connect First App</span>
+                      </Button>
+                    )}
                   </Card>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2">
-                    {filteredConnectors.map((c) => {
-                      const supported = isConnectorSupportedInRuntime(c, demoEnabled);
-                      return (
+                    {filteredConnectors.map((c) => (
                       <Card
                         key={c.id}
                         role="button"
@@ -454,7 +676,9 @@ export function ConnectorsConsole() {
                           <div className="min-w-0">
                             <div className="font-medium text-sm text-foreground truncate">{c.name}</div>
                             <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                              {formatTransportLabel(c.transport)} · {(c.discoveredTools ?? []).length} tool{(c.discoveredTools ?? []).length === 1 ? "" : "s"}
+                              {formatAuthSchemeLabel(c)} · {formatTransportLabel(c.transport)} ·{" "}
+                              {(c.discoveredTools ?? []).length} tool
+                              {(c.discoveredTools ?? []).length === 1 ? "" : "s"}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
@@ -471,8 +695,7 @@ export function ConnectorsConsole() {
                           </div>
                         )}
                       </Card>
-                      );
-                    })}
+                    ))}
                   </div>
                 )}
               </div>
@@ -481,28 +704,29 @@ export function ConnectorsConsole() {
                 {selected && (
                   <Card className="p-4 space-y-4">
                     <div className="flex items-start justify-between gap-2 border-b border-border/70 pb-3">
-                      <div className="min-w-0">
+                      <div className="min-w-0 space-y-1">
                         <div className="text-sm font-semibold truncate">{selected.name}</div>
-                        <div className="text-[11px] font-mono text-muted-foreground truncate mt-0.5">
+                        <div className="text-[11px] font-mono text-muted-foreground truncate">
                           {formatTransportLabel(selected.transport)} · {selected.endpointUrl || "in-memory"}
                         </div>
-                        {!isConnectorSupportedInRuntime(selected, demoEnabled) && (
-                          <div className="text-[11px] text-amber-700 dark:text-amber-300 mt-1">
-                            External bridge unavailable in current mode
-                          </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          <Badge variant="outline" className="text-[10px] font-mono">
+                            {formatAuthSchemeLabel(selected)}
+                          </Badge>
+                          {selected.hasCredentials && (
+                            <Badge variant="secondary" className="text-[10px] gap-1">
+                              <Lock className="h-2.5 w-2.5" />
+                              <span>AES-256-GCM Vault</span>
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       {isAdmin && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Button
                             variant="outline"
                             size="sm"
                             disabled={!isConnectorSupportedInRuntime(selected, demoEnabled)}
-                            title={
-                              !isConnectorSupportedInRuntime(selected, demoEnabled)
-                                ? "External connector health checks require demo mode or an external bridge"
-                                : undefined
-                            }
                             onClick={async () => {
                               try {
                                 const res = await fetch(`/api/connectors/${selected.id}/test`, {
@@ -520,7 +744,7 @@ export function ConnectorsConsole() {
                                     ? `Health test (${selected.slug}): ${d.status ?? "ok"} — ${d.message ?? ""}`
                                     : d.detail ?? `Health test failed for ${selected.slug}`
                                 );
-                                await load();
+                                await load(selected.id);
                               } catch {
                                 setNotice(`Health test request failed for ${selected.slug}`);
                               }
@@ -533,11 +757,6 @@ export function ConnectorsConsole() {
                             variant="outline"
                             size="sm"
                             disabled={!isConnectorSupportedInRuntime(selected, demoEnabled)}
-                            title={
-                              !isConnectorSupportedInRuntime(selected, demoEnabled)
-                                ? "External connector sync requires demo mode or an external bridge"
-                                : undefined
-                            }
                             onClick={async () => {
                               try {
                                 const res = await fetch(`/api/connectors/${selected.id}/sync`, {
@@ -554,7 +773,7 @@ export function ConnectorsConsole() {
                                     ? `Synced ${selected.slug}: ${d.tools?.length ?? 0} tool(s)`
                                     : d.detail ?? `Sync failed for ${selected.slug}`
                                 );
-                                await load();
+                                await load(selected.id);
                               } catch {
                                 setNotice(`Sync request failed for ${selected.slug}`);
                               }
@@ -563,6 +782,17 @@ export function ConnectorsConsole() {
                             <RefreshCw className="h-3 w-3" />
                             <span>Sync</span>
                           </Button>
+                          {!BUILTIN_SLUGS.has(selected.slug) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Disconnect ${selected.name}`}
+                              onClick={() => void handleDisconnect(selected)}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -616,7 +846,11 @@ export function ConnectorsConsole() {
                               type="button"
                               onClick={() => setPlaygroundMode("code")}
                               disabled={!codeModeEnabled}
-                              title={codeModeEnabled ? undefined : "Code Mode is available only in trusted development and tests"}
+                              title={
+                                codeModeEnabled
+                                  ? undefined
+                                  : "Code Mode is available only in trusted development and tests"
+                              }
                               className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
                                 playgroundMode === "code"
                                   ? "bg-background text-foreground shadow-sm ring-1 ring-border/70"
@@ -701,7 +935,7 @@ export function ConnectorsConsole() {
                                 detail: `Invocation failed (${res.status})`
                               }));
                               setInvokeOutput(JSON.stringify(data, null, 2));
-                              await load();
+                              await load(selected.id);
                             } catch {
                               setInvokeOutput("Connector invocation request failed");
                             }
@@ -724,107 +958,273 @@ export function ConnectorsConsole() {
             </div>
           )}
 
+          {/* Per-Integration Auth Blueprint & Connected Account Dialog */}
           <Dialog
-            open={registerOpen}
-            onOpenChange={setRegisterOpen}
-            ariaLabel="Register custom connector"
-            className="max-w-md p-5 space-y-4"
+            open={connectOpen}
+            onOpenChange={setConnectOpen}
+            ariaLabel={selectedApp ? `Connect ${selectedApp.name}` : "New connected account"}
+            className="max-w-lg p-5 space-y-4"
           >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h2 className="text-base font-semibold">Add Connector</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Register a plant protocol bridge, ERP adapter, or HTTPS endpoint.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setRegisterOpen(false)}
-                aria-label="Close connector registration dialog"
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            {!selectedApp ? (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-base font-semibold">Connect an Integration</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Pick an app, remote MCP server, or OpenAPI spec to configure its auth flow.
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setConnectOpen(false)}
+                    aria-label="Close connection picker"
+                    className="h-8 w-8"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
 
-            <form onSubmit={handleRegister} className="space-y-3">
-              {!demoEnabled && (
-                <p className="text-[11px] text-muted-foreground">
-                  Non-demo mode stores external HTTP, webhook, SCADA, and ERP configuration only; use a native{" "}
-                  <code className="font-mono">lutic://</code> or Lutic Cloud HTTPS endpoint for live execution.
-                </p>
-              )}
-              <div className="space-y-1">
-                <Label htmlFor="reg-conn-name">Connector Name</Label>
-                <Input
-                  id="reg-conn-name"
-                  required
-                  placeholder="e.g. Plant SCADA Gateway"
-                  aria-label="Connector name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="reg-conn-kind">Protocol / System Type</Label>
-                <Select
-                  id="reg-conn-kind"
-                  value={form.kind}
-                  onChange={(e) => setForm({ ...form, kind: e.target.value })}
-                  aria-label="Connector kind"
-                >
-                  <option value="lutic-cloud">Lutic Cloud Connectors</option>
-                  <option value="lutic-bridge">Lutic Enterprise Bridge</option>
-                  <option value="lutic-api">Lutic Direct API (OpenAPI)</option>
-                  <option value="sap-pm">SAP S/4HANA PM</option>
-                  <option value="sap-mm">SAP S/4HANA MM</option>
-                  <option value="sap-pp">SAP S/4HANA PP</option>
-                  <option value="sap-qm">SAP S/4HANA QM</option>
-                  <option value="aws-iot">AWS IoT SiteWise / Core</option>
-                  <option value="aws-s3">AWS S3 Data Lake</option>
-                  <option value="aws-cloudwatch">AWS CloudWatch / Timestream</option>
-                  <option value="servicenow">ServiceNow ITSM</option>
-                  <option value="mqtt-broker">MQTT Broker (Sparkplug B)</option>
-                  <option value="opc-ua">OPC-UA Server</option>
-                  <option value="modbus-tcp">Modbus TCP / RTU</option>
-                  <option value="http">HTTP / REST</option>
-                  <option value="webhook">Webhook</option>
-                  <option value="scada">SCADA</option>
-                  <option value="erp">ERP</option>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="reg-conn-url">Endpoint URL</Label>
-                <Input
-                  id="reg-conn-url"
-                  placeholder="https://... or mqtt://..."
-                  aria-label="Connector endpoint URL"
-                  value={form.endpointUrl}
-                  onChange={(e) => setForm({ ...form, endpointUrl: e.target.value })}
-                  className="font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="reg-conn-key">API Key (encrypted)</Label>
-                <Input
-                  id="reg-conn-key"
-                  type="password"
-                  placeholder="Optional secret token"
-                  aria-label="Connector API key"
-                  value={form.apiKey}
-                  onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setRegisterOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm">
-                  Register Connector
-                </Button>
-              </div>
-            </form>
+                <div className="relative">
+                  <Search className="h-3.5 w-3.5 absolute left-3 top-3 text-muted-foreground" />
+                  <Input
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    placeholder="Search 2,100+ apps (GitHub, Slack, Linear, SAP, MCP, OpenAPI)..."
+                    aria-label="Search integrations"
+                    className="pl-8"
+                  />
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 max-h-80 overflow-y-auto pr-1">
+                  {pickerCatalog.map((item) => {
+                    const bp = getConnectorAuthBlueprint(item);
+                    return (
+                      <button
+                        key={item.slug}
+                        type="button"
+                        onClick={() => openAppConnect(item)}
+                        className="text-left rounded-xl border border-border bg-card p-3 hover:border-primary/60 hover:bg-muted/30 transition-colors space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {item.name}
+                          </span>
+                          <Badge variant="outline" className="text-[10px] shrink-0">
+                            {AUTH_SCHEME_LABELS[bp.defaultScheme]}
+                          </Badge>
+                        </div>
+                        <div className="text-[11px] font-mono text-muted-foreground truncate">
+                          {item.slug} · {bp.supportedSchemes.map((s) => AUTH_SCHEME_LABELS[s]).join(" / ")}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              blueprint && (
+                <>
+                  <div className="flex items-start justify-between gap-2 border-b border-border/70 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-semibold">Connect {selectedApp.name}</h2>
+                        <Badge variant="secondary" className="uppercase text-[10px]">
+                          {selectedApp.category}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {blueprint.notes || selectedApp.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedApp(null)}
+                        className="text-xs"
+                      >
+                        Change
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setConnectOpen(false)}
+                        aria-label="Close connection dialog"
+                        className="h-8 w-8"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Auth Scheme Tabs (OAuth 2.0 / API Key / Bearer / Basic / Remote MCP / OpenAPI) */}
+                  <div className="space-y-1.5">
+                    <Label>Authentication Method</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {blueprint.supportedSchemes.map((scheme) => (
+                        <button
+                          key={scheme}
+                          type="button"
+                          onClick={() => switchAuthScheme(scheme)}
+                          className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                            activeScheme === scheme
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {AUTH_SCHEME_LABELS[scheme]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {connectError && (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+                    >
+                      {connectError}
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <Label htmlFor="conn-account-label">Connected Account Name</Label>
+                    <Input
+                      id="conn-account-label"
+                      value={connectionLabel}
+                      onChange={(e) => setConnectionLabel(e.target.value)}
+                      placeholder={`My ${selectedApp.name}`}
+                    />
+                  </div>
+
+                  {activeScheme === "oauth2" ? (
+                    <div className="space-y-3 rounded-xl border border-border bg-muted/25 p-3.5">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium flex items-center gap-1.5">
+                          <KeyRound className="h-3.5 w-3.5 text-primary" />
+                          <span>OAuth 2.0 + PKCE Consent Flow</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-muted-foreground">S256</span>
+                      </div>
+
+                      {originUrl && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Redirect URI:{" "}
+                          <code className="font-mono text-foreground">
+                            {originUrl}/api/connectors/oauth/callback
+                          </code>
+                        </div>
+                      )}
+
+                      {!blueprint.oauthProvider && (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="oauth-auth-url">Authorization URL</Label>
+                            <Input
+                              id="oauth-auth-url"
+                              placeholder="https://provider.com/oauth/authorize"
+                              value={oauthCustomAuthUrl}
+                              onChange={(e) => setOauthCustomAuthUrl(e.target.value)}
+                              className="font-mono text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="oauth-token-url">Token URL</Label>
+                            <Input
+                              id="oauth-token-url"
+                              placeholder="https://provider.com/oauth/token"
+                              value={oauthCustomTokenUrl}
+                              onChange={(e) => setOauthCustomTokenUrl(e.target.value)}
+                              className="font-mono text-xs"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="oauth-client-id">OAuth Client ID</Label>
+                          <Input
+                            id="oauth-client-id"
+                            placeholder="Optional if server env configured"
+                            value={oauthClientId}
+                            onChange={(e) => setOauthClientId(e.target.value)}
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="oauth-client-secret">OAuth Client Secret</Label>
+                          <Input
+                            id="oauth-client-secret"
+                            type="password"
+                            placeholder="Optional for public PKCE apps"
+                            value={oauthClientSecret}
+                            onChange={(e) => setOauthClientSecret(e.target.value)}
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => setConnectOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={connecting}
+                          onClick={() => void handleOAuthAuthorize()}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          <span>
+                            {connecting ? "Redirecting..." : `Authorize ${selectedApp.name}`}
+                          </span>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleDirectConnect} className="space-y-3">
+                      {(blueprint.fieldsByScheme[activeScheme] ?? []).map((field) => (
+                        <div key={field.key} className="space-y-1">
+                          <Label htmlFor={`conn-field-${field.key}`}>{field.label}</Label>
+                          <Input
+                            id={`conn-field-${field.key}`}
+                            type={field.secret ? "password" : "text"}
+                            required={field.required}
+                            placeholder={field.placeholder ?? field.defaultValue ?? ""}
+                            value={fieldValues[field.key] ?? ""}
+                            onChange={(e) =>
+                              setFieldValues((prev) => ({
+                                ...prev,
+                                [field.key]: e.target.value
+                              }))
+                            }
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                      ))}
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+                        <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                          <Lock className="h-3 w-3 text-primary" />
+                          <span>Encrypted with AES-256-GCM</span>
+                        </span>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setConnectOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" size="sm" disabled={connecting}>
+                            <span>
+                              {connecting ? "Connecting..." : `Connect ${selectedApp.name}`}
+                            </span>
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  )}
+                </>
+              )
+            )}
           </Dialog>
 
           {viewTab === "catalog" && (
@@ -836,81 +1236,53 @@ export function ConnectorsConsole() {
               </Card>
             ) : (
               <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  Showing {Math.min(visibleCatalogCount, filteredCatalog.length).toLocaleString()} of{" "}
-                  {filteredCatalog.length.toLocaleString()} distinct connectors
-                </span>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredCatalog.slice(0, visibleCatalogCount).map((cat) => (
-                  <Card key={cat.slug} className="p-4 flex flex-col justify-between gap-3">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-semibold">{cat.name}</span>
-                        <Badge variant="secondary" className="uppercase text-[10px]">
-                          {cat.category}
-                        </Badge>
-                      </div>
-                      <div className="text-[11px] font-mono text-muted-foreground">
-                        {cat.slug} · {formatTransportLabel(cat.transport)} · {getConnectorRuntimeTier(cat)}
-                      </div>
-                      <p className="text-xs text-muted-foreground pt-1">{cat.description}</p>
-                    </div>
-                    {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const directKindSlugs = new Set([
-                            "lutic-cloud",
-                            "lutic-bridge",
-                            "lutic-api",
-                            "sap-pm",
-                            "sap-mm",
-                            "sap-pp",
-                            "sap-qm",
-                            "aws-iot",
-                            "aws-s3",
-                            "aws-cloudwatch",
-                            "servicenow",
-                            "mqtt-broker",
-                            "opc-ua",
-                            "modbus-tcp"
-                          ]);
-                          setForm({
-                            name: cat.name,
-                            kind: directKindSlugs.has(cat.slug)
-                              ? cat.slug
-                              : cat.category === "scada" || cat.category === "erp"
-                                ? cat.category
-                                : "http",
-                            templateSlug: cat.slug,
-                            endpointUrl: cat.credentialFields?.find((field) => field.key === "endpoint" || field.key === "endpointUrl")?.defaultValue ?? "",
-                            apiKey: ""
-                          });
-                          setViewTab("connections");
-                          setRegisterOpen(true);
-                          setNotice(`Loaded ${cat.name} template into Add Connector`);
-                        }}
-                      >
-                        Use Template
-                      </Button>
-                    )}
-                  </Card>
-                ))}
-              </div>
-              {filteredCatalog.length > visibleCatalogCount && (
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setVisibleCatalogCount((c) => c + CATALOG_PAGE_SIZE)}
-                  >
-                    Show More ({Math.min(CATALOG_PAGE_SIZE, filteredCatalog.length - visibleCatalogCount)} more of{" "}
-                    {(filteredCatalog.length - visibleCatalogCount).toLocaleString()} remaining)
-                  </Button>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    Showing {Math.min(visibleCatalogCount, filteredCatalog.length).toLocaleString()} of{" "}
+                    {filteredCatalog.length.toLocaleString()} distinct connectors
+                  </span>
                 </div>
-              )}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredCatalog.slice(0, visibleCatalogCount).map((cat) => {
+                    const bp = getConnectorAuthBlueprint(cat);
+                    return (
+                      <Card key={cat.slug} className="p-4 flex flex-col justify-between gap-3">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-semibold">{cat.name}</span>
+                            <Badge variant="secondary" className="uppercase text-[10px]">
+                              {cat.category}
+                            </Badge>
+                          </div>
+                          <div className="text-[11px] font-mono text-muted-foreground">
+                            {cat.slug} · {AUTH_SCHEME_LABELS[bp.defaultScheme]} · {getConnectorRuntimeTier(cat)}
+                          </div>
+                          <p className="text-xs text-muted-foreground pt-1">{cat.description}</p>
+                        </div>
+                        {isAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAppConnect(cat)}
+                          >
+                            Connect ({AUTH_SCHEME_LABELS[bp.defaultScheme]})
+                          </Button>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+                {filteredCatalog.length > visibleCatalogCount && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleCatalogCount((c) => c + CATALOG_PAGE_SIZE)}
+                    >
+                      Show More ({Math.min(CATALOG_PAGE_SIZE, filteredCatalog.length - visibleCatalogCount)} more of{" "}
+                      {(filteredCatalog.length - visibleCatalogCount).toLocaleString()} remaining)
+                    </Button>
+                  </div>
+                )}
               </div>
             )
           )}

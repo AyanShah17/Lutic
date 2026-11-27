@@ -35,9 +35,30 @@ const CreateConnectorSchema = z.object({
   baseUrl: z.string().optional(),
   endpoint: z.string().optional(),
   endpointUrl: z.string().optional(),
+  authScheme: z
+    .enum(["oauth2", "api_key", "bearer", "basic", "remote_mcp", "openapi", "protocol"])
+    .optional(),
   credentials: z.record(z.string(), z.unknown()).optional(),
   config: z.record(z.string(), z.unknown()).optional().default({})
 });
+
+function isPlaceholderUrl(url: string): boolean {
+  const clean = url.trim().toLowerCase();
+  if (!clean) return true;
+  if (clean.startsWith("mock://") || clean.startsWith("sim://")) return true;
+  try {
+    const host = new URL(clean).hostname.toLowerCase();
+    return (
+      host.endsWith(".local") ||
+      host.endsWith(".internal") ||
+      host.endsWith(".example") ||
+      host.endsWith(".example.com") ||
+      host.endsWith(".invalid")
+    );
+  } catch {
+    return true;
+  }
+}
 
 export async function GET(req: Request) {
   try {
@@ -56,23 +77,7 @@ export async function GET(req: Request) {
         listConnectorSyncLogs(db, user.tenantId, undefined, 25)
       ]);
 
-      const catalog = isDemoMode() ? CONNECTOR_CATALOG : CONNECTOR_CATALOG
-        .filter((entry) =>
-          entry.transport === "in_memory_mcp" ||
-          entry.transport === "lutic_protocol" ||
-          entry.transport === "remote_mcp" ||
-          entry.transport === "utcp_http"
-        )
-        .map((entry) =>
-          entry.transport === "remote_mcp" || entry.transport === "utcp_http"
-            ? entry
-            : {
-                ...entry,
-                name: `Lutic Local ${entry.slug} adapter`,
-                description: `Read or manage Lutic database records with the local ${entry.slug} connector adapter.`,
-                credentialFields: [{ key: "endpoint", label: "Lutic Protocol endpoint", defaultValue: `mcp://${entry.slug}` }]
-              }
-        );
+      const catalog = CONNECTOR_CATALOG;
       return NextResponse.json({
         connectors: rows.map(sanitizeConnector),
         catalog,
@@ -128,7 +133,17 @@ export async function POST(req: Request) {
       : catalogMatch?.transport === "in_memory_mcp"
         ? `mcp://${catalogMatch.slug}`
         : "";
-    const endpointUrl = body.endpointUrl ?? body.baseUrl ?? body.endpoint ?? defaultEndpoint;
+    const explicitEndpoint = body.endpointUrl ?? body.baseUrl ?? body.endpoint;
+    const hasExplicitUrl = Boolean(explicitEndpoint && explicitEndpoint.trim().length > 0);
+    const endpointUrl = explicitEndpoint ?? defaultEndpoint;
+    const hasRealCredentials = Boolean(
+      body.credentials &&
+        Object.entries(body.credentials).some(
+          ([k, v]) => k !== "authScheme" && k !== "headerName" && typeof v === "string" && v.trim().length > 0
+        )
+    );
+    const hasLiveUrl = !isPlaceholderUrl(endpointUrl);
+
     const transport:
       | "in_memory_mcp"
       | "lutic_protocol"
@@ -138,13 +153,18 @@ export async function POST(req: Request) {
       | "webhook"
       | "simulated" =
       body.transport ??
-      (kind === "lutic-cloud" ||
+      (body.authScheme === "remote_mcp" ||
+      kind === "lutic-cloud" ||
       kind === "lutic-bridge" ||
       kind === "metorial" ||
       kind === "open-connector" ||
       kind === "remote_mcp"
         ? "remote_mcp"
-        : kind === "lutic-api" || kind === "utcp" || kind === "utcp-http" || kind === "utcp_http"
+        : body.authScheme === "openapi" ||
+            kind === "lutic-api" ||
+            kind === "utcp" ||
+            kind === "utcp-http" ||
+            kind === "utcp_http"
           ? "utcp_http"
           : endpointUrl.startsWith("lutic://")
             ? "lutic_protocol"
@@ -152,22 +172,33 @@ export async function POST(req: Request) {
               ? "in_memory_mcp"
               : endpointUrl.startsWith("mock://") || endpointUrl.startsWith("sim://")
                 ? "simulated"
-                : catalogMatch && catalogMatch.slug !== "http"
-                  ? catalogMatch.transport
-                  : category === "http"
-                    ? "http"
-                    : "simulated");
+                : hasRealCredentials || (hasExplicitUrl && hasLiveUrl)
+                  ? "http"
+                  : catalogMatch && catalogMatch.slug !== "http"
+                    ? catalogMatch.transport
+                    : category === "http"
+                      ? "http"
+                      : "simulated");
 
-    const encryptedCredentials = body.credentials
-      ? encryptCredentials(body.credentials)
+    const credsPayload = body.credentials
+      ? {
+          ...(body.authScheme ? { authScheme: body.authScheme } : {}),
+          ...body.credentials
+        }
+      : undefined;
+    const encryptedCredentials = credsPayload
+      ? encryptCredentials(credsPayload)
       : "";
 
-    const discoveredTools = demo
-      ? catalogMatch?.defaultTools ?? [
-        { name: "http_probe", description: "Probe endpoint health" },
-        { name: "dispatch_webhook", description: "Send JSON payload" }
-      ]
-      : [];
+    const discoveredTools =
+      transport === "remote_mcp" || transport === "utcp_http"
+        ? []
+        : demo || (transport === "http" && hasRealCredentials && catalogMatch)
+          ? catalogMatch?.defaultTools ?? [
+              { name: "http_probe", description: "Probe endpoint health" },
+              { name: "dispatch_webhook", description: "Send JSON payload" }
+            ]
+          : [];
 
     const now = new Date();
     const row = {
@@ -178,9 +209,13 @@ export async function POST(req: Request) {
       category,
       transport,
       endpointUrl,
-      status: demo ? "connected" as const : "disconnected" as const,
+      status: demo || (hasRealCredentials && hasLiveUrl) ? ("connected" as const) : ("disconnected" as const),
       encryptedCredentials,
-      config: { ...body.config, kind },
+      config: {
+        ...body.config,
+        kind,
+        ...(body.authScheme ? { authScheme: body.authScheme } : {})
+      },
       discoveredTools,
       lastSyncAt: demo ? now : null,
       lastError: null,

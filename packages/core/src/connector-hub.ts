@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import generatedConnectorCatalog from "./connector-catalog.generated.json";
-import { decryptCredentials } from "./crypto";
+import { refreshOAuthCredentialsIfExpired } from "./connector-auth";
+import { decryptCredentials, encryptCredentials } from "./crypto";
 import type { LuticDatabase } from "./db/client";
 import {
   connectorConnections,
@@ -655,17 +656,30 @@ export async function invokeExternalConnectorTool(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const creds = readConnectorCredentials(conn);
+  let creds = readConnectorCredentials(conn);
+  if (creds?.authScheme === "oauth2") {
+    const refreshed = await refreshOAuthCredentialsIfExpired(creds);
+    if (refreshed.refreshed && refreshed.creds) {
+      creds = refreshed.creds;
+      await db
+        .update(connectorConnections)
+        .set({
+          encryptedCredentials: encryptCredentials(creds),
+          updatedAt: new Date()
+        })
+        .where(eq(connectorConnections.id, conn.id));
+    }
+  }
   if (hasLiveAdapterSupport(conn)) {
     return invokeLiveAdapterTool(conn, toolName, args, creds);
   }
   if (conn.transport === "remote_mcp") {
     return callRemoteMcpTool(conn.endpointUrl, toolName, args, creds);
   }
-  if (conn.transport === "utcp_http") {
+  if (conn.transport === "utcp_http" || conn.transport === "http") {
     let tools = (conn.discoveredTools ?? []) as unknown as ExternalConnectorTool[];
     let toolDef = tools.find((t) => t.name === toolName);
-    if (!toolDef) {
+    if (!toolDef && conn.transport === "utcp_http") {
       tools = await discoverUtcpTools(conn.endpointUrl, creds);
       await db
         .update(connectorConnections)
@@ -673,10 +687,13 @@ export async function invokeExternalConnectorTool(
         .where(eq(connectorConnections.id, conn.id));
       toolDef = tools.find((t) => t.name === toolName);
     }
-    if (!toolDef) {
+    if (toolDef?.callTemplate) {
+      return callUtcpTool(conn.endpointUrl, toolDef, args, creds);
+    }
+    if (conn.transport === "utcp_http") {
       throw new Error(`API tool '${toolName}' not found on connector '${conn.slug}'.`);
     }
-    return callUtcpTool(conn.endpointUrl, toolDef, args, creds);
+    return invokeLiveAdapterTool(conn, toolName, args, creds);
   }
   throw new Error(`Unsupported external bridge transport '${conn.transport}'.`);
 }
