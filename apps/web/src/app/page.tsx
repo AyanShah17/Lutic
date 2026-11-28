@@ -6,17 +6,23 @@ import {
   buildVirtualDefaultSandboxServices,
   can,
   eq,
+  getPlanLimits,
   getTenantSandboxServices,
+  getTenantWorkspaceProfile,
   inArray,
   isDemoMode,
   isNull,
   machineStatus,
   notifications,
   workflows,
-  type TenantSandboxServiceView
+  type PlanLimits,
+  type PlanTier,
+  type TenantSandboxServiceView,
+  type TenantWorkspaceProfile
 } from "@lutic/core";
 import { getSessionUser } from "@/lib/auth";
 import { withWebTenantDb } from "@/lib/db";
+import { getTenantPlan, getTenantVisibleConnectorCount } from "@/lib/quota";
 import { LuticLandingPage } from "@/components/landing-page";
 import { SandboxDashboard, type WorkspaceSnapshot } from "@/components/sandbox-dashboard";
 
@@ -30,10 +36,25 @@ export default async function HomePage() {
 
   let snapshot: WorkspaceSnapshot | null = null;
   let initialServices: TenantSandboxServiceView[] = buildVirtualDefaultSandboxServices();
+  let initialProfile: TenantWorkspaceProfile = {
+    onboardingCompleted: true,
+    goal: "",
+    teamSize: "",
+    primaryUseCase: "",
+    pinnedA2UI: []
+  };
+  let initialPlan: PlanTier = "free";
+  let initialLimits: PlanLimits = getPlanLimits("free");
+  let initialConnectorCount = 0;
 
   try {
     const loaded = await withWebTenantDb(user.tenantId, async (db) => {
-      const svcs = await getTenantSandboxServices(db, user.tenantId);
+      const [svcs, profile, plan, connectorCount] = await Promise.all([
+        getTenantSandboxServices(db, user.tenantId),
+        getTenantWorkspaceProfile(db, user.tenantId),
+        getTenantPlan(db, user.tenantId),
+        getTenantVisibleConnectorCount(db, user.tenantId)
+      ]);
       let snap: WorkspaceSnapshot | null = null;
 
       if (user.plantIds.length > 0) {
@@ -119,10 +140,14 @@ export default async function HomePage() {
             : null
         };
       }
-      return { svcs, snap };
+      return { svcs, snap, profile, plan, connectorCount };
     });
     initialServices = loaded.svcs;
     snapshot = loaded.snap;
+    initialProfile = loaded.profile;
+    initialPlan = loaded.plan;
+    initialLimits = getPlanLimits(loaded.plan);
+    initialConnectorCount = loaded.connectorCount;
   } catch {
     snapshot = null;
   }
@@ -139,6 +164,10 @@ export default async function HomePage() {
       user={user}
       snapshot={snapshot}
       initialServices={initialServices}
+      initialProfile={initialProfile}
+      initialPlan={initialPlan}
+      initialLimits={initialLimits}
+      initialConnectorCount={initialConnectorCount}
       primaryMachineHref={primaryMachineHref}
       primaryMachineLabel={primaryMachineLabel}
     />

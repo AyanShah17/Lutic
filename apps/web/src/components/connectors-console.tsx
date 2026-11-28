@@ -220,6 +220,7 @@ export function ConnectorsConsole() {
   const [invokeOutput, setInvokeOutput] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [planUsage, setPlanUsage] = useState<{ plan: string; connectors: number; maxConnectors: number } | null>(null);
 
   const CATALOG_PAGE_SIZE = 60;
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
@@ -251,12 +252,21 @@ export function ConnectorsConsole() {
           connectors: ConnectorHubItem[];
           catalog: CatalogItem[];
           logs: SyncLogItem[];
+          plan?: string;
+          usage?: { connectors: number; maxConnectors: number };
           capabilities?: { codeMode?: boolean };
         };
         const list = data.connectors ?? [];
         setConnectors(list);
         setCatalog(data.catalog ?? []);
         setLogs(data.logs ?? []);
+        if (data.usage) {
+          setPlanUsage({
+            plan: data.plan ?? "free",
+            connectors: data.usage.connectors,
+            maxConnectors: data.usage.maxConnectors
+          });
+        }
         setCodeModeEnabled(data.capabilities?.codeMode === true);
         setSelectedId((prev) => {
           if (selectIdAfter && list.some((c) => c.id === selectIdAfter)) {
@@ -546,6 +556,14 @@ export function ConnectorsConsole() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Connect OAuth 2.0 apps, API keys, remote MCP servers, and OpenAPI tools into an encrypted per-workspace vault.
           </p>
+          {planUsage && (
+            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[11px] font-mono text-muted-foreground">
+              <span>
+                {planUsage.connectors}/{planUsage.maxConnectors} connectors on{" "}
+                {planUsage.plan} plan
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">

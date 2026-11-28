@@ -5,8 +5,18 @@ import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useClerk } from "@clerk/nextjs";
 import type { SessionUser } from "@lutic/core";
+import type { PlanLimits, PlanTier } from "@lutic/core/plan-limits";
 import type { SandboxServiceId, TenantSandboxServiceView } from "@lutic/core/sandbox-services";
+import type { A2UISpec } from "@lutic/core/a2ui";
 import { translate, type Locale } from "@/lib/i18n";
+
+export interface WorkspaceProfileView {
+  onboardingCompleted: boolean;
+  goal: string;
+  teamSize: string;
+  primaryUseCase: string;
+  pinnedA2UI: A2UISpec[];
+}
 
 export interface OverviewAgentSummaryView {
   scopeId: "overview";
@@ -29,11 +39,15 @@ interface AppContextValue {
   signOutExternal: () => Promise<void>;
   sandboxServices: TenantSandboxServiceView[];
   overviewAgent: OverviewAgentSummaryView | null;
+  workspaceProfile: WorkspaceProfileView | null;
+  planTier: PlanTier;
+  planLimits: PlanLimits | null;
   sandboxLoading: boolean;
   refreshSandboxServices: () => Promise<void>;
   setSandboxServicesState: (
     services: TenantSandboxServiceView[],
-    overview?: OverviewAgentSummaryView | null
+    overview?: OverviewAgentSummaryView | null,
+    profile?: WorkspaceProfileView | null
   ) => void;
 }
 
@@ -49,6 +63,9 @@ const AppContext = createContext<AppContextValue>({
   signOutExternal: async () => {},
   sandboxServices: [],
   overviewAgent: null,
+  workspaceProfile: null,
+  planTier: "free",
+  planLimits: null,
   sandboxLoading: false,
   refreshSandboxServices: async () => {},
   setSandboxServicesState: () => {}
@@ -99,6 +116,9 @@ export function Providers({
   const [signOutFn, setSignOutFn] = useState<() => Promise<void>>(() => async () => {});
   const [sandboxServices, setSandboxServices] = useState<TenantSandboxServiceView[]>([]);
   const [overviewAgent, setOverviewAgent] = useState<OverviewAgentSummaryView | null>(null);
+  const [workspaceProfile, setWorkspaceProfile] = useState<WorkspaceProfileView | null>(null);
+  const [planTier, setPlanTier] = useState<PlanTier>("free");
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   const [sandboxLoading, setSandboxLoading] = useState(false);
 
   const registerSignOut = useCallback((fn: () => Promise<void>) => {
@@ -106,9 +126,14 @@ export function Providers({
   }, []);
 
   const setSandboxServicesState = useCallback(
-    (services: TenantSandboxServiceView[], overview?: OverviewAgentSummaryView | null) => {
+    (
+      services: TenantSandboxServiceView[],
+      overview?: OverviewAgentSummaryView | null,
+      profile?: WorkspaceProfileView | null
+    ) => {
       setSandboxServices(services);
       if (overview !== undefined) setOverviewAgent(overview);
+      if (profile !== undefined) setWorkspaceProfile(profile);
     },
     []
   );
@@ -121,9 +146,15 @@ export function Providers({
         const data = (await res.json()) as {
           services?: TenantSandboxServiceView[];
           overviewAgent?: OverviewAgentSummaryView;
+          workspaceProfile?: WorkspaceProfileView;
+          plan?: PlanTier;
+          limits?: PlanLimits;
         };
         if (Array.isArray(data.services)) setSandboxServices(data.services);
         if (data.overviewAgent) setOverviewAgent(data.overviewAgent);
+        if (data.workspaceProfile) setWorkspaceProfile(data.workspaceProfile);
+        if (data.plan) setPlanTier(data.plan);
+        if (data.limits) setPlanLimits(data.limits);
       }
     } catch {
       // ignore transient sandbox fetch failures
@@ -150,6 +181,7 @@ export function Providers({
     if (!user) {
       setSandboxServices([]);
       setOverviewAgent(null);
+      setWorkspaceProfile(null);
       return;
     }
     void refreshSandboxServices();
@@ -176,6 +208,9 @@ export function Providers({
             signOutExternal: signOutFn,
             sandboxServices,
             overviewAgent,
+            workspaceProfile,
+            planTier,
+            planLimits,
             sandboxLoading,
             refreshSandboxServices,
             setSandboxServicesState

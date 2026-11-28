@@ -12,6 +12,7 @@ import {
 } from "@lutic/core";
 import { runAgentTurn } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import { readBoundedBody } from "@/lib/request-body";
 import {
   getSessionUser,
@@ -70,8 +71,12 @@ export async function POST(req: Request) {
       await (await readBoundedBody(req, 4 * 1024 * 1024)).json()
     );
 
-    // Transaction 1: ensure conversation, fetch latest 20 messages, persist user message.
+    // Transaction 1: enforce AI quota, ensure conversation, fetch latest 20 messages, persist user message.
     const prepared = await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaRes = await enforceApiQuota(req, db, user, "ai", { consumeQuota });
+      if (quotaRes) {
+        return { quotaRes } as const;
+      }
       let convId = body.conversationId;
       if (convId) {
         const existing = await db
@@ -130,7 +135,10 @@ export async function POST(req: Request) {
       return { convId, history };
     });
 
-    if (!prepared) {
+    if (prepared && "quotaRes" in prepared && prepared.quotaRes) {
+      return prepared.quotaRes;
+    }
+    if (!prepared || !("convId" in prepared)) {
       return problemResponse(404, "Not Found", "Conversation not found.");
     }
 

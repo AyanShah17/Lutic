@@ -126,8 +126,8 @@ export async function seedDatabase(conn?: DbConnection): Promise<void> {
 
   // 1. Tenants & Plants
   await db.insert(schema.tenants).values([
-    { id: "tenant-acme", name: "Acme Industrial Manufacturing", slug: "acme-mfg" },
-    { id: "tenant-beta", name: "Beta Precision Corp", slug: "beta-corp" }
+    { id: "tenant-acme", name: "Acme Industrial Manufacturing", slug: "acme-mfg", plan: "enterprise" },
+    { id: "tenant-beta", name: "Beta Precision Corp", slug: "beta-corp", plan: "enterprise" }
   ]);
 
   await db.insert(schema.plants).values([

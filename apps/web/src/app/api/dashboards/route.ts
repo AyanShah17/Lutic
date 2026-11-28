@@ -14,6 +14,7 @@ import {
   isDashboardSharedWithUser,
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -95,6 +96,8 @@ export async function POST(req: Request) {
 
     let spec = body.spec;
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaError = await enforceApiQuota(req, db, user, "api");
+      if (quotaError) return quotaError;
       if (!spec && body.fromTemplateId) {
         const [tplRows, tplShares] = await Promise.all([
           db

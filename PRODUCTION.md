@@ -1,5 +1,8 @@
 # Running Lutic
 
+> [!TIP]
+> For the turnkey **Oracle Cloud Free Tier + Cloudflare Free Tier + Clerk** hardened production deployment guide (zero open backend ports, Origin Lock, Free-tier quotas & A2UI), see [DEPLOY_PRODUCTION.md](./DEPLOY_PRODUCTION.md).
+
 Lutic supports local development and a portable container deployment. The container can run on a Linux server or a cloud container host with PostgreSQL, ClamAV, and HTTPS. No cloud provider has been provisioned by this change.
 
 ## 1. Local development

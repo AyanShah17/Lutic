@@ -9,11 +9,18 @@ import {
   desc,
   encryptCredentials,
   eq,
+  getPlanLimits,
   isCodeModeEnabled,
   isDemoMode,
   listConnectorSyncLogs,
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import {
+  enforceApiQuota,
+  enforceConnectorQuota,
+  getTenantPlan,
+  isInternalConnectorRow
+} from "@/lib/quota";
 import { sanitizeConnector } from "@/lib/serializers";
 import {
   getSessionUser,
@@ -42,18 +49,6 @@ const CreateConnectorSchema = z.object({
   config: z.record(z.string(), z.unknown()).optional().default({})
 });
 
-const LEGACY_INTERNAL_SLUGS = new Set([
-  "cmms",
-  "historian",
-  "mes",
-  "parts-erp",
-  "docs",
-  "ops-webhook",
-  "lutic-cloud",
-  "lutic-bridge",
-  "lutic-api"
-]);
-
 function isPlaceholderUrl(url: string): boolean {
   const clean = url.trim().toLowerCase();
   if (!clean) return true;
@@ -80,26 +75,32 @@ export async function GET(req: Request) {
     authorize(user, "connector:read", { tenantId: user.tenantId });
 
     return await withWebTenantDb(user.tenantId, async (db) => {
-      const [rows, logs] = await Promise.all([
+      const [rows, logs, plan] = await Promise.all([
         db
           .select()
           .from(connectorConnections)
           .where(eq(connectorConnections.tenantId, user.tenantId))
           .orderBy(desc(connectorConnections.updatedAt)),
-        listConnectorSyncLogs(db, user.tenantId, undefined, 25)
+        listConnectorSyncLogs(db, user.tenantId, undefined, 25),
+        getTenantPlan(db, user.tenantId)
       ]);
 
-      const isInternal = (r: { transport: string; slug: string }) =>
-        r.transport === "in_memory_mcp" || LEGACY_INTERNAL_SLUGS.has(r.slug.toLowerCase());
-      const visibleRows = rows.filter((r) => !isInternal(r));
-      const hiddenIds = new Set(rows.filter(isInternal).map((r) => r.id));
+      const visibleRows = rows.filter((r) => !isInternalConnectorRow(r));
+      const hiddenIds = new Set(rows.filter(isInternalConnectorRow).map((r) => r.id));
       const visibleLogs = logs.filter((l) => !hiddenIds.has(l.connectionId));
+      const limits = getPlanLimits(plan);
 
       const catalog = CONNECTOR_CATALOG;
       return NextResponse.json({
         connectors: visibleRows.map(sanitizeConnector),
         catalog,
         logs: visibleLogs,
+        plan,
+        limits,
+        usage: {
+          connectors: visibleRows.length,
+          maxConnectors: limits.maxConnectors
+        },
         capabilities: { codeMode: isCodeModeEnabled() }
       });
     });
@@ -240,6 +241,11 @@ export async function POST(req: Request) {
     };
 
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaError = await enforceApiQuota(req, db, user, "api");
+      if (quotaError) return quotaError;
+      const connectorLimitError = await enforceConnectorQuota(db, user.tenantId);
+      if (connectorLimitError) return connectorLimitError;
+
       await db.insert(connectorConnections).values(row);
 
       await db.insert(auditLog).values({

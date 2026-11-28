@@ -12,7 +12,9 @@
     "./metrics": "./src/semantic/registry.ts",
     "./dashboard": "./src/dashboard/schema.ts",
     "./connector-blueprints": "./src/connector-blueprints.ts",
-    "./sandbox-services": "./src/sandbox-services.ts"
+    "./sandbox-services": "./src/sandbox-services.ts",
+    "./plan-limits": "./src/plan-limits.ts",
+    "./a2ui": "./src/a2ui.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

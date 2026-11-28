@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth";
 import { isEnterpriseDeployment } from "@/lib/clerk";
 import { getWebAdministrativeDb } from "@/lib/db";
+import { getClientIp } from "@/lib/quota";
 import { readBoundedBody } from "@/lib/request-body";
 import { provisionTenantWorkspace } from "@/lib/tenant-provisioning";
 
@@ -40,6 +41,13 @@ function isUniqueConstraintError(err: unknown): boolean {
 export async function POST(req: Request) {
   try {
     verifyCsrfOrigin(req);
+    if (process.env.LUTIC_CLERK_ONLY === "true") {
+      return problemResponse(
+        403,
+        "SSO Required",
+        "Local signup is disabled in production. Sign up with Clerk."
+      );
+    }
     const body = SignupSchema.parse(await (await readBoundedBody(req, 8192)).json());
     const db = await getWebAdministrativeDb();
 
@@ -49,6 +57,25 @@ export async function POST(req: Request) {
         "Invitation Required",
         "Self-serve signup is disabled on Enterprise invite-only deployments."
       );
+    }
+
+    const clientIp = getClientIp(req);
+    if (clientIp !== "local") {
+      const ipAllowed = await consumeRateLimit(db, {
+        scope: "auth-signup-ip",
+        key: clientIp,
+        limit: 20,
+        windowMs: 15 * 60 * 1000
+      });
+      if (!ipAllowed) {
+        const res = problemResponse(
+          429,
+          "Too Many Attempts",
+          "Too many signup attempts from this IP. Try again in 15 minutes."
+        );
+        res.headers.set("Retry-After", "900");
+        return res;
+      }
     }
 
     const allowed = await consumeRateLimit(db, {

@@ -14,6 +14,7 @@ import {
   type SessionUser
 } from "@lutic/core";
 import { getWebAdministrativeDb } from "@/lib/db";
+import { getClientIp } from "@/lib/quota";
 import { readBoundedBody } from "@/lib/request-body";
 import {
   getSessionCookieOptions,
@@ -31,8 +32,29 @@ const LoginSchema = z.object({
 export async function POST(req: Request) {
   try {
     verifyCsrfOrigin(req);
+    if (process.env.LUTIC_CLERK_ONLY === "true") {
+      return problemResponse(
+        403,
+        "SSO Required",
+        "Local password authentication is disabled in production. Sign in with Clerk."
+      );
+    }
     const body = LoginSchema.parse(await (await readBoundedBody(req, 8192)).json());
     const db = await getWebAdministrativeDb();
+    const clientIp = getClientIp(req);
+    if (clientIp !== "local") {
+      const ipAllowed = await consumeRateLimit(db, {
+        scope: "auth-login-ip",
+        key: clientIp,
+        limit: 20,
+        windowMs: 15 * 60 * 1000
+      });
+      if (!ipAllowed) {
+        const res = problemResponse(429, "Too Many Attempts", "Too many sign-in attempts from this IP. Try again in 15 minutes.");
+        res.headers.set("Retry-After", "900");
+        return res;
+      }
+    }
     const allowed = await consumeRateLimit(db, {
       scope: "auth-login", key: body.email, limit: 10, windowMs: 15 * 60 * 1000
     });

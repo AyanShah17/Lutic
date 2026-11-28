@@ -25,6 +25,7 @@ import {
   type Permission
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -188,6 +189,8 @@ export async function POST(req: Request) {
         (body.scope === "global" ? "overview" : resolveServiceIdFromPathname(path));
 
       return await withWebTenantDb(user.tenantId, async (db) => {
+        const quotaErr = await enforceApiQuota(req, db, user, "ai");
+        if (quotaErr) return quotaErr;
         const sandboxServices = await getTenantSandboxServices(db, user.tenantId);
         const caps = computeAgentCapabilities(sandboxServices, effectiveServiceId);
         if (!caps.enabled) {

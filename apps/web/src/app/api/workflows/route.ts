@@ -13,6 +13,7 @@ import {
   workflowVersions
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import { serializeWorkflow } from "@/lib/serializers";
 import {
   getSessionUser,
@@ -115,6 +116,8 @@ export async function POST(req: Request) {
     };
 
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaError = await enforceApiQuota(req, db, user, "api");
+      if (quotaError) return quotaError;
       await db.insert(workflows).values(row);
       await db.insert(workflowVersions).values({
         id: `wfv-${id}-v1`,

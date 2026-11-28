@@ -2,6 +2,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    networks:
+      - lutic_backend
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-lutic}
       POSTGRES_PASSWORD:
@@ -19,6 +21,9 @@ services:
   clamd:
     image: clamav/clamav:1.5.4
     restart: unless-stopped
+    networks:
+      - lutic_backend
+      - lutic_edge
     volumes:
       - clamav_signatures:/var/lib/clamav
       - ./deploy/clamd.conf:/etc/clamav/clamd.conf:ro
@@ -32,6 +37,9 @@ services:
   litellm:
     image: ghcr.io/berriai/litellm:main-v1.63.11
     restart: unless-stopped
+    networks:
+      - lutic_backend
+      - lutic_edge
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     command: ["--config", "/app/config.yaml", "--port", "4000"]
@@ -54,6 +62,9 @@ services:
       context: .
       target: runtime
     restart: unless-stopped
+    networks:
+      - lutic_backend
+      - lutic_edge
     init: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
@@ -87,6 +98,9 @@ services:
       NEXT_PUBLIC_CLERK_OAUTH_PROVIDERS: ${NEXT_PUBLIC_CLERK_OAUTH_PROVIDERS:-google,microsoft}
       LUTIC_DEPLOYMENT_PLAN: ${LUTIC_DEPLOYMENT_PLAN:-free}
       LUTIC_RUNTIME_DISABLED: ${LUTIC_RUNTIME_DISABLED:-true}
+      LUTIC_ORIGIN_LOCK_SECRET: ${LUTIC_ORIGIN_LOCK_SECRET:-}
+      LUTIC_TRUST_CLOUDFLARE_PROXY: ${LUTIC_TRUST_CLOUDFLARE_PROXY:-true}
+      LUTIC_CLERK_ONLY: ${LUTIC_CLERK_ONLY:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,6 +118,11 @@ services:
       context: .
       target: runtime
     restart: unless-stopped
+    networks:
+      - lutic_backend
+      - lutic_edge
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     command: ["bun", "deploy/worker.ts"]
     environment:
       DATABASE_URL:
@@ -127,6 +146,26 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["cloudflare"]
+    restart: unless-stopped
+    networks:
+      - lutic_edge
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      lutic-paas:
+        condition: service_healthy
+
+networks:
+  lutic_backend:
+    internal: true
+  lutic_edge:
 
 volumes:
   lutic_pgdata:

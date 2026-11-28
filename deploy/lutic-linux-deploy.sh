@@ -77,7 +77,7 @@ prepare_env() {
   command -v openssl >/dev/null || fail "OpenSSL is required to generate deployment secrets"
   (
     umask 077
-    local tmp pg_password auth_secret credential_key instance_id gateway_key
+    local tmp pg_password auth_secret credential_key instance_id gateway_key origin_lock_secret
     tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
     trap 'rm -f "$tmp"' EXIT
     pg_password="$(openssl rand -hex 32)"
@@ -85,6 +85,7 @@ prepare_env() {
     credential_key="$(openssl rand -hex 32)"
     instance_id="$(openssl rand -hex 16)"
     gateway_key="sk-lutic-$(openssl rand -hex 32)"
+    origin_lock_secret="$(openssl rand -hex 32)"
     while IFS= read -r line; do
       case "$line" in
         POSTGRES_PASSWORD=*) printf 'POSTGRES_PASSWORD=%s\n' "$pg_password" ;;
@@ -94,6 +95,7 @@ prepare_env() {
         LUTIC_INSTANCE_ID=*) printf 'LUTIC_INSTANCE_ID=lutic-%s\n' "$instance_id" ;;
         LITELLM_MASTER_KEY=*) printf 'LITELLM_MASTER_KEY=%s\n' "$gateway_key" ;;
         LUTIC_AI_GATEWAY_KEY=*) printf 'LUTIC_AI_GATEWAY_KEY=%s\n' "$gateway_key" ;;
+        LUTIC_ORIGIN_LOCK_SECRET=*) printf 'LUTIC_ORIGIN_LOCK_SECRET=%s\n' "$origin_lock_secret" ;;
         *) printf '%s\n' "$line" ;;
       esac
     done < "${SCRIPT_DIR}/lutic.env.example" > "$tmp"

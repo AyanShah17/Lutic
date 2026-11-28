@@ -63,7 +63,7 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
       user: { userId: string; tenantId: string; role: "admin"; email: string; name: string; plantIds: string[] };
     };
 
-    // 1. Starter sandbox enables board, dashboards, workflows, connectors
+    // 1. Brand-new SaaS Free tenant starts with 0 enabled services + uncompleted walkthrough
     const initRes = await sandboxGet(
       new Request("http://localhost:3000/api/sandbox/services", {
         headers: { authorization: `Bearer ${tok1}` }
@@ -72,19 +72,64 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
     expect(initRes.status).toBe(200);
     const initData = (await initRes.json()) as {
       services: Array<{ id: string; enabled: boolean; pinnedToDashboard: boolean; enabledSkills: string[] }>;
+      plan: string;
+      limits: { maxServices: number; maxAgents: number; maxConnectors: number };
+      workspaceProfile: { onboardingCompleted: boolean };
       overviewAgent: { activeServiceIds: string[]; disabledServiceIds: string[] };
     };
-    expect(initData.overviewAgent.activeServiceIds.sort()).toEqual([
+    expect(initData.plan).toBe("free");
+    expect(initData.limits.maxServices).toBe(3);
+    expect(initData.limits.maxConnectors).toBe(5);
+    expect(initData.workspaceProfile.onboardingCompleted).toBe(false);
+    expect(initData.overviewAgent.activeServiceIds).toEqual([]);
+    expect(initData.overviewAgent.disabledServiceIds.length).toBe(8);
+
+    // 1b. Completing walkthrough with >3 services on Free plan is blocked (403)
+    const tooManyRes = await sandboxPost(
+      new Request("http://localhost:3000/api/sandbox/services", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          authorization: `Bearer ${tok1}`
+        },
+        body: JSON.stringify({
+          action: "complete_onboarding",
+          goal: "KPIs, workflows and board",
+          serviceIds: ["board", "dashboards", "workflows", "connectors"]
+        })
+      })
+    );
+    expect(tooManyRes.status).toBe(403);
+
+    // Complete walkthrough with 3 services on Free plan
+    const onboardRes = await sandboxPost(
+      new Request("http://localhost:3000/api/sandbox/services", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          authorization: `Bearer ${tok1}`
+        },
+        body: JSON.stringify({
+          action: "complete_onboarding",
+          goal: "Track OEE dashboards and automate workflow alerts",
+          teamSize: "2-10",
+          serviceIds: ["board", "dashboards", "workflows"]
+        })
+      })
+    );
+    expect(onboardRes.status).toBe(200);
+    const onboardData = (await onboardRes.json()) as {
+      workspaceProfile: { onboardingCompleted: boolean; pinnedA2UI: unknown[] };
+      overviewAgent: { activeServiceIds: string[] };
+    };
+    expect(onboardData.workspaceProfile.onboardingCompleted).toBe(true);
+    expect(onboardData.workspaceProfile.pinnedA2UI.length).toBe(1);
+    expect(onboardData.overviewAgent.activeServiceIds.sort()).toEqual([
       "board",
-      "connectors",
       "dashboards",
       "workflows"
-    ]);
-    expect(initData.overviewAgent.disabledServiceIds.sort()).toEqual([
-      "machines",
-      "monitoring",
-      "notifications",
-      "queues"
     ]);
 
     // 2. Reject assigning another service's skill onto dashboards
@@ -104,8 +149,8 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
     );
     expect(badSkillRes.status).toBe(400);
 
-    // 3. Add monitoring to sandbox, disable workflows, and customize dashboards skills
-    const addMonRes = await sandboxPost(
+    // 3. Adding a 4th service on Free plan is blocked (403); remove workflows first, then add monitoring
+    const overCapRes = await sandboxPost(
       new Request("http://localhost:3000/api/sandbox/services", {
         method: "POST",
         headers: {
@@ -120,7 +165,7 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
         })
       })
     );
-    expect(addMonRes.status).toBe(200);
+    expect(overCapRes.status).toBe(403);
 
     const skillTrimRes = await sandboxPost(
       new Request("http://localhost:3000/api/sandbox/services", {
@@ -149,6 +194,23 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
     );
     expect(delWfRes.status).toBe(200);
 
+    const addMonRes = await sandboxPost(
+      new Request("http://localhost:3000/api/sandbox/services", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          authorization: `Bearer ${tok1}`
+        },
+        body: JSON.stringify({
+          serviceId: "monitoring",
+          enabled: true,
+          pinnedToDashboard: true
+        })
+      })
+    );
+    expect(addMonRes.status).toBe(200);
+
     // 4. Logout & Login: verify persistence and Acme tenant isolation
     await logoutPost(
       new Request("http://localhost:3000/api/auth/logout", {
@@ -176,7 +238,6 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
     };
     expect(persisted.overviewAgent.activeServiceIds.sort()).toEqual([
       "board",
-      "connectors",
       "dashboards",
       "monitoring"
     ]);

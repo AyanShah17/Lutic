@@ -13,6 +13,7 @@ import {
   Globe,
   History,
   Layers,
+  LayoutGrid,
   Paperclip,
   Send,
   ShieldAlert,
@@ -20,12 +21,14 @@ import {
   Wrench,
   X
 } from "lucide-react";
+import type { A2UISpec } from "@lutic/core/a2ui";
 import {
   computeAgentCapabilities,
   resolveServiceIdFromPathname,
   type AgentScopeId
 } from "@lutic/core/sandbox-services";
 import type { AiChangeProposal, ChangeDiffRow } from "@/app/api/ai/changes/route";
+import { A2UIRenderer } from "@/components/a2ui-renderer";
 import { LuticLogo } from "@/components/lutic-logo";
 import { useAppContext } from "@/components/providers";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +81,8 @@ interface FeedEntry {
   pendingAction?: PendingAction | null;
   proposal?: AiChangeProposal;
   savedRecord?: SavedChangeItem;
+  a2uiSpec?: A2UISpec;
+  a2uiPinned?: boolean;
 }
 
 interface ScreenContextMeta {
@@ -304,7 +309,7 @@ export function FloatingAiAssistant() {
   const [convId, setConvId] = useState<string | undefined>(undefined);
   const [feed, setFeed] = useState<FeedEntry[]>([]);
   const [streamingText, setStreamingText] = useState("");
-  const [busyMode, setBusyMode] = useState<"idle" | "ask" | "propose" | "saving">("idle");
+  const [busyMode, setBusyMode] = useState<"idle" | "ask" | "propose" | "saving" | "ui">("idle");
   const [error, setError] = useState<string | null>(null);
   const [savedHistory, setSavedHistory] = useState<SavedChangeItem[]>([]);
   const [actionStates, setActionStates] = useState<Record<string, string>>({});
@@ -569,6 +574,75 @@ export function FloatingAiAssistant() {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setBusyMode("idle");
+    }
+  };
+
+  const handleBuildA2UI = async (customPrompt?: string) => {
+    const text = (customPrompt ?? prompt).trim();
+    if (!text || busyMode !== "idle") return;
+
+    setError(null);
+    setBusyMode("ui");
+    if (!customPrompt) setPrompt("");
+
+    setFeed((prev) => [
+      ...prev,
+      { id: `u-ui-${Date.now()}`, role: "user", content: `Build view: ${text}` }
+    ]);
+
+    try {
+      const res = await fetch("/api/ai/a2ui", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate", prompt: text, pin: false })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        spec?: A2UISpec;
+        detail?: string;
+      };
+      if (!res.ok || !data.spec) {
+        throw new Error(data.detail ?? "Unable to generate custom UI view.");
+      }
+      setFeed((prev) => [
+        ...prev,
+        {
+          id: `a-ui-${Date.now()}`,
+          role: "assistant",
+          content: `Generated **${data.spec!.title}** from your live workspace data.`,
+          a2uiSpec: data.spec!,
+          a2uiPinned: false
+        }
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to build UI view");
+    } finally {
+      setBusyMode("idle");
+    }
+  };
+
+  const handlePinA2UI = async (entryId: string, spec: A2UISpec) => {
+    setError(null);
+    try {
+      const res = await fetch("/api/ai/a2ui", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "pin", spec })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        pinnedA2UI?: A2UISpec[];
+        detail?: string;
+      };
+      if (!res.ok || !data.pinnedA2UI) {
+        throw new Error(data.detail ?? "Failed to pin view");
+      }
+      setFeed((prev) =>
+        prev.map((item) => (item.id === entryId ? { ...item, a2uiPinned: true } : item))
+      );
+      window.dispatchEvent(
+        new CustomEvent("lutic:a2ui-updated", { detail: { pinnedA2UI: data.pinnedA2UI } })
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to pin view");
     }
   };
 
@@ -837,6 +911,16 @@ export function FloatingAiAssistant() {
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.content}</ReactMarkdown>
                     </div>
 
+                    {/* Prompt-Built Declarative A2UI View */}
+                    {item.a2uiSpec && (
+                      <A2UIRenderer
+                        spec={item.a2uiSpec}
+                        compact
+                        pinned={Boolean(item.a2uiPinned)}
+                        onPin={(spec) => void handlePinA2UI(item.id, spec)}
+                      />
+                    )}
+
                     {/* Before / After Proposal Card */}
                     {item.proposal && (
                       <div className="rounded-md border border-border bg-muted/25 p-3 space-y-2.5">
@@ -1042,7 +1126,17 @@ export function FloatingAiAssistant() {
                   />
                 </label>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busyMode !== "idle" || !prompt.trim()}
+                    onClick={() => void handleBuildA2UI()}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5 text-primary" />
+                    <span>{busyMode === "ui" ? "Building..." : "Build UI"}</span>
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

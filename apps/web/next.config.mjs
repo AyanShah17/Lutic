@@ -44,7 +44,12 @@ const nextConfig = {
             value: `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src ${imgSrc}; font-src 'self' data:; connect-src ${connectSrc}; ${frameSrc}${workerSrc}frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`
           },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" }
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "X-DNS-Prefetch-Control", value: "off" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          ...(process.env.NODE_ENV === "production"
+            ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]
+            : [])
         ]
       }
     ];

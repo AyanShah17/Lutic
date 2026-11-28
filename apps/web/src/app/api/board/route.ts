@@ -10,6 +10,7 @@ import {
   plants
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -96,6 +97,8 @@ export async function POST(req: Request) {
     });
 
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaError = await enforceApiQuota(req, db, user, "api");
+      if (quotaError) return quotaError;
       const existing = await db
         .select({ identifier: boardIssues.identifier })
         .from(boardIssues)

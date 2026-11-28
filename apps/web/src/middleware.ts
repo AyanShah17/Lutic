@@ -9,6 +9,45 @@ export const config = {
   ]
 };
 
+function constantTimeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const ab = enc.encode(a);
+  const bb = enc.encode(b);
+  if (ab.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ab.length; i += 1) {
+    diff |= ab[i]! ^ bb[i]!;
+  }
+  return diff === 0;
+}
+
+export function verifyOriginLock(req: NextRequest): NextResponse | null {
+  const expected = process.env.LUTIC_ORIGIN_LOCK_SECRET?.trim();
+  if (!expected) return null;
+
+  const pathname = req.nextUrl.pathname;
+  if (pathname === "/api/health/live") return null;
+  if (
+    pathname === "/api/health" &&
+    (req.nextUrl.hostname === "127.0.0.1" || req.nextUrl.hostname === "localhost")
+  ) {
+    return null;
+  }
+
+  const provided = req.headers.get("x-lutic-origin-secret")?.trim() ?? "";
+  if (!provided || !constantTimeEqual(provided, expected)) {
+    return NextResponse.json(
+      {
+        title: "Forbidden",
+        status: 403,
+        detail: "Direct origin access is blocked."
+      },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
 function applyCors(req: NextRequest): NextResponse {
   if (!req.nextUrl.pathname.startsWith("/api")) {
     return NextResponse.next();
@@ -39,6 +78,9 @@ const clerkHandler = isClerkConfigured
   : null;
 
 export function middleware(req: NextRequest, event?: NextFetchEvent) {
+  const originError = verifyOriginLock(req);
+  if (originError) return originError;
+
   if (clerkHandler) {
     return clerkHandler(req, event ?? ({} as NextFetchEvent));
   }

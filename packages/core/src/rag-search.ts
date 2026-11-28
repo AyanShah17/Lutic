@@ -121,6 +121,53 @@ export interface RerankCandidate {
   faultCodes: string[];
   partNumbers: string[];
   score: number;
+  chunkIndex?: number;
+  neighborContext?: string;
+}
+
+const RAG_SYNONYM_MAP: Record<string, string[]> = {
+  vibration: ["bearing", "alignment", "imbalance", "iso-10816"],
+  overheat: ["temperature", "thermal", "cooling", "heat"],
+  temperature: ["thermal", "overheat", "cooling"],
+  pressure: ["pneumatic", "hydraulic", "bar", "psi", "valve"],
+  lockout: ["loto", "isolation", "tagout", "safety"],
+  seal: ["gasket", "leak", "bearing", "o-ring"],
+  workflow: ["pipeline", "automation", "dag", "trigger"],
+  connector: ["integration", "oauth", "webhook", "api"]
+};
+
+/**
+ * Generates up to 3 query variations (original, technical keyword decomposition, domain synonym expansion)
+ * for multi-query hybrid RAG retrieval without extra LLM latency.
+ */
+export function expandRagQueries(query: string): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const results = [trimmed];
+  const { faultCodes, partNumbers } = extractFaultCodesAndPartNumbers(trimmed.toUpperCase());
+  const tokens = (trimmed.toLowerCase().match(/[a-z0-9_-]{3,}/g) ?? []).filter(
+    (t) => !RERANK_STOP_WORDS.has(t)
+  );
+
+  const synonyms = new Set<string>();
+  for (const t of tokens) {
+    const mapped = RAG_SYNONYM_MAP[t];
+    if (mapped) {
+      for (const m of mapped) synonyms.add(m);
+    }
+  }
+  if (synonyms.size > 0) {
+    const expanded = `${trimmed} ${Array.from(synonyms).slice(0, 4).join(" ")}`.trim();
+    if (!results.includes(expanded)) results.push(expanded);
+  }
+
+  const keyTokens = Array.from(new Set([...faultCodes, ...partNumbers, ...tokens.slice(0, 5)]));
+  if (keyTokens.length >= 2) {
+    const subQuery = keyTokens.join(" ");
+    if (!results.includes(subQuery)) results.push(subQuery);
+  }
+
+  return results.slice(0, 3);
 }
 
 export interface Reranker {
@@ -246,6 +293,10 @@ export interface HybridSearchResult {
   chunks: RerankCandidate[];
   supersededOnly: boolean;
   supersededWarning?: string;
+  retrievalMeta?: {
+    techniques: string[];
+    expandedQueries: string[];
+  };
 }
 
 export async function hybridSearchDocuments(
@@ -255,6 +306,7 @@ export async function hybridSearchDocuments(
   const embedder = options.embeddingProvider ?? getDefaultEmbeddingProvider();
   const reranker = options.reranker ?? new HybridLexicalSemanticReranker();
   const limit = Math.min(options.limit ?? 6, 20);
+  const expandedQueries = expandRagQueries(options.query);
   const queryVec = await embedder.embed(options.query);
   const vecStr = `[${queryVec.join(",")}]`;
   const isDense1536 = embedder.dimensions === 1536 && queryVec.length === 1536;
@@ -276,6 +328,7 @@ export async function hybridSearchDocuments(
           SELECT
             c.id AS chunk_id,
             c.document_id,
+            c.chunk_index,
             d.title,
             d.revision,
             d.status,
@@ -302,6 +355,7 @@ export async function hybridSearchDocuments(
       SELECT
         c.id AS chunk_id,
         c.document_id,
+        c.chunk_index,
         d.title,
         d.revision,
         d.status,
@@ -321,34 +375,40 @@ export async function hybridSearchDocuments(
       LIMIT 20
     `);
 
-    // 2. Full-text search (tsvector + ts_rank)
-    const ftsRes = await db.execute(sql`
-      SELECT
-        c.id AS chunk_id,
-        c.document_id,
-        d.title,
-        d.revision,
-        d.status,
-        c.page,
-        c.section_path,
-        c.text,
-        d.machine_types,
-        c.fault_codes,
-        c.part_numbers,
-        ts_rank_cd(c.tsv, websearch_to_tsquery('english', ${options.query}))::double precision AS fts_rank
-      FROM document_chunks c
-      JOIN documents d ON d.id = c.document_id
-      WHERE c.tenant_id = ${options.tenantId}
-        ${statusSql}
-        ${machineSql}
-        AND c.tsv @@ websearch_to_tsquery('english', ${options.query})
-      ORDER BY fts_rank DESC
-      LIMIT 20
-    `);
+    // 2. Multi-query Full-Text Search (tsvector + ts_rank_cd across expanded queries)
+    const ftsQueryRuns = await Promise.all(
+      expandedQueries.map((qText) =>
+        db.execute(sql`
+          SELECT
+            c.id AS chunk_id,
+            c.document_id,
+            c.chunk_index,
+            d.title,
+            d.revision,
+            d.status,
+            c.page,
+            c.section_path,
+            c.text,
+            d.machine_types,
+            c.fault_codes,
+            c.part_numbers,
+            ts_rank_cd(c.tsv, websearch_to_tsquery('english', ${qText}))::double precision AS fts_rank
+          FROM document_chunks c
+          JOIN documents d ON d.id = c.document_id
+          WHERE c.tenant_id = ${options.tenantId}
+            ${statusSql}
+            ${machineSql}
+            AND c.tsv @@ websearch_to_tsquery('english', ${qText})
+          ORDER BY fts_rank DESC
+          LIMIT 20
+        `)
+      )
+    );
 
     type RawChunkRow = {
       chunk_id: string;
       document_id: string;
+      chunk_index?: number;
       title: string;
       revision: string;
       status: "current" | "superseded";
@@ -363,6 +423,7 @@ export async function hybridSearchDocuments(
     const toCandidate = (r: RawChunkRow): RerankCandidate => ({
       chunkId: r.chunk_id,
       documentId: r.document_id,
+      chunkIndex: r.chunk_index !== undefined ? Number(r.chunk_index) : undefined,
       title: r.title,
       revision: r.revision,
       status: r.status,
@@ -383,9 +444,12 @@ export async function hybridSearchDocuments(
       (vecRes.rows ?? []) as RawChunkRow[]
     ).map((r) => ({ id: r.chunk_id, item: toCandidate(r) }));
 
-    const ftsList: Array<RankedListItem<RerankCandidate>> = (
-      (ftsRes.rows ?? []) as RawChunkRow[]
-    ).map((r) => ({ id: r.chunk_id, item: toCandidate(r) }));
+    const ftsLists: Array<Array<RankedListItem<RerankCandidate>>> = ftsQueryRuns.map((ftsRes) =>
+      ((ftsRes.rows ?? []) as RawChunkRow[]).map((r) => ({
+        id: r.chunk_id,
+        item: toCandidate(r)
+      }))
+    );
 
     // 3. Exact match list for fault codes & part numbers
     let exactList: Array<RankedListItem<RerankCandidate>> = [];
@@ -399,6 +463,7 @@ export async function hybridSearchDocuments(
         SELECT
           c.id AS chunk_id,
           c.document_id,
+          c.chunk_index,
           d.title,
           d.revision,
           d.status,
@@ -422,15 +487,52 @@ export async function hybridSearchDocuments(
       }));
     }
 
-    const fused = reciprocalRankFusion([denseList, vecList, ftsList, exactList]).map(
+    const fused = reciprocalRankFusion([denseList, vecList, ...ftsLists, exactList]).map(
       (entry) => ({
         ...entry.item,
         score: Number(entry.score.toFixed(6))
       })
     );
 
-    const reranked = await reranker.rerank(options.query, fused);
-    return reranked.slice(0, limit);
+    const reranked = (await reranker.rerank(options.query, fused)).slice(0, limit);
+
+    // 4. Parent / neighboring chunk window enrichment (deduplicated)
+    const docIds = Array.from(new Set(reranked.map((c) => c.documentId)));
+    if (docIds.length > 0 && reranked.some((c) => typeof c.chunkIndex === "number")) {
+      const docConds = docIds.map((id) => sql`${id}`);
+      const neighborRes = await db.execute(sql`
+        SELECT document_id, chunk_index, text
+        FROM document_chunks
+        WHERE tenant_id = ${options.tenantId}
+          AND document_id IN (${sql.join(docConds, sql`, `)})
+        ORDER BY chunk_index ASC
+      `);
+      const byDocIdx = new Map<string, string>();
+      for (const nr of (neighborRes.rows ?? []) as Array<{ document_id: string; chunk_index: number; text: string }>) {
+        byDocIdx.set(`${nr.document_id}:${Number(nr.chunk_index)}`, nr.text);
+      }
+      return reranked.map((chunk) => {
+        if (typeof chunk.chunkIndex !== "number") return chunk;
+        const prev = byDocIdx.get(`${chunk.documentId}:${chunk.chunkIndex - 1}`);
+        const next = byDocIdx.get(`${chunk.documentId}:${chunk.chunkIndex + 1}`);
+        const pieces = [prev?.slice(-200), next?.slice(0, 200)].filter(Boolean);
+        return pieces.length > 0 ? { ...chunk, neighborContext: pieces.join(" ... ") } : chunk;
+      });
+    }
+
+    return reranked;
+  };
+
+  const retrievalMeta = {
+    techniques: [
+      isDense1536 ? "dense_pgvector_1536" : "vector_pgvector_64",
+      "multi_query_fts_bm25",
+      "exact_fault_part_match",
+      "reciprocal_rank_fusion",
+      "hybrid_idf_bigram_rerank",
+      "neighbor_chunk_context"
+    ],
+    expandedQueries
   };
 
   if (options.includeSuperseded) {
@@ -442,12 +544,12 @@ export async function hybridSearchDocuments(
       supersededOnly: hasOnlySuperseded,
       supersededWarning: hasOnlySuperseded
         ? "Only superseded document revisions matched this query. Verify procedures with a supervisor before acting."
-        : undefined
+        : undefined,
+      retrievalMeta
     };
   }
 
   const currentChunks = await runPass("current");
-  // Check if query matched strongly ONLY in a superseded doc (e.g. searching PRT-OLD-300 or Rev 3.0)
   const queryTerms = [
     ...faultCodes,
     ...partNumbers,
@@ -481,13 +583,15 @@ export async function hybridSearchDocuments(
       return {
         chunks: supersededHits,
         supersededOnly: true,
-        supersededWarning: `Warning: Only a SUPERSEDED revision (${supersededHits[0]!.revision}) covers this exact reference. A newer current revision exists; verify before executing.`
+        supersededWarning: `Warning: Only a SUPERSEDED revision (${supersededHits[0]!.revision}) covers this exact reference. A newer current revision exists; verify before executing.`,
+        retrievalMeta
       };
     }
   }
 
   return {
     chunks: currentChunks,
-    supersededOnly: false
+    supersededOnly: false,
+    retrievalMeta
   };
 }

@@ -6,11 +6,14 @@ import {
   authorize,
   consumeRateLimit,
   eq,
+  getPlanLimits,
+  getUtcDayKey,
   isCodeModeEnabled,
   pendingActions,
   roleToolkits,
   sha256Hex,
   sql,
+  tenants,
   toolkitTools,
   toolkits,
   type LuticDatabase,
@@ -47,7 +50,9 @@ export const DEFAULT_USER_RATE_LIMIT = 120;
 export const DEFAULT_TENANT_RATE_LIMIT = 600;
 
 export async function resetRateLimits(db: LuticDatabase): Promise<void> {
-  await db.execute(sql`DELETE FROM rate_limits WHERE scope IN ('mcp-user', 'mcp-tenant')`);
+  await db.execute(
+    sql`DELETE FROM rate_limits WHERE scope IN ('mcp-user', 'mcp-tenant', 'mcp-tool-daily')`
+  );
 }
 
 export function wrapUntrustedToolResult(
@@ -156,6 +161,7 @@ export interface PolicyCheckOptions {
   registry?: McpToolRegistry;
   userRateLimit?: number;
   tenantRateLimit?: number;
+  dailyToolLimit?: number;
   consumeQuota?: RateLimitConsumer;
   allowedToolNamesOverride?: ReadonlySet<string>;
   serviceScopeLabel?: string;
@@ -360,12 +366,28 @@ export async function executeToolWithPolicy(
     }
   }
 
-  // Step 6: Rate limits per user and per tenant
+  // Step 6: Plan-aware per-minute and daily tool call rate limits
   const consumeQuota: RateLimitConsumer = options.consumeQuota ?? ((bucket) => consumeRateLimit(ctx.db, bucket));
+  let plan = "free";
+  if (options.userRateLimit === undefined || options.dailyToolLimit === undefined) {
+    const tRows = await ctx.db
+      .select({ plan: tenants.plan })
+      .from(tenants)
+      .where(eq(tenants.id, ctx.user.tenantId))
+      .limit(1);
+    plan = tRows[0]?.plan ?? "free";
+  }
+  const planLimits = getPlanLimits(plan);
+  const perMinuteUserLimit = options.userRateLimit ?? planLimits.toolCallsPerMinute;
+  const perMinuteTenantLimit =
+    options.tenantRateLimit ??
+    (plan === "enterprise" ? DEFAULT_TENANT_RATE_LIMIT : Math.max(planLimits.toolCallsPerMinute * 2, 24));
+  const dailyUserLimit = options.dailyToolLimit ?? planLimits.toolCallsPerDay;
+
   const userOk = await consumeQuota({
     scope: "mcp-user",
     key: JSON.stringify([ctx.user.tenantId, ctx.user.userId]),
-    limit: options.userRateLimit ?? DEFAULT_USER_RATE_LIMIT,
+    limit: perMinuteUserLimit,
     windowMs: RATE_LIMIT_WINDOW_MS
   });
   if (!userOk) {
@@ -374,11 +396,22 @@ export async function executeToolWithPolicy(
   const tenantOk = await consumeQuota({
     scope: "mcp-tenant",
     key: ctx.user.tenantId,
-    limit: options.tenantRateLimit ?? DEFAULT_TENANT_RATE_LIMIT,
+    limit: perMinuteTenantLimit,
     windowMs: RATE_LIMIT_WINDOW_MS
   });
   if (!tenantOk) {
     return deny("Tenant tool execution rate limit exceeded.");
+  }
+  const dailyOk = await consumeQuota({
+    scope: "mcp-tool-daily",
+    key: JSON.stringify([ctx.user.tenantId, ctx.user.userId, getUtcDayKey()]),
+    limit: dailyUserLimit,
+    windowMs: 24 * 60 * 60 * 1000
+  });
+  if (!dailyOk) {
+    return deny(
+      `Daily tool call limit reached (${dailyUserLimit}/day on ${plan} plan). Resets at 00:00 UTC.`
+    );
   }
 
   // Execute tool through isolated Code Mode subprocess OR MCP Client -> MCP Server

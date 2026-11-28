@@ -13,6 +13,7 @@ import {
 } from "@lutic/core";
 import { getSessionUser, problemResponse } from "@/lib/auth";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceConnectorQuota } from "@/lib/quota";
 
 function parseCookieValue(req: Request, name: string): string | null {
   const raw = req.headers.get("cookie") ?? "";
@@ -119,7 +120,12 @@ export async function GET(req: Request) {
       { name: "http_probe", description: `Test ${name} connection` }
     ];
 
-    await withWebTenantDb(user.tenantId, async (db) => {
+    const blockedError = await withWebTenantDb(user.tenantId, async (db) => {
+      const limitErr = await enforceConnectorQuota(db, user.tenantId);
+      if (limitErr) {
+        return "Plan connector limit reached. Remove an existing connector or upgrade to add more.";
+      }
+
       await db.insert(connectorConnections).values({
         id: connId,
         tenantId: user.tenantId,
@@ -168,7 +174,12 @@ export async function GET(req: Request) {
         reason: `Connected ${name} via OAuth 2.0`,
         latencyMs: 1
       });
+      return null;
     });
+
+    if (blockedError) {
+      return redirectToConnectors(req, `?oauth_error=${encodeURIComponent(blockedError)}`);
+    }
 
     return redirectToConnectors(req, `?connected=${encodeURIComponent(name)}`);
   } catch (err) {
