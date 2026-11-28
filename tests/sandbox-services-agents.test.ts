@@ -254,8 +254,10 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
     expect(foreignChat.activeAgent.scopeId).toBe("dashboards");
     expect(foreignChat.activeAgent.isOverview).toBe(false);
     expect(foreignChat.toolCalls).toEqual([]);
-    expect(foreignChat.answer).toContain("AI Dashboard Agent");
-    expect(foreignChat.answer).toContain("Overview Agent");
+    expect(foreignChat.answer).toContain("Semantic Dashboards");
+    expect(foreignChat.answer).toContain("Overview");
+    expect(foreignChat.answer.toLowerCase()).not.toContain("skills");
+    expect(foreignChat.answer.toLowerCase()).not.toContain("strictly scoped");
 
     // Asking a removed service agent explicitly returns unavailable notice
     const disabledTurn = await runAgentTurn({
@@ -265,7 +267,7 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
       message: "List my workflows"
     });
     expect(disabledTurn.toolCalls).toEqual([]);
-    expect(disabledTurn.answer).toContain("has not been added to your workspace sandbox");
+    expect(disabledTurn.answer).toContain("not added to your workspace");
 
     // /api/ai/changes blocks out-of-service proposal & allows dashboards proposal
     const foreignChangeRes = await aiChangesPost(
@@ -316,9 +318,10 @@ describe("Tenant Sandbox Services, Custom Dashboard, Service Skills & Agent Isol
       message: "Show overview of my installed sandbox services and active skills"
     });
     expect(overviewTurn.activeAgent?.isOverview).toBe(true);
-    expect(overviewTurn.answer).toContain("Overview Agent");
+    expect(overviewTurn.answer).toContain("Workspace Overview");
     expect(overviewTurn.answer).toContain("Monitoring & Alerts");
     expect(overviewTurn.answer).toContain("Semantic Dashboards");
+    expect(overviewTurn.answer.toLowerCase()).not.toContain("active skills");
     // Workflows was removed from this tenant's sandbox, so Overview Agent never runs workflow tools
     expect(overviewTurn.toolCalls.some((tc) => tc.toolName === "paas.list_workflows")).toBe(false);
     // Monitoring was added to this tenant's sandbox, so Overview Agent queries alerts across services

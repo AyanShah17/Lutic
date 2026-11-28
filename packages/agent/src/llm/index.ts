@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, stepCountIs, streamText, tool, type ModelMessage, type LanguageModel, type ToolSet } from "ai";
-import type { AgentScopeId, SessionUser } from "@lutic/core";
+import { SANDBOX_SERVICE_MAP, type AgentScopeId, type SandboxServiceId, type SessionUser } from "@lutic/core";
 import type { ConnectorToolDefinition } from "@lutic/connectors";
 
 export class LLMTimeoutError extends Error {
@@ -201,31 +201,11 @@ function detectRequestedServiceDomains(prompt: string): string[] {
 }
 
 function buildOverviewSummaryMarkdown(ctx: LLMServiceContext): string {
-  const enabledList =
+  const activeLine =
     ctx.enabledServices.length > 0
-      ? ctx.enabledServices.map((s) => `- **${s.name}** (\`${s.id}\`)`).join("\n")
-      : "- No services currently enabled in your sandbox.";
-  const skillsBySvc = new Map<string, string[]>();
-  for (const sk of ctx.activeSkills) {
-    const arr = skillsBySvc.get(sk.serviceId) ?? [];
-    arr.push(sk.name);
-    skillsBySvc.set(sk.serviceId, arr);
-  }
-  const skillLines = Array.from(skillsBySvc.entries()).map(
-    ([svc, names]) => `- \`${svc}\`: ${names.join(", ")}`
-  );
-  const disabledLine =
-    ctx.disabledServices.length > 0
-      ? ctx.disabledServices.map((s) => `\`${s.id}\``).join(", ")
-      : "None (all platform services installed)";
-  return [
-    `### Overview Agent · Cross-Service Sandbox Context`,
-    `**Installed & Active Services (${ctx.enabledServices.length})**:\n${enabledList}`,
-    skillLines.length > 0
-      ? `**Active Skills by Service (${ctx.activeSkills.length})**:\n${skillLines.join("\n")}`
-      : "**Active Skills**: None enabled.",
-    `**Available to Add**: ${disabledLine}`
-  ].join("\n\n");
+      ? ctx.enabledServices.map((s) => `- **${s.name}**`).join("\n")
+      : "- No services currently active.";
+  return [`### Workspace Overview`, `**Active Services (${ctx.enabledServices.length})**:\n${activeLine}`].join("\n\n");
 }
 
 /**
@@ -277,12 +257,14 @@ export class MockLLMProvider implements LLMProvider {
           (d) => d !== input.serviceContext!.scopeId
         );
         if (foreignDomains.length > 0) {
-          const skillNames = input.serviceContext.activeSkills.map((s) => s.name).join(", ");
+          const svcLabel =
+            SANDBOX_SERVICE_MAP[input.serviceContext.scopeId as SandboxServiceId]?.name ??
+            input.serviceContext.scopeId;
           return {
             toolCalls: [],
-            finalText: `**${input.serviceContext.agentName}** is strictly scoped to the \`${input.serviceContext.scopeId}\` service and cannot execute requests for ${foreignDomains.map((d) => `\`${d}\``).join(", ")}.\n\n- **Allowed skills here**: ${skillNames || "none"}\n- **Cross-service action**: Switch to **Overview Agent (Cross-Service)** or open the target service directly.`,
+            finalText: `I can only help with **${svcLabel}** here. Switch to **Overview** or open the other service to continue.`,
             promptTokens: 190,
-            completionTokens: 52,
+            completionTokens: 36,
             model: this.modelName
           };
         }
@@ -982,9 +964,11 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
 
     if (sections.length === 0) {
       if (input.serviceContext && !input.serviceContext.isOverview) {
-        const skillNames = input.serviceContext.activeSkills.map((s) => s.name).join(", ");
+        const svcLabel =
+          SANDBOX_SERVICE_MAP[input.serviceContext.scopeId as SandboxServiceId]?.name ??
+          input.serviceContext.scopeId;
         sections.push(
-          `**${input.serviceContext.agentName}** (\`${input.serviceContext.scopeId}\`) is ready with skills: ${skillNames || "none enabled"}. Ask a question specific to this service or switch to **Overview Agent (Cross-Service)**.`
+          `Ready to help with **${svcLabel}**. Ask a question here or switch to **Overview** for workspace-wide tasks.`
         );
       } else {
         sections.push(

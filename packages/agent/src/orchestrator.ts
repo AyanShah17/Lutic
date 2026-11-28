@@ -572,7 +572,8 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
     : undefined;
 
   if (capabilities && !capabilities.enabled) {
-    const blockedMsg = `${capabilities.agentName} is not active because service \`${capabilities.scopeId}\` has not been added to your workspace sandbox. Add \`${capabilities.scopeId}\` on your Sandbox Dashboard or switch to the Overview Agent.`;
+    const blockedMsg =
+      "This service is not added to your workspace yet. Add it from your dashboard or switch to Overview.";
     return {
       answer: blockedMsg,
       toolCalls: [],

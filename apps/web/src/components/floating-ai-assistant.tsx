@@ -617,7 +617,7 @@ export function FloatingAiAssistant() {
         <LuticLogo className="h-4 w-4" />
         <span>{agentCaps?.agentName ?? "Lutic AI"}</span>
         <span className="hidden sm:inline text-[10px] opacity-75">
-          {scope === "global" ? "Cross-Service" : screenCtx.label}
+          {scope === "global" ? "Overview" : screenCtx.label}
         </span>
       </button>
 
@@ -638,39 +638,15 @@ export function FloatingAiAssistant() {
                 <h2 className="text-sm font-semibold tracking-tight">
                   {agentCaps?.agentName ?? "Lutic AI Copilot"}
                 </h2>
-                <Badge variant={activeServiceId === "overview" ? "secondary" : "outline"} className="text-[10px]">
-                  {activeServiceId === "overview" ? "Cross-Service" : `Isolated · ${activeServiceId}`}
-                </Badge>
                 <kbd className="rounded border border-border/80 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   Cmd+J
                 </kbd>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {activeServiceId === "overview"
-                  ? `Active across ${agentCaps?.activeServiceIds.length ?? 0} sandbox service(s).`
-                  : `Strictly scoped to ${selectedEntityLabel || activeServiceId} skills only.`}{" "}
-                <code className="font-mono text-foreground">
-                  {scope === "global" ? "Overview Agent" : pathname}
-                </code>
-                .
+                  ? "Ask or act across your workspace."
+                  : `Ask or update ${selectedEntityLabel || screenCtx.label}.`}
               </p>
-              {agentCaps && agentCaps.activeSkills.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1.5">
-                  {agentCaps.activeSkills.slice(0, 6).map((sk) => (
-                    <span
-                      key={sk.id}
-                      className="rounded border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                    >
-                      {sk.name}
-                    </span>
-                  ))}
-                  {agentCaps.activeSkills.length > 6 && (
-                    <span className="text-[10px] text-muted-foreground px-1">
-                      +{agentCaps.activeSkills.length - 6} more
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
             <Button
               variant="ghost"
@@ -701,7 +677,7 @@ export function FloatingAiAssistant() {
                 )}
               >
                 <Layers className="h-3 w-3 text-primary" />
-                <span>Service Agent</span>
+                <span>This Service</span>
               </button>
               <button
                 type="button"
@@ -715,7 +691,7 @@ export function FloatingAiAssistant() {
                 )}
               >
                 <Globe className="h-3 w-3 text-primary" />
-                <span>Overview Agent</span>
+                <span>Overview</span>
               </button>
             </div>
 

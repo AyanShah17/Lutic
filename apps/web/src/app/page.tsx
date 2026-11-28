@@ -5,7 +5,6 @@ import {
   assets,
   buildVirtualDefaultSandboxServices,
   can,
-  computeAgentCapabilities,
   eq,
   getTenantSandboxServices,
   inArray,
@@ -128,7 +127,6 @@ export default async function HomePage() {
     snapshot = null;
   }
 
-  const overviewCaps = computeAgentCapabilities(initialServices, "overview");
   const primaryMachineHref = snapshot?.spotlightMachine
     ? `/m/${snapshot.spotlightMachine.id}`
     : "/machines";
@@ -141,14 +139,6 @@ export default async function HomePage() {
       user={user}
       snapshot={snapshot}
       initialServices={initialServices}
-      initialOverviewAgent={{
-        scopeId: "overview",
-        agentId: overviewCaps.agentId,
-        agentName: overviewCaps.agentName,
-        activeServiceIds: overviewCaps.activeServiceIds,
-        disabledServiceIds: overviewCaps.disabledServiceIds,
-        activeSkills: overviewCaps.activeSkills.map((s) => s.id)
-      }}
       primaryMachineHref={primaryMachineHref}
       primaryMachineLabel={primaryMachineLabel}
     />

@@ -20,8 +20,6 @@ import {
   Plug,
   Plus,
   QrCode,
-  ShieldCheck,
-  Sliders,
   Sparkles,
   Trash2,
   X
@@ -33,7 +31,7 @@ import {
   type TenantSandboxServiceView
 } from "@lutic/core/sandbox-services";
 import { LuticLogo } from "@/components/lutic-logo";
-import { useAppContext, type OverviewAgentSummaryView } from "@/components/providers";
+import { useAppContext } from "@/components/providers";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -73,29 +71,21 @@ export function SandboxDashboard({
   user,
   snapshot,
   initialServices,
-  initialOverviewAgent,
   primaryMachineHref,
   primaryMachineLabel
 }: {
   user: SessionUser;
   snapshot: WorkspaceSnapshot | null;
   initialServices: TenantSandboxServiceView[];
-  initialOverviewAgent: OverviewAgentSummaryView;
   primaryMachineHref: string;
   primaryMachineLabel: string;
 }) {
-  const {
-    sandboxServices,
-    overviewAgent,
-    setSandboxServicesState
-  } = useAppContext();
+  const { sandboxServices, setSandboxServicesState } = useAppContext();
 
   const [services, setServices] = useState<TenantSandboxServiceView[]>(
     initialServices.length > 0 ? initialServices : buildVirtualDefaultSandboxServices()
   );
-  const [overview, setOverview] = useState<OverviewAgentSummaryView>(initialOverviewAgent);
   const [catalogOpen, setCatalogOpen] = useState(false);
-  const [expandedSkillsFor, setExpandedSkillsFor] = useState<string | null>(null);
   const [savingServiceId, setSavingServiceId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -103,17 +93,16 @@ export function SandboxDashboard({
     if (sandboxServices.length > 0) {
       setServices(sandboxServices);
     }
-    if (overviewAgent) {
-      setOverview(overviewAgent);
-    }
-  }, [sandboxServices, overviewAgent]);
+  }, [sandboxServices]);
 
-  const mutateService = async (payload: {
-    serviceId: SandboxServiceId;
-    enabled?: boolean;
-    pinnedToDashboard?: boolean;
-    enabledSkills?: string[];
-  }, successMsg: string) => {
+  const mutateService = async (
+    payload: {
+      serviceId: SandboxServiceId;
+      enabled?: boolean;
+      pinnedToDashboard?: boolean;
+    },
+    successMsg: string
+  ) => {
     setSavingServiceId(payload.serviceId);
     setNotice(null);
     try {
@@ -124,19 +113,18 @@ export function SandboxDashboard({
       });
       const data = (await res.json().catch(() => ({}))) as {
         services?: TenantSandboxServiceView[];
-        overviewAgent?: OverviewAgentSummaryView;
+        overviewAgent?: Parameters<typeof setSandboxServicesState>[1];
         detail?: string;
       };
       if (!res.ok || !data.services) {
-        setNotice(data.detail ?? "Unable to update sandbox service.");
+        setNotice(data.detail ?? "Unable to update workspace service.");
         return;
       }
       setServices(data.services);
-      if (data.overviewAgent) setOverview(data.overviewAgent);
       setSandboxServicesState(data.services, data.overviewAgent ?? null);
       setNotice(successMsg);
     } catch {
-      setNotice("Failed to update sandbox service.");
+      setNotice("Failed to update workspace service.");
     } finally {
       setSavingServiceId(null);
     }
@@ -151,7 +139,7 @@ export function SandboxDashboard({
       });
       const data = (await res.json().catch(() => ({}))) as {
         services?: TenantSandboxServiceView[];
-        overviewAgent?: OverviewAgentSummaryView;
+        overviewAgent?: Parameters<typeof setSandboxServicesState>[1];
         detail?: string;
       };
       if (!res.ok || !data.services) {
@@ -159,10 +147,8 @@ export function SandboxDashboard({
         return;
       }
       setServices(data.services);
-      if (data.overviewAgent) setOverview(data.overviewAgent);
       setSandboxServicesState(data.services, data.overviewAgent ?? null);
-      if (expandedSkillsFor === serviceId) setExpandedSkillsFor(null);
-      setNotice(`Removed ${name} from your sandbox.`);
+      setNotice(`Removed ${name} from your workspace.`);
     } catch {
       setNotice(`Failed to remove ${name}.`);
     } finally {
@@ -170,20 +156,11 @@ export function SandboxDashboard({
     }
   };
 
-  const toggleSkill = (svc: TenantSandboxServiceView, skillId: string) => {
-    const current = new Set(svc.enabledSkills);
-    if (current.has(skillId)) {
-      current.delete(skillId);
-    } else {
-      current.add(skillId);
-    }
-    void mutateService(
-      { serviceId: svc.id, enabledSkills: Array.from(current) },
-      `Updated ${svc.agentName} skills.`
-    );
-  };
-
-  const openAgent = (scope: "screen" | "global", serviceId: SandboxServiceId | "overview", label: string) => {
+  const openAgent = (
+    scope: "screen" | "global",
+    serviceId: SandboxServiceId | "overview",
+    label: string
+  ) => {
     window.dispatchEvent(
       new CustomEvent("lutic:open-ai", {
         detail: { scope, serviceId, entityName: label }
@@ -201,13 +178,13 @@ export function SandboxDashboard({
         <div className="space-y-1.5 max-w-2xl">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <LuticLogo className="h-4 w-4" />
-            <span>{user.name} · Isolated Tenant Sandbox</span>
+            <span>{user.name} · Workspace</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground">
             Lutic AI Workspace
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Configure services in your own sandbox dashboard, customize per-service agent skills, and orchestrate across active services with Overview Agent.
+            Add services to your workspace and manage them directly from your dashboard.
           </p>
         </div>
 
@@ -242,7 +219,7 @@ export function SandboxDashboard({
           <button
             type="button"
             onClick={() => setNotice(null)}
-            aria-label="Dismiss sandbox notice"
+            aria-label="Dismiss workspace notice"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -322,7 +299,7 @@ export function SandboxDashboard({
         </GlowBorderCard>
       )}
 
-      {/* Overview Agent (Cross-Service Aware) Card */}
+      {/* Overview Agent Card */}
       <Card className="p-5 rounded-2xl border-border/80 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -332,15 +309,12 @@ export function SandboxDashboard({
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-semibold tracking-tight">Overview Agent</h2>
-                <Badge variant="secondary" className="text-[10px]">
-                  Cross-Service
-                </Badge>
                 <span className="text-[11px] font-mono text-muted-foreground">
-                  {enabledServices.length}/{services.length} services · {overview.activeSkills.length} active skills
+                  {enabledServices.length}/{services.length} services active
                 </span>
               </div>
               <p className="text-xs text-muted-foreground max-w-2xl">
-                Aware of every service currently enabled in your sandbox. Each individual service agent runs strictly isolated to its own service skills.
+                Ask questions or run actions across all services active in your workspace.
               </p>
             </div>
           </div>
@@ -355,34 +329,31 @@ export function SandboxDashboard({
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
           {enabledServices.length === 0 ? (
             <span className="text-xs text-muted-foreground">
-              No services installed yet. Click Add Service to populate your sandbox.
+              No services added yet. Click Add Service to get started.
             </span>
           ) : (
             enabledServices.map((svc) => (
               <Badge key={svc.id} variant="outline" className="text-[11px] gap-1 font-normal">
                 <CheckCircle2 className="h-3 w-3 text-primary" />
                 <span>{svc.name}</span>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  ({svc.enabledSkills.length})
-                </span>
               </Badge>
             ))
           )}
         </div>
       </Card>
 
-      {/* Customizable Sandbox Dashboard Service Cards */}
+      {/* Customizable Workspace Dashboard Cards */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold tracking-tight">
-              My Sandbox Dashboard ({pinnedServices.length})
+              My Dashboard ({pinnedServices.length})
             </h2>
             <p className="text-xs text-muted-foreground">
-              Each pinned service runs its own isolated agent and customizable skill set.
+              Open any service or ask its dedicated assistant.
             </p>
           </div>
           {unpinnedEnabled.length > 0 && (
@@ -395,7 +366,7 @@ export function SandboxDashboard({
                   onClick={() =>
                     void mutateService(
                       { serviceId: svc.id, pinnedToDashboard: true },
-                      `Pinned ${svc.name} to your Sandbox Dashboard.`
+                      `Pinned ${svc.name} to your dashboard.`
                     )
                   }
                   className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium hover:border-primary/60"
@@ -411,7 +382,7 @@ export function SandboxDashboard({
         {pinnedServices.length === 0 ? (
           <Card className="p-8 text-center space-y-3 rounded-2xl">
             <p className="text-xs text-muted-foreground">
-              No services pinned to your dashboard yet. Add a service from the sandbox catalog to get started.
+              No services pinned to your dashboard yet. Add a service to get started.
             </p>
             <Button size="sm" onClick={() => setCatalogOpen(true)}>
               <Plus className="h-3.5 w-3.5" />
@@ -422,124 +393,44 @@ export function SandboxDashboard({
           <div className="grid gap-4 md:grid-cols-2">
             {pinnedServices.map((svc) => {
               const Icon = SERVICE_ICONS[svc.id] ?? Layers;
-              const isExpanded = expandedSkillsFor === svc.id;
               const isBusy = savingServiceId === svc.id;
               return (
-                <Card key={svc.id} className="p-4 rounded-2xl space-y-3 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
-                          <Icon className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <h3 className="text-sm font-semibold truncate">{svc.name}</h3>
-                            <span className="text-[10px] font-mono text-muted-foreground">
-                              {svc.tag}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                            {svc.description}
-                          </p>
-                        </div>
+                <Card key={svc.id} className="p-4 rounded-2xl space-y-4 flex flex-col justify-between">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
+                        <Icon className="h-4 w-4 text-primary" />
                       </div>
-
-                      <Link
-                        href={svc.href}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
-                      >
-                        <span>Open</span>
-                        <ArrowRight className="h-3 w-3" />
-                      </Link>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-sm font-semibold truncate">{svc.name}</h3>
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            {svc.tag}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          {svc.description}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="rounded-xl border border-border/70 bg-muted/25 p-2.5 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-                          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                          <span>{svc.agentName}</span>
-                          <Badge variant="outline" className="text-[10px] font-normal">
-                            Isolated
-                          </Badge>
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground">
-                          {svc.enabledSkills.length}/{svc.skills.length} skills
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1">
-                        {svc.skills.map((sk) => {
-                          const active = svc.enabledSkills.includes(sk.id);
-                          return (
-                            <span
-                              key={sk.id}
-                              className={cn(
-                                "rounded-md border px-2 py-0.5 text-[10px] font-medium",
-                                active
-                                  ? "border-primary/40 bg-primary/10 text-foreground"
-                                  : "border-border/70 text-muted-foreground line-through opacity-60"
-                              )}
-                            >
-                              {sk.name}
-                            </span>
-                          );
-                        })}
-                      </div>
-
-                      {isExpanded && (
-                        <div className="pt-2 mt-2 border-t border-border/60 space-y-2">
-                          <div className="text-[11px] font-medium text-muted-foreground">
-                            Allowed Skills for {svc.agentName} (strictly isolated to {svc.shortName}):
-                          </div>
-                          {svc.skills.map((sk) => {
-                            const checked = svc.enabledSkills.includes(sk.id);
-                            return (
-                              <label
-                                key={sk.id}
-                                className="flex items-start gap-2 rounded-lg border border-border/70 bg-card p-2 cursor-pointer hover:border-primary/50"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  disabled={isBusy}
-                                  onChange={() => toggleSkill(svc, sk.id)}
-                                  className="mt-0.5 accent-primary"
-                                />
-                                <div className="min-w-0">
-                                  <div className="text-xs font-medium text-foreground">
-                                    {sk.name}
-                                  </div>
-                                  <div className="text-[11px] text-muted-foreground">
-                                    {sk.description}
-                                  </div>
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                    <Link
+                      href={svc.href}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
+                    >
+                      <span>Open</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        onClick={() => openAgent("screen", svc.id, svc.name)}
-                      >
-                        <Bot className="h-3.5 w-3.5" />
-                        <span>Ask Agent</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setExpandedSkillsFor(isExpanded ? null : svc.id)}
-                      >
-                        <Sliders className="h-3.5 w-3.5" />
-                        <span>{isExpanded ? "Done" : "Skills"}</span>
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => openAgent("screen", svc.id, svc.name)}
+                    >
+                      <Bot className="h-3.5 w-3.5" />
+                      <span>Ask {svc.shortName}</span>
+                    </Button>
 
                     <div className="flex items-center gap-1">
                       <Button
@@ -549,7 +440,7 @@ export function SandboxDashboard({
                         onClick={() =>
                           void mutateService(
                             { serviceId: svc.id, pinnedToDashboard: false },
-                            `Unpinned ${svc.name} from dashboard (still active in sandbox).`
+                            `Unpinned ${svc.name} from dashboard.`
                           )
                         }
                         aria-label={`Unpin ${svc.name}`}
@@ -561,7 +452,7 @@ export function SandboxDashboard({
                         size="sm"
                         disabled={isBusy}
                         onClick={() => void removeService(svc.id, svc.name)}
-                        aria-label={`Remove ${svc.name} from sandbox`}
+                        aria-label={`Remove ${svc.name} from workspace`}
                         className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -575,18 +466,18 @@ export function SandboxDashboard({
         )}
       </section>
 
-      {/* Add Service to Sandbox Dialog */}
+      {/* Add Service Dialog */}
       <Dialog
         open={catalogOpen}
         onOpenChange={setCatalogOpen}
-        ariaLabel="Add Service to Sandbox"
+        ariaLabel="Add Service"
         className="max-w-2xl p-5 space-y-4"
       >
         <div className="flex items-start justify-between gap-2 border-b border-border/70 pb-3">
           <div>
-            <h2 className="text-base font-semibold">Sandbox Service Catalog</h2>
+            <h2 className="text-base font-semibold">Services Catalog</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Add services to your isolated sandbox. Each service installs its own isolated agent and skill permissions.
+              Choose which services appear in your workspace and dashboard.
             </p>
           </div>
           <Button
@@ -608,41 +499,26 @@ export function SandboxDashboard({
               <div
                 key={svc.id}
                 className={cn(
-                  "rounded-xl border p-3.5 space-y-2.5 transition-colors",
+                  "rounded-xl border p-3.5 space-y-3 transition-colors flex flex-col justify-between",
                   svc.enabled ? "border-primary/50 bg-muted/20" : "border-border bg-card"
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <Icon className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <div className="min-w-0">
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className="h-4 w-4 text-primary shrink-0" />
                       <div className="text-xs font-semibold truncate">{svc.name}</div>
-                      <div className="text-[11px] font-mono text-muted-foreground truncate">
-                        {svc.agentName} · {svc.skills.length} skills
-                      </div>
                     </div>
+                    <Badge variant={svc.enabled ? "success" : "outline"} className="text-[10px]">
+                      {svc.enabled ? "Active" : "Available"}
+                    </Badge>
                   </div>
-                  <Badge variant={svc.enabled ? "success" : "outline"} className="text-[10px]">
-                    {svc.enabled ? "Active" : "Available"}
-                  </Badge>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                    {svc.description}
+                  </p>
                 </div>
 
-                <p className="text-[11px] text-muted-foreground line-clamp-2">
-                  {svc.description}
-                </p>
-
-                <div className="flex flex-wrap gap-1">
-                  {svc.skills.map((sk) => (
-                    <span
-                      key={sk.id}
-                      className="rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                    >
-                      {sk.name}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-1">
+                <div>
                   {svc.enabled ? (
                     <Button
                       variant="outline"
@@ -652,7 +528,7 @@ export function SandboxDashboard({
                       className="w-full"
                     >
                       <Check className="h-3.5 w-3.5 text-primary" />
-                      <span>Remove from Sandbox</span>
+                      <span>Remove from Workspace</span>
                     </Button>
                   ) : (
                     <Button
@@ -665,13 +541,13 @@ export function SandboxDashboard({
                             enabled: true,
                             pinnedToDashboard: true
                           },
-                          `Added ${svc.name} and ${svc.agentName} to your sandbox.`
+                          `Added ${svc.name} to your workspace.`
                         )
                       }
                       className="w-full"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      <span>Add to Sandbox</span>
+                      <span>Add to Workspace</span>
                     </Button>
                   )}
                 </div>
