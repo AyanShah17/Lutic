@@ -11,6 +11,7 @@ import {
   listConnectorSyncLogs,
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -93,6 +94,9 @@ export async function PATCH(
 
     const params = await context.params;
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaErr = await enforceApiQuota(req, db, user, "api");
+      if (quotaErr) return quotaErr;
+
       const rows = await db
         .select()
         .from(connectorConnections)

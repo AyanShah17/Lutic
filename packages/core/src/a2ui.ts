@@ -43,6 +43,13 @@ export const A2UITableComponentSchema = z.object({
   rows: z.array(z.array(z.string().max(160)).min(1).max(6)).max(15)
 });
 
+const SafeRelativeHrefSchema = z
+  .string()
+  .max(160)
+  .refine((v) => v.startsWith("/") && !v.startsWith("//"), {
+    message: "Only relative app paths are permitted"
+  });
+
 export const A2UIStatusListComponentSchema = z.object({
   id: z.string().min(1).max(64),
   type: z.literal("status_list"),
@@ -53,7 +60,7 @@ export const A2UIStatusListComponentSchema = z.object({
         label: z.string().min(1).max(120),
         detail: z.string().max(180).optional(),
         status: z.enum(["ok", "warn", "error", "idle"]),
-        href: z.string().max(160).optional()
+        href: SafeRelativeHrefSchema.optional()
       })
     )
     .min(1)
@@ -68,7 +75,7 @@ export const A2UIActionBarComponentSchema = z.object({
     .array(
       z.object({
         label: z.string().min(1).max(64),
-        href: z.string().max(160).optional(),
+        href: SafeRelativeHrefSchema.optional(),
         aiPrompt: z.string().max(400).optional(),
         serviceId: z.string().max(48).optional()
       })

@@ -33,5 +33,5 @@ COPY deploy/start-production.ts deploy/worker.ts deploy/
 USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=5 \
-  CMD bun -e 'const port = process.env.PORT ?? "3000"; const res = await fetch(`http://127.0.0.1:${port}/api/health`); if (!res.ok) process.exit(1);'
+  CMD bun -e 'const port = process.env.PORT ?? "3000"; const res = await fetch(`http://127.0.0.1:${port}/api/health/live`); if (!res.ok) process.exit(1);'
 CMD ["sh", "-c", "bun deploy/start-production.ts && cd apps/web && exec bun node_modules/next/dist/bin/next start"]

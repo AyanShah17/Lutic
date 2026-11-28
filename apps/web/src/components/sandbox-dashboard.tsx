@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   BarChart3,
   Bell,
@@ -16,11 +17,13 @@ import {
   Kanban,
   Layers,
   LayoutGrid,
+  Lock,
   Pin,
   PinOff,
   Plug,
   Plus,
   QrCode,
+  RotateCcw,
   Sparkles,
   Trash2,
   X
@@ -56,19 +59,60 @@ const SERVICE_ICONS: Record<SandboxServiceId, React.ComponentType<{ className?: 
   queues: Layers
 };
 
-const GOAL_PRESETS = [
+const SERVICE_GROUPS: Array<{
+  id: "operations" | "automation" | "messaging";
+  title: string;
+  subtitle: string;
+}> = [
   {
-    label: "KPI & Dashboards",
-    goal: "Track KPIs, OEE dashboards, and workflow automations with alerts"
+    id: "operations",
+    title: "Core Operations",
+    subtitle: "Incident boards, fleet asset state, and live threshold monitoring."
   },
   {
-    label: "Task & Incident Triage",
+    id: "automation",
+    title: "Automation & Data",
+    subtitle: "Semantic KPI dashboards, workflow pipelines, and SaaS/OT connectors."
+  },
+  {
+    id: "messaging",
+    title: "Messaging & Delivery",
+    subtitle: "Pub/sub alert routing and durable background queues."
+  }
+];
+
+const STARTER_TEMPLATES = [
+  {
+    id: "analytics-automation",
+    label: "KPIs & Automation",
+    summary: "Metrics dashboards, scheduled workflows, and task tracking.",
+    goal: "Track OEE dashboards, triage board tasks, and automate workflows"
+  },
+  {
+    id: "ops-triage",
+    label: "Incident & Board Ops",
+    summary: "Escalation board, live alerts, and third-party tool sync.",
     goal: "Triage operational tasks on AI Board, connect tools, and automate alerts"
   },
   {
-    label: "Machine Fleet & Alerts",
+    id: "fleet-telemetry",
+    label: "Fleet & Monitoring",
+    summary: "Equipment status, alarm thresholds, and remediation pipelines.",
     goal: "Monitor machines, alarms, and build automated pipelines"
+  },
+  {
+    id: "custom",
+    label: "Start Clean",
+    summary: "Describe your own focus and pick services manually.",
+    goal: ""
   }
+];
+
+const A2UI_QUICK_CHIPS = [
+  { label: "OEE & Shift Chart", prompt: "Show OEE chart & active shift KPIs" },
+  { label: "Triage Intake Form", prompt: "Create a triage intake form and open tasks table" },
+  { label: "Pipeline Status", prompt: "Show automation workflow pipeline health" },
+  { label: "Connector Health", prompt: "Show connected apps and sync status" }
 ];
 
 export interface WorkspaceSnapshot {
@@ -94,6 +138,21 @@ const DEFAULT_PROFILE: WorkspaceProfileView = {
   primaryUseCase: "",
   pinnedA2UI: []
 };
+
+function QuotaProgressBar({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  return (
+    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mt-2">
+      <div
+        className={cn(
+          "h-full rounded-full transition-all",
+          pct >= 100 ? "bg-amber-500" : "bg-primary"
+        )}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 export function SandboxDashboard({
   user,
@@ -132,7 +191,9 @@ export function SandboxDashboard({
   const [savingServiceId, setSavingServiceId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Walkthrough state (for 0-service first-run workspaces)
+  // Progressive 3-step SaaS walkthrough state
+  const [walkthroughStep, setWalkthroughStep] = useState<1 | 2 | 3>(1);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("analytics-automation");
   const [goalInput, setGoalInput] = useState("");
   const [teamSize, setTeamSize] = useState("Solo");
   const [selectedIds, setSelectedIds] = useState<SandboxServiceId[]>(() =>
@@ -234,8 +295,8 @@ export function SandboxDashboard({
     }
   };
 
-  const handleLaunchWalkthrough = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLaunchWalkthrough = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (selectedIds.length === 0 || launching) return;
     setLaunching(true);
     setNotice(null);
@@ -271,9 +332,8 @@ export function SandboxDashboard({
     }
   };
 
-  const handleBuildCustomA2ui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const prompt = a2uiPrompt.trim();
+  const handleBuildCustomA2ui = async (overridePrompt?: string) => {
+    const prompt = (overridePrompt ?? a2uiPrompt).trim();
     if (!prompt || buildingA2ui) return;
     setBuildingA2ui(true);
     setNotice(null);
@@ -293,7 +353,7 @@ export function SandboxDashboard({
         return;
       }
       setProfile((prev) => ({ ...prev, pinnedA2UI: data.pinnedA2UI! }));
-      setA2uiPrompt("");
+      if (!overridePrompt) setA2uiPrompt("");
       setNotice(`Added "${data.spec?.title ?? "Custom View"}" to your dashboard.`);
     } catch {
       setNotice("Failed to generate custom view.");
@@ -318,6 +378,29 @@ export function SandboxDashboard({
     }
   };
 
+  const handleReopenWalkthrough = async () => {
+    setCatalogOpen(false);
+    try {
+      const res = await fetch("/api/sandbox/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset_onboarding" })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        services?: TenantSandboxServiceView[];
+        overviewAgent?: Parameters<typeof setSandboxServicesState>[1];
+        workspaceProfile?: WorkspaceProfileView;
+      };
+      if (res.ok && data.workspaceProfile) {
+        setWalkthroughStep(1);
+        setProfile(data.workspaceProfile);
+        setSandboxServicesState(data.services ?? services, data.overviewAgent ?? null, data.workspaceProfile);
+      }
+    } catch {
+      setNotice("Could not reset setup guide.");
+    }
+  };
+
   const openAgent = (
     scope: "screen" | "global",
     serviceId: SandboxServiceId | "overview",
@@ -335,21 +418,51 @@ export function SandboxDashboard({
   const unpinnedEnabled = enabledServices.filter((s) => !s.pinnedToDashboard);
   const atServiceCap = enabledServices.length >= limits.maxServices;
   const showWalkthrough = enabledServices.length === 0 && !profile.onboardingCompleted;
+  const selectedServicesPreview = services.filter((s) => selectedIds.includes(s.id));
 
   if (showWalkthrough) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 pb-24 sm:px-6 space-y-6">
-        <div className="space-y-2 border-b border-border/70 pb-5">
-          <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <LuticLogo className="h-4 w-4" />
-            <span>{user.name} · Welcome to Lutic</span>
+      <div className="mx-auto max-w-6xl px-4 py-8 pb-24 sm:px-6 space-y-6">
+        <div className="flex flex-col gap-4 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <LuticLogo className="h-4 w-4" />
+              <span>{user.name} · Workspace Setup</span>
+              <Badge variant="outline" className="font-mono text-[10px] capitalize">
+                {planTier} Plan
+              </Badge>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground">
+              Set up your workspace
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-xl">
+              Configure your goal and enable the cloud services you need. We automatically wire each enabled service, assistant, and starter view.
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground">
-            Set up your workspace
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Tell us what you want to automate first, pick up to {limits.maxServices} starter services, and launch your personalized dashboard.
-          </p>
+
+          <nav aria-label="Setup steps" className="flex items-center gap-1.5 text-xs">
+            {[
+              { id: 1 as const, label: "1. Define" },
+              { id: 2 as const, label: "2. Services" },
+              { id: 3 as const, label: "3. Launch" }
+            ].map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setWalkthroughStep(s.id)}
+                className={cn(
+                  "rounded-lg border px-3 py-1.5 font-medium transition-colors",
+                  walkthroughStep === s.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : walkthroughStep > s.id
+                      ? "border-primary/40 bg-primary/5 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
         {notice && (
@@ -361,139 +474,320 @@ export function SandboxDashboard({
           </div>
         )}
 
-        <form onSubmit={(e) => void handleLaunchWalkthrough(e)} className="space-y-6">
-          <Card className="p-5 rounded-2xl space-y-4">
-            <div className="space-y-1">
-              <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                Step 1 · Your Goal
-              </div>
-              <h2 className="text-sm font-semibold">What are you building or monitoring first?</h2>
-            </div>
-
-            <Input
-              value={goalInput}
-              onChange={(e) => {
-                const val = e.target.value;
-                setGoalInput(val);
-                if (val.trim().length >= 4) {
-                  setSelectedIds(recommendServicesForGoal(val, limits.maxServices));
-                }
-              }}
-              placeholder="e.g., Track line OEE dashboards, triage faults on board, and automate alerts"
-              aria-label="Workspace goal"
-            />
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              {GOAL_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    setGoalInput(preset.goal);
-                    setSelectedIds(recommendServicesForGoal(preset.goal, limits.maxServices));
-                  }}
-                  className="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] font-medium hover:border-primary/60"
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs text-muted-foreground">Team size:</span>
-              {["Solo", "2-10", "11+"].map((sz) => (
-                <button
-                  key={sz}
-                  type="button"
-                  onClick={() => setTeamSize(sz)}
-                  className={cn(
-                    "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-                    teamSize === sz
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background hover:bg-muted"
-                  )}
-                >
-                  {sz}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="p-5 rounded-2xl space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="space-y-1">
-                <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                  Step 2 · Choose Services ({selectedIds.length}/{limits.maxServices} on {planTier} plan)
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px] items-start">
+          {/* Left Interactive Setup Step */}
+          <div className="space-y-5">
+            {walkthroughStep === 1 && (
+              <Card className="p-5 sm:p-6 rounded-2xl space-y-5">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-primary">
+                    Step 1 of 3 · Define Workspace
+                  </div>
+                  <h2 className="text-base font-semibold">Pick a starter profile or describe your goal</h2>
                 </div>
-                <h2 className="text-sm font-semibold">
-                  Select up to {limits.maxServices} services ({limits.maxAgents} AI assistants included)
-                </h2>
+
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {STARTER_TEMPLATES.map((tpl) => {
+                    const active = selectedTemplateId === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTemplateId(tpl.id);
+                          setGoalInput(tpl.goal);
+                          if (tpl.goal) {
+                            setSelectedIds(recommendServicesForGoal(tpl.goal, limits.maxServices));
+                          }
+                        }}
+                        className={cn(
+                          "text-left rounded-xl border p-3.5 transition-colors space-y-1",
+                          active
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-card hover:border-primary/40"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-foreground">{tpl.label}</span>
+                          {active && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{tpl.summary}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground block">
+                    What are you automating or monitoring first?
+                  </label>
+                  <Input
+                    value={goalInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGoalInput(val);
+                      if (val.trim().length >= 4) {
+                        setSelectedIds(recommendServicesForGoal(val, limits.maxServices));
+                      }
+                    }}
+                    placeholder="e.g., Track OEE dashboards, triage board tasks, and automate workflows"
+                    aria-label="Workspace goal"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Team size:</span>
+                    {["Solo", "2-10", "11+"].map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setTeamSize(sz)}
+                        className={cn(
+                          "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                          teamSize === sz
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:bg-muted"
+                        )}
+                      >
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Button type="button" onClick={() => setWalkthroughStep(2)}>
+                    <span>Continue to Services</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {walkthroughStep === 2 && (
+              <Card className="p-5 sm:p-6 rounded-2xl space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-mono uppercase tracking-wider text-primary">
+                      Step 2 of 3 · Enable Services
+                    </div>
+                    <h2 className="text-base font-semibold">
+                      Choose up to {limits.maxServices} services ({selectedIds.length}/{limits.maxServices} selected)
+                    </h2>
+                  </div>
+                  <Badge variant="outline" className="font-mono text-[11px]">
+                    {selectedIds.length}/{limits.maxServices} selected
+                  </Badge>
+                </div>
+
+                <div className="space-y-4">
+                  {SERVICE_GROUPS.map((group) => {
+                    const groupServices = services.filter((s) => s.group === group.id);
+                    if (groupServices.length === 0) return null;
+                    return (
+                      <div key={group.id} className="space-y-2">
+                        <div>
+                          <h3 className="text-xs font-semibold text-foreground">{group.title}</h3>
+                          <p className="text-[11px] text-muted-foreground">{group.subtitle}</p>
+                        </div>
+                        <div className="grid gap-2.5 sm:grid-cols-2">
+                          {groupServices.map((svc) => {
+                            const Icon = SERVICE_ICONS[svc.id] ?? Layers;
+                            const checked = selectedIds.includes(svc.id);
+                            const disabledChoice = !checked && selectedIds.length >= limits.maxServices;
+                            return (
+                              <button
+                                key={svc.id}
+                                type="button"
+                                disabled={disabledChoice}
+                                onClick={() => {
+                                  setSelectedIds((prev) =>
+                                    prev.includes(svc.id)
+                                      ? prev.filter((id) => id !== svc.id)
+                                      : prev.length < limits.maxServices
+                                        ? [...prev, svc.id]
+                                        : prev
+                                  );
+                                }}
+                                className={cn(
+                                  "text-left rounded-xl border p-3.5 transition-colors space-y-1.5",
+                                  checked
+                                    ? "border-primary bg-primary/5"
+                                    : disabledChoice
+                                      ? "border-border/50 bg-muted/20 opacity-55 cursor-not-allowed"
+                                      : "border-border bg-card hover:border-primary/40"
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Icon className="h-4 w-4 text-primary shrink-0" />
+                                    <span className="text-xs font-semibold truncate">{svc.name}</span>
+                                  </div>
+                                  <Badge variant={checked ? "success" : "outline"} className="text-[10px] shrink-0">
+                                    {checked ? "Selected" : disabledChoice ? "Plan Limit" : "Enable"}
+                                  </Badge>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground line-clamp-2">
+                                  {svc.description}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/60">
+                  <Button type="button" variant="outline" onClick={() => setWalkthroughStep(1)}>
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Back</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={selectedIds.length === 0}
+                    onClick={() => setWalkthroughStep(3)}
+                  >
+                    <span>Review &amp; Launch</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {walkthroughStep === 3 && (
+              <Card className="p-5 sm:p-6 rounded-2xl space-y-5">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-primary">
+                    Step 3 of 3 · Provision Workspace
+                  </div>
+                  <h2 className="text-base font-semibold">Review configuration and launch</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Your workspace is provisioned cleanly with dedicated data isolation, rate protection, and a starter view tailored to your goal.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3 text-xs">
+                  <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                    <span className="text-muted-foreground">Workspace Goal</span>
+                    <span className="font-medium text-right max-w-xs truncate">
+                      {goalInput.trim() || "Custom operational workspace"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                    <span className="text-muted-foreground">Team Size</span>
+                    <span className="font-mono">{teamSize}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Enabled Services</span>
+                    <span className="font-mono">
+                      {selectedIds.length}/{limits.maxServices} active
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {selectedServicesPreview.map((svc) => {
+                    const Icon = SERVICE_ICONS[svc.id] ?? Layers;
+                    return (
+                      <div key={svc.id} className="rounded-xl border border-border bg-card p-3 space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold">
+                          <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate">{svc.name}</span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">{svc.tag}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/60">
+                  <Button type="button" variant="outline" onClick={() => setWalkthroughStep(2)}>
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Edit Services</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={selectedIds.length === 0 || launching}
+                    onClick={() => void handleLaunchWalkthrough()}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>{launching ? "Provisioning Workspace..." : "Launch Workspace"}</span>
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Sticky Blueprint Preview Panel (Supabase / Cloudflare Style) */}
+          <Card className="p-5 rounded-2xl border-border/80 space-y-4 lg:sticky lg:top-20">
+            <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
+              <div>
+                <div className="text-xs font-semibold text-foreground">Workspace Blueprint</div>
+                <div className="text-[11px] text-muted-foreground capitalize">{planTier} Plan</div>
               </div>
-              <Badge variant="outline" className="font-mono text-[11px]">
-                {selectedIds.length}/{limits.maxServices} selected
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {selectedIds.length}/{limits.maxServices} Services
               </Badge>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {services.map((svc) => {
-                const Icon = SERVICE_ICONS[svc.id] ?? Layers;
-                const checked = selectedIds.includes(svc.id);
-                const disabledChoice = !checked && selectedIds.length >= limits.maxServices;
-                return (
-                  <button
-                    key={svc.id}
-                    type="button"
-                    disabled={disabledChoice}
-                    onClick={() => {
-                      setSelectedIds((prev) =>
-                        prev.includes(svc.id)
-                          ? prev.filter((id) => id !== svc.id)
-                          : prev.length < limits.maxServices
-                            ? [...prev, svc.id]
-                            : prev
-                      );
-                    }}
-                    className={cn(
-                      "text-left rounded-xl border p-3.5 transition-colors space-y-1.5",
-                      checked
-                        ? "border-primary bg-primary/5"
-                        : disabledChoice
-                          ? "border-border/50 bg-muted/20 opacity-55 cursor-not-allowed"
-                          : "border-border bg-card hover:border-primary/40"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Icon className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-xs font-semibold truncate">{svc.name}</span>
-                      </div>
-                      <Badge variant={checked ? "success" : "outline"} className="text-[10px]">
-                        {checked ? "Selected" : disabledChoice ? "Plan Limit" : "Select"}
-                      </Badge>
+            <div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Service allocation</span>
+                <span className="font-mono tabular-nums">
+                  {selectedIds.length} / {limits.maxServices}
+                </span>
+              </div>
+              <QuotaProgressBar value={selectedIds.length} max={limits.maxServices} />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-medium text-muted-foreground">Active Modules</div>
+              {selectedServicesPreview.length === 0 ? (
+                <div className="text-xs text-muted-foreground py-2">No services selected yet.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {selectedServicesPreview.map((svc) => (
+                    <div
+                      key={svc.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs"
+                    >
+                      <span className="font-medium truncate">{svc.name}</span>
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
                     </div>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2">{svc.description}</p>
-                  </button>
-                );
-              })}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-muted/15 p-3 space-y-1.5 text-[11px]">
+              <div className="font-semibold text-foreground flex items-center gap-1.5">
+                <Lock className="h-3 w-3 text-primary" />
+                <span>Included Quotas</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>AI Assistants</span>
+                <span className="font-mono">Up to {limits.maxAgents}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>External Connectors</span>
+                <span className="font-mono">Up to {limits.maxConnectors}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>API / AI Rate Cap</span>
+                <span className="font-mono">
+                  {limits.apiRequestsPerDay}/d · {limits.aiRequestsPerDay}/d
+                </span>
+              </div>
             </div>
           </Card>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-muted-foreground">
-              Free tier includes {limits.maxServices} services, {limits.maxAgents} AI assistants, and {limits.maxConnectors} external connectors.
-            </span>
-            <Button type="submit" disabled={selectedIds.length === 0 || launching}>
-              <Sparkles className="h-4 w-4" />
-              <span>{launching ? "Launching Workspace..." : "Launch Workspace"}</span>
-            </Button>
-          </div>
-        </form>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 space-y-7">
+    <div className="mx-auto max-w-6xl px-4 py-7 pb-24 sm:px-6 space-y-7">
       <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-border/70 pb-6">
         <div className="space-y-1.5 max-w-2xl">
           <div className="inline-flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -550,6 +844,60 @@ export function SandboxDashboard({
           </button>
         </div>
       )}
+
+      {/* Plan Quotas & Resource Usage Strip */}
+      <section aria-label="Workspace Plan Quotas" className="grid gap-3 sm:grid-cols-3">
+        <Card className="p-4 rounded-2xl border-border/80">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Workspace Services</span>
+            <Badge variant="outline" className="font-mono text-[10px] capitalize">
+              {planTier}
+            </Badge>
+          </div>
+          <div className="mt-1 text-lg font-semibold font-mono tabular-nums">
+            {enabledServices.length}
+            <span className="text-xs font-normal text-muted-foreground">
+              /{limits.maxServices}
+            </span>
+          </div>
+          <QuotaProgressBar value={enabledServices.length} max={limits.maxServices} />
+        </Card>
+
+        <Card className="p-4 rounded-2xl border-border/80">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>AI Assistants</span>
+            <span className="text-[11px] font-mono">
+              {limits.aiRequestsPerMinute}/min · {limits.aiRequestsPerDay}/day
+            </span>
+          </div>
+          <div className="mt-1 text-lg font-semibold font-mono tabular-nums">
+            {Math.min(enabledServices.length, limits.maxAgents)}
+            <span className="text-xs font-normal text-muted-foreground">
+              /{limits.maxAgents}
+            </span>
+          </div>
+          <QuotaProgressBar
+            value={Math.min(enabledServices.length, limits.maxAgents)}
+            max={limits.maxAgents}
+          />
+        </Card>
+
+        <Card className="p-4 rounded-2xl border-border/80">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Connected Integrations</span>
+            <Link href="/connectors" className="text-[11px] font-medium text-primary hover:underline">
+              Manage
+            </Link>
+          </div>
+          <div className="mt-1 text-lg font-semibold font-mono tabular-nums">
+            {initialConnectorCount}
+            <span className="text-xs font-normal text-muted-foreground">
+              /{limits.maxConnectors}
+            </span>
+          </div>
+          <QuotaProgressBar value={initialConnectorCount} max={limits.maxConnectors} />
+        </Card>
+      </section>
 
       {snapshot && (
         <section
@@ -626,16 +974,20 @@ export function SandboxDashboard({
 
       {/* Prompt-Built Custom Views (A2UI) */}
       <section className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2 className="text-sm font-semibold tracking-tight">Custom Prompt Views</h2>
-            <p className="text-xs text-muted-foreground">
-              Describe any KPI card, status table, or interactive intake form to generate it on your dashboard.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-sm font-semibold tracking-tight">Custom Prompt Views</h2>
+          <p className="text-xs text-muted-foreground">
+            Describe any KPI card, status table, or interactive intake form to generate it on your dashboard.
+          </p>
         </div>
 
-        <form onSubmit={(e) => void handleBuildCustomA2ui(e)} className="flex flex-wrap items-center gap-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleBuildCustomA2ui();
+          }}
+          className="flex flex-wrap items-center gap-2"
+        >
           <Input
             value={a2uiPrompt}
             onChange={(e) => setA2uiPrompt(e.target.value)}
@@ -648,6 +1000,20 @@ export function SandboxDashboard({
             <span>{buildingA2ui ? "Building View..." : "Generate View"}</span>
           </Button>
         </form>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {A2UI_QUICK_CHIPS.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              disabled={buildingA2ui}
+              onClick={() => void handleBuildCustomA2ui(chip.prompt)}
+              className="rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+            >
+              + {chip.label}
+            </button>
+          ))}
+        </div>
 
         {profile.pinnedA2UI.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">
@@ -844,15 +1210,28 @@ export function SandboxDashboard({
               {enabledServices.length}/{limits.maxServices} active services on your {planTier} plan. Remove one to swap in another.
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCatalogOpen(false)}
-            aria-label="Close service catalog"
-            className="h-8 w-8"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {planTier !== "enterprise" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleReopenWalkthrough()}
+                className="text-xs text-muted-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Setup Guide</span>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCatalogOpen(false)}
+              aria-label="Close service catalog"
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 max-h-[65vh] overflow-y-auto pr-1">

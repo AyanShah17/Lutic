@@ -8,6 +8,7 @@ import {
   validateCurrentLicense
 } from "@lutic/core";
 import { getWebAdministrativeDb } from "@/lib/db";
+import { enforceApiQuota, getTenantPlan } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -43,6 +44,16 @@ export async function POST(req: Request) {
 
     const body = ActivateSchema.parse(await req.json());
     const db = await getWebAdministrativeDb();
+    const quotaErr = await enforceApiQuota(req, db, user, "api");
+    if (quotaErr) return quotaErr;
+    const plan = await getTenantPlan(db, user.tenantId);
+    if (plan !== "enterprise") {
+      return problemResponse(
+        403,
+        "Platform Admin Required",
+        "Deployment license management is restricted to platform administrators."
+      );
+    }
     const result = await activateLicense(db, {
       key: body.key,
       serverUrl: body.serverUrl
@@ -71,6 +82,16 @@ export async function DELETE(req: Request) {
     authorize(user, "license:manage", { tenantId: user.tenantId });
 
     const db = await getWebAdministrativeDb();
+    const quotaErr = await enforceApiQuota(req, db, user, "api");
+    if (quotaErr) return quotaErr;
+    const plan = await getTenantPlan(db, user.tenantId);
+    if (plan !== "enterprise") {
+      return problemResponse(
+        403,
+        "Platform Admin Required",
+        "Deployment license management is restricted to platform administrators."
+      );
+    }
     await deactivateLicense(db);
     return NextResponse.json({ ok: true, status: "unactivated" });
   } catch (err) {

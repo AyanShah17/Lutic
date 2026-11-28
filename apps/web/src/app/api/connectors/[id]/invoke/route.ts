@@ -19,6 +19,7 @@ import {
 import { defaultMcpRegistry } from "@lutic/connectors";
 import { executeLuticConnectorCode } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -115,6 +116,9 @@ export async function POST(
     }
     const params = await context.params;
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaErr = await enforceApiQuota(req, db, user, "api");
+      if (quotaErr) return quotaErr;
+
       const rows = await db
         .select()
         .from(connectorConnections)

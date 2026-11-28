@@ -12,6 +12,7 @@ import {
   runRuntimeTick
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -63,6 +64,9 @@ export async function POST(req: Request) {
     }
 
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaErr = await enforceApiQuota(req, db, user, "api");
+      if (quotaErr) return quotaErr;
+
       const targetIds = new Set(body.telemetryOverrides?.map((o) => o.machineId));
       if (body.machineId) targetIds.add(body.machineId);
       if (targetIds.size > 0) {

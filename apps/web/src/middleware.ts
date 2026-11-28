@@ -27,12 +27,6 @@ export function verifyOriginLock(req: NextRequest): NextResponse | null {
 
   const pathname = req.nextUrl.pathname;
   if (pathname === "/api/health/live") return null;
-  if (
-    pathname === "/api/health" &&
-    (req.nextUrl.hostname === "127.0.0.1" || req.nextUrl.hostname === "localhost")
-  ) {
-    return null;
-  }
 
   const provided = req.headers.get("x-lutic-origin-secret")?.trim() ?? "";
   if (!provided || !constantTimeEqual(provided, expected)) {

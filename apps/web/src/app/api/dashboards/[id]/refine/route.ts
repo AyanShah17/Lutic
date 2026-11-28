@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorize, DashboardSpecSchema } from "@lutic/core";
-import { requireWebLicense } from "@/lib/db";
+import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -23,6 +24,10 @@ export async function POST(req: Request) {
     authorize(user, "dashboard:write", { tenantId: user.tenantId });
 
     const { instruction, spec } = RefineSchema.parse(await req.json());
+    const quotaErr = await withWebTenantDb(user.tenantId, (db) =>
+      enforceApiQuota(req, db, user, "ai")
+    );
+    if (quotaErr) return quotaErr;
     const lower = instruction.toLowerCase();
     const nextWidgets = spec.widgets.map((w) => ({ ...w }));
     const nextLayout = spec.layout.map((l) => ({ ...l }));

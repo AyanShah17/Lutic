@@ -43,6 +43,13 @@ const ChangePasswordSchema = z.strictObject({
 export async function POST(req: Request) {
   try {
     verifyCsrfOrigin(req);
+    if (process.env.LUTIC_CLERK_ONLY === "true") {
+      return problemResponse(
+        403,
+        "SSO Managed",
+        "Password management is handled by Clerk."
+      );
+    }
     const user = await getSessionUser(req);
     if (!user) return problemResponse(401, "Unauthorized", "Please sign in.");
     const currentToken = await getSessionToken(req);

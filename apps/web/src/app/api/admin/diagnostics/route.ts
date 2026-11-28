@@ -17,6 +17,7 @@ import {
 } from "@lutic/core";
 import { checkScannerHealth } from "@lutic/agent";
 import { getWebAdministrativeDb, getWebDbConnection, requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { getTenantPlan } from "@/lib/quota";
 import { getSessionUser, handleApiError, problemResponse } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,13 @@ export async function GET(req: Request) {
     authorize(user, "admin:audit", { tenantId: user.tenantId });
 
     const adminDb = await getWebAdministrativeDb();
+    if ((await getTenantPlan(adminDb, user.tenantId)) !== "enterprise") {
+      return problemResponse(
+        403,
+        "Platform Admin Required",
+        "Host diagnostics are restricted to platform administrators."
+      );
+    }
     const dbStart = Date.now();
     await adminDb.execute(sql`SELECT 1`);
     const dbLatencyMs = Date.now() - dbStart;

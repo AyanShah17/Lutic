@@ -12,6 +12,10 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
+function isSafeInternalHref(href?: string): href is string {
+  return Boolean(href && href.startsWith("/") && !href.startsWith("//"));
+}
+
 function triggerAssistantPrompt(prompt: string, serviceId?: string) {
   window.dispatchEvent(
     new CustomEvent("lutic:open-ai", {
@@ -130,7 +134,7 @@ function renderStatusListBlock(comp: Extract<A2UIComponent, { type: "status_list
           return (
             <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
               <div className="min-w-0">
-                {item.href ? (
+                {isSafeInternalHref(item.href) ? (
                   <Link href={item.href} className="font-medium hover:underline truncate block">
                     {item.label}
                   </Link>
@@ -275,7 +279,7 @@ export function A2UIRenderer({
               return (
                 <div key={comp.id} className="flex flex-wrap items-center gap-1.5 pt-1">
                   {comp.actions.map((act) =>
-                    act.href ? (
+                    isSafeInternalHref(act.href) ? (
                       <Link
                         key={act.label}
                         href={act.href}

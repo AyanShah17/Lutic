@@ -72,7 +72,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     refreshSession,
     setUser,
     signOutExternal,
-    sandboxServices = []
+    clerkEnabled = false,
+    sandboxServices = [],
+    planLimits = null
   } = useAppContext();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -308,6 +310,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         ))}
+        {user && !compact && sandboxServices.length > 0 && (
+          <div className="pt-2">
+            <Link
+              href="/"
+              onClick={onNavigate}
+              className="flex items-center justify-between gap-2 rounded-md border border-sidebar-border/80 bg-muted/25 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <span>Manage Services</span>
+              <span className="font-mono text-[10px]">
+                {sandboxServices.filter((s) => s.enabled).length}/{planLimits?.maxServices ?? sandboxServices.length}
+              </span>
+            </Link>
+          </div>
+        )}
       </nav>
 
       {user && (
@@ -327,20 +343,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             )}
             <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  onNavigate?.();
-                  setPwError(null);
-                  setPwSuccess(null);
-                  setPwOpen(true);
-                }}
-                title="Change password"
-                aria-label="Change password"
-                className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 transition-colors"
-              >
-                <KeyRound className="h-3.5 w-3.5" />
-              </button>
+              {!clerkEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate?.();
+                    setPwError(null);
+                    setPwSuccess(null);
+                    setPwOpen(true);
+                  }}
+                  title="Change password"
+                  aria-label="Change password"
+                  className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 transition-colors"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleLogout}

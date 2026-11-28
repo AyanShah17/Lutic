@@ -12,6 +12,7 @@ import {
 } from "@lutic/core";
 import { executeWorkflowAiNodeWithLlm } from "@lutic/agent";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -36,6 +37,9 @@ export async function POST(
 
     const params = await context.params;
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const quotaErr = await enforceApiQuota(req, db, user, "api");
+      if (quotaErr) return quotaErr;
+
       const wfRows = await db
         .select({ id: workflows.id })
         .from(workflows)

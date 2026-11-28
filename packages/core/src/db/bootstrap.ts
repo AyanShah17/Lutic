@@ -32,7 +32,7 @@ export async function bootstrapDatabase(conn: DbConnection, env: NodeJS.ProcessE
     const plantId = randomUUID();
     const userId = randomUUID();
     const slug = config.LUTIC_TENANT_NAME.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    await tx.insert(tenants).values({ id: tenantId, slug: slug || tenantId, name: config.LUTIC_TENANT_NAME });
+    await tx.insert(tenants).values({ id: tenantId, slug: slug || tenantId, name: config.LUTIC_TENANT_NAME, plan: "enterprise" });
     await tx.insert(plants).values({ id: plantId, tenantId, name: config.LUTIC_PLANT_NAME, code: "PLANT-01", timezone: "UTC" });
     await tx.insert(users).values({
       id: userId,

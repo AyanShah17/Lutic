@@ -4,7 +4,8 @@ import {
   authorize,
   buildWorkflowFromPrompt,
 } from "@lutic/core";
-import { requireWebLicense } from "@/lib/db";
+import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -25,6 +26,11 @@ export async function POST(req: Request) {
     authorize(user, "workflow:write", { tenantId: user.tenantId });
 
     const body = AiBuildSchema.parse(await req.json());
+    const quotaErr = await withWebTenantDb(user.tenantId, (db) =>
+      enforceApiQuota(req, db, user, "ai")
+    );
+    if (quotaErr) return quotaErr;
+
     const draft = buildWorkflowFromPrompt(body.prompt);
 
     return NextResponse.json({

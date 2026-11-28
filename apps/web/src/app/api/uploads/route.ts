@@ -8,7 +8,8 @@ import {
   getMaxUploadBytes,
   scanUploadForViruses
 } from "@lutic/agent";
-import { requireWebLicense } from "@/lib/db";
+import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota } from "@/lib/quota";
 import { readBoundedBody } from "@/lib/request-body";
 import {
   getSessionUser,
@@ -33,6 +34,11 @@ export async function POST(req: Request) {
     const user = await getSessionUser(req);
     if (!user) return problemResponse(401, "Unauthorized", "Please sign in.");
     authorize(user, "docs:read", { tenantId: user.tenantId });
+
+    const quotaErr = await withWebTenantDb(user.tenantId, (db) =>
+      enforceApiQuota(req, db, user, "api")
+    );
+    if (quotaErr) return quotaErr;
 
     const contentType = req.headers.get("content-type") ?? "";
     const boundedBody = await readBoundedBody(req, getMaxUploadBytes() + 64 * 1024);

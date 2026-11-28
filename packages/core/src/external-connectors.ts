@@ -54,12 +54,7 @@ export function isPrivateOrReservedIp(rawIp: string): boolean {
   return false;
 }
 
-/**
- * Validates that an external connector URL uses HTTPS (or HTTP only when explicitly opted-in for
- * isolated local tests via LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true) and resolves DNS once to pin
- * public IPs against DNS-rebinding TOCTOU attacks.
- */
-export async function resolveSafeExternalTarget(rawUrl: string): Promise<ValidatedExternalTarget> {
+export function assertSafeExternalUrlSyntax(rawUrl: string): URL {
   let parsed: URL;
   try {
     parsed = new URL(rawUrl.trim());
@@ -85,15 +80,32 @@ export async function resolveSafeExternalTarget(rawUrl: string): Promise<Validat
       hostname === "localhost" ||
       hostname.endsWith(".localhost") ||
       hostname.endsWith(".local") ||
-      hostname.endsWith(".internal")
+      hostname.endsWith(".internal") ||
+      (net.isIP(hostname) === 0 && !hostname.includes("."))
     ) {
       throw new Error(`Blocked internal hostname '${hostname}' for external connector.`);
     }
 
+    if (net.isIP(hostname) !== 0 && isPrivateOrReservedIp(hostname)) {
+      throw new Error(`Blocked private or reserved IP address '${hostname}'.`);
+    }
+  }
+
+  return parsed;
+}
+
+/**
+ * Validates that an external connector URL uses HTTPS (or HTTP only when explicitly opted-in for
+ * isolated local tests via LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS=true) and resolves DNS once to pin
+ * public IPs against DNS-rebinding TOCTOU attacks.
+ */
+export async function resolveSafeExternalTarget(rawUrl: string): Promise<ValidatedExternalTarget> {
+  const parsed = assertSafeExternalUrlSyntax(rawUrl);
+  const allowPrivate = process.env.LUTIC_ALLOW_PRIVATE_CONNECTOR_URLS === "true";
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (!allowPrivate) {
     if (net.isIP(hostname) !== 0) {
-      if (isPrivateOrReservedIp(hostname)) {
-        throw new Error(`Blocked private or reserved IP address '${hostname}'.`);
-      }
       return {
         url: parsed,
         pinnedAddress: hostname,

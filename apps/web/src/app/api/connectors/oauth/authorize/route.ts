@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  assertSafeExternalUrlSyntax,
   authorize,
   buildOAuthAuthorizationUrl,
   CONNECTOR_CATALOG,
@@ -10,7 +11,8 @@ import {
   generatePkcePair,
   getConnectorAuthBlueprint
 } from "@lutic/core";
-import { requireWebLicense } from "@/lib/db";
+import { requireWebLicense, withWebTenantDb } from "@/lib/db";
+import { enforceApiQuota, enforceConnectorQuota } from "@/lib/quota";
 import {
   getSessionUser,
   handleApiError,
@@ -57,6 +59,24 @@ export async function POST(req: Request) {
         "Supply authorizationUrl and tokenUrl for custom OAuth providers."
       );
     }
+
+    try {
+      assertSafeExternalUrlSyntax(authorizationUrl);
+      assertSafeExternalUrlSyntax(tokenUrl);
+    } catch (err) {
+      return problemResponse(
+        400,
+        "Unsafe OAuth Endpoint",
+        err instanceof Error ? err.message : "OAuth authorizationUrl and tokenUrl must use public HTTPS endpoints."
+      );
+    }
+
+    const quotaBlock = await withWebTenantDb(user.tenantId, async (db) => {
+      const apiErr = await enforceApiQuota(req, db, user, "api");
+      if (apiErr) return apiErr;
+      return enforceConnectorQuota(db, user.tenantId);
+    });
+    if (quotaBlock) return quotaBlock;
 
     const envPrefix = `LUTIC_OAUTH_${slug.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`;
     const clientId = body.clientId?.trim() || process.env[`${envPrefix}_CLIENT_ID`]?.trim() || "";

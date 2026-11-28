@@ -21,6 +21,13 @@ import { POST as connectorsPost, GET as connectorsGet } from "../apps/web/src/ap
 import { POST as chatPost } from "../apps/web/src/app/api/chat/route";
 import { POST as a2uiPost, GET as a2uiGet } from "../apps/web/src/app/api/ai/a2ui/route";
 import { middleware } from "../apps/web/src/middleware";
+import { verifyCsrfOrigin } from "../apps/web/src/lib/auth";
+import { POST as licensePost, DELETE as licenseDelete } from "../apps/web/src/app/api/license/route";
+import { GET as diagnosticsGet } from "../apps/web/src/app/api/admin/diagnostics/route";
+import { POST as oauthAuthorizePost } from "../apps/web/src/app/api/connectors/oauth/authorize/route";
+import { POST as changePasswordPost } from "../apps/web/src/app/api/auth/change-password/route";
+import { POST as workflowAiBuildPost } from "../apps/web/src/app/api/workflows/ai-build/route";
+import { POST as uploadsPost } from "../apps/web/src/app/api/uploads/route";
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -62,6 +69,10 @@ describe("Production Cybersecurity, Free-Tier Quotas, Walkthrough, A2UI, RAG & P
     const liveRes = middleware(new NextRequest("https://lutic.app/api/health/live"));
     expect(liveRes?.status).not.toBe(403);
 
+    // Host header spoofing against /api/health is rejected when origin lock secret is set
+    const healthSpoofRes = middleware(new NextRequest("http://127.0.0.1:3000/api/health"));
+    expect(healthSpoofRes?.status).toBe(403);
+
     const allowedRes = middleware(
       new NextRequest("https://lutic.app/api/connectors", {
         headers: { "x-lutic-origin-secret": "super-secret-origin-token-2026" }
@@ -69,8 +80,26 @@ describe("Production Cybersecurity, Free-Tier Quotas, Walkthrough, A2UI, RAG & P
     );
     expect(allowedRes?.status).toBe(200);
 
-    // Clerk-only mode blocks local password auth endpoints
+    // Cross-site sec-fetch-site header is rejected by CSRF guard even when Origin is omitted
+    expect(() =>
+      verifyCsrfOrigin(
+        new Request("https://lutic.app/api/board", {
+          method: "POST",
+          headers: { host: "lutic.app", "sec-fetch-site": "cross-site" }
+        })
+      )
+    ).toThrow("Cross-site state-changing request rejected");
+
+    // Clerk-only mode blocks local password auth + change-password endpoints
     vi.stubEnv("LUTIC_CLERK_ONLY", "true");
+    const clerkChangePw = await changePasswordPost(
+      new Request("http://localhost:3000/api/auth/change-password", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+        body: JSON.stringify({ currentPassword: "old", newPassword: "NewStrongPassword#2026" })
+      })
+    );
+    expect(clerkChangePw.status).toBe(403);
     const clerkLoginRes = await loginPost(
       new Request("http://localhost:3000/api/auth/login", {
         method: "POST",
@@ -243,6 +272,111 @@ describe("Production Cybersecurity, Free-Tier Quotas, Walkthrough, A2UI, RAG & P
     };
     expect(persistedA2ui.pinnedA2UI.length).toBeGreaterThanOrEqual(2);
 
+    // 3b. Stored XSS links in A2UI specs are rejected
+    for (const unsafeHref of ["javascript:alert(1)", "//evil.example/phish"]) {
+      const badA2uiRes = await a2uiPost(
+        new Request("http://localhost:3000/api/ai/a2ui", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:3000",
+            authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            action: "pin",
+            spec: {
+              id: "xss-test",
+              title: "Test",
+              subtitle: "",
+              prompt: "test",
+              createdAt: new Date().toISOString(),
+              layout: "grid",
+              components: [
+                {
+                  id: "c1",
+                  type: "action_bar",
+                  title: "Actions",
+                  actions: [{ label: "Click", href: unsafeHref }]
+                }
+              ]
+            }
+          })
+        })
+      );
+      expect(badA2uiRes.status).toBe(400);
+    }
+
+    // 3c. Tenant-vs-Platform boundary: Free admin cannot invoke license management or host diagnostics
+    const freeLicPost = await licensePost(
+      new Request("http://localhost:3000/api/license", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ key: "FAKE-KEY" })
+      })
+    );
+    expect(freeLicPost.status).toBe(403);
+
+    const freeLicDel = await licenseDelete(
+      new Request("http://localhost:3000/api/license", {
+        method: "DELETE",
+        headers: { origin: "http://localhost:3000", authorization: `Bearer ${token}` }
+      })
+    );
+    expect(freeLicDel.status).toBe(403);
+
+    const freeDiagRes = await diagnosticsGet(
+      new Request("http://localhost:3000/api/admin/diagnostics", {
+        headers: { authorization: `Bearer ${token}` }
+      })
+    );
+    expect(freeDiagRes.status).toBe(403);
+
+    // 3d. SSRF & connector cap checks on OAuth authorize
+    for (const unsafeUrl of [
+      "javascript:alert(1)",
+      "http://169.254.169.254/opc/v2/instance/",
+      "http://litellm:4000/v1"
+    ]) {
+      const ssrfOauth = await oauthAuthorizePost(
+        new Request("http://localhost:3000/api/connectors/oauth/authorize", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:3000",
+            authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            slug: "custom-oauth",
+            authorizationUrl: unsafeUrl,
+            tokenUrl: "https://auth.example.com/token",
+            clientId: "cid-1"
+          })
+        })
+      );
+      expect(ssrfOauth.status).toBe(400);
+    }
+
+    // At 5/5 connectors, OAuth authorize is also rejected with 403
+    const overConnOauth = await oauthAuthorizePost(
+      new Request("http://localhost:3000/api/connectors/oauth/authorize", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          slug: "github",
+          clientId: "cid-gh"
+        })
+      })
+    );
+    expect(overConnOauth.status).toBe(403);
+
     // 4. AI rate limit (Free plan allows 10/min; we used 1 in a2ui generate above -> 9 more pass, 11th returns 429)
     let got429 = false;
     for (let i = 0; i < 11; i += 1) {
@@ -267,6 +401,43 @@ describe("Production Cybersecurity, Free-Tier Quotas, Walkthrough, A2UI, RAG & P
       }
     }
     expect(got429).toBe(true);
+
+    // Workflows ai-build shares AI rate limit bucket -> returns 429 with Retry-After once exhausted
+    const aiBuild429 = await workflowAiBuildPost(
+      new Request("http://localhost:3000/api/workflows/ai-build", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ prompt: "Alert on vibration spike" })
+      })
+    );
+    expect(aiBuild429.status).toBe(429);
+    expect(aiBuild429.headers.get("Retry-After")).toBeTruthy();
+
+    // Uploads enforces API rate limit (30/min on Free plan)
+    let upload429 = false;
+    for (let i = 0; i < 32; i += 1) {
+      const upRes = await uploadsPost(
+        new Request("http://localhost:3000/api/uploads", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "http://localhost:3000",
+            authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: "note.txt", text: "ok" })
+        })
+      );
+      if (upRes.status === 429) {
+        upload429 = true;
+        expect(upRes.headers.get("Retry-After")).toBeTruthy();
+        break;
+      }
+    }
+    expect(upload429).toBe(true);
 
     // 5. Agent tool calls per-minute & daily caps on Free plan
     const { getWebAdministrativeDb } = await import("../apps/web/src/lib/db");

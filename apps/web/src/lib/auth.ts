@@ -175,6 +175,10 @@ export function verifyCsrfOrigin(req: Request): void {
   }
 
   const origin = hdrs.get("origin");
+  const fetchSite = hdrs.get("sec-fetch-site")?.toLowerCase();
+  if (fetchSite === "cross-site" && resolveCorsOrigin(origin) === null) {
+    throw new AuthorizationError("Cross-site state-changing request rejected");
+  }
   const host = hdrs.get("host");
   if (!origin || !host) return;
   try {
