@@ -157,6 +157,8 @@ export interface PolicyCheckOptions {
   userRateLimit?: number;
   tenantRateLimit?: number;
   consumeQuota?: RateLimitConsumer;
+  allowedToolNamesOverride?: ReadonlySet<string>;
+  serviceScopeLabel?: string;
 }
 
 /**
@@ -205,6 +207,13 @@ export async function executeToolWithPolicy(
   if (!isInRoleToolkit) {
     return deny(
       `Tool '${toolName}' is not enabled in any toolkit assigned to role '${ctx.user.role}'.`
+    );
+  }
+
+  // Step 1b: Enforce strict per-service / sandbox agent boundary when scoped to a service agent
+  if (options.allowedToolNamesOverride && !options.allowedToolNamesOverride.has(toolName)) {
+    return deny(
+      `Tool '${toolName}' is not permitted for ${options.serviceScopeLabel ?? "this service agent"}. Only skills belonging to this service can execute here; switch to the Overview Agent for cross-service actions.`
     );
   }
 

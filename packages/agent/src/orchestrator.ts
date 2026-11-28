@@ -2,13 +2,18 @@ import crypto from "node:crypto";
 import {
   and,
   assets,
+  computeAgentCapabilities,
   eq,
+  getTenantSandboxServices,
   inArray,
   usageLog,
+  type AgentCapabilities,
+  type AgentScopeId,
   type DashboardSpec,
   type LuticDatabase,
   type RateLimitConsumer,
-  type SessionUser
+  type SessionUser,
+  type TenantSandboxServiceView
 } from "@lutic/core";
 import {
   defaultMcpRegistry,
@@ -18,7 +23,8 @@ import {
   createAbortError,
   createLLMProvider,
   type ExecutedToolObservation,
-  type LLMProvider
+  type LLMProvider,
+  type LLMServiceContext
 } from "./llm";
 import { executeToolWithPolicy, getAllowedToolsForUser } from "./policy";
 
@@ -97,6 +103,7 @@ export interface AgentRunInput {
   attachments?: ChatAttachment[];
   history?: Array<{ role: "user" | "assistant"; content: string }>;
   maxSteps?: number;
+  serviceId?: AgentScopeId;
   llmProvider?: LLMProvider;
   registry?: McpToolRegistry;
   abortSignal?: AbortSignal;
@@ -115,6 +122,14 @@ export interface AgentRunResult {
   safetyGate: SafetyGateResult;
   safetyWarning?: string;
   supersededWarning?: string;
+  activeAgent?: {
+    scopeId: AgentScopeId;
+    agentName: string;
+    isOverview: boolean;
+    activeSkills: string[];
+    enabledServices: string[];
+    disabledServices: string[];
+  };
   usage: {
     model: string;
     promptTokens: number;
@@ -217,15 +232,33 @@ export function assembleSystemPrompt(params: {
   allowedToolNames: string[];
   machineContext?: { id: string; name: string; machineType: string; plantId: string };
   plannedSpecialists?: string[];
+  serviceContext?: LLMServiceContext;
 }): string {
   const today = new Date().toISOString().slice(0, 10);
+  const serviceBlock = params.serviceContext
+    ? params.serviceContext.isOverview
+      ? [
+          `ACTIVE AGENT: ${params.serviceContext.agentName} (cross-service orchestrator).`,
+          `Enabled sandbox services: ${params.serviceContext.enabledServices.map((s) => `${s.name} (${s.id})`).join(", ") || "none"}.`,
+          `Disabled sandbox services (must not act on): ${params.serviceContext.disabledServices.map((s) => `${s.name} (${s.id})`).join(", ") || "none"}.`,
+          `Enabled skills across active services: ${params.serviceContext.activeSkills.map((s) => s.id).join(", ") || "none"}.`
+        ]
+      : [
+          `ACTIVE AGENT: ${params.serviceContext.agentName} (isolated to service '${params.serviceContext.scopeId}').`,
+          `STRICT SERVICE BOUNDARY: You MUST ONLY operate within '${params.serviceContext.scopeId}' using its enabled skills (${params.serviceContext.activeSkills.map((s) => `${s.name} [${s.id}]`).join(", ") || "none"}). Refuse any task outside '${params.serviceContext.scopeId}' and direct the user to Overview Agent (Cross-Service).`,
+          params.serviceContext.agentInstructions
+            ? `Custom service agent instructions: ${params.serviceContext.agentInstructions}`
+            : ""
+        ]
+    : [];
   return [
-    "You are Lutic, an industrial operations AI assistant.",
+    "You are Lutic, an AI SaaS and automation assistant.",
     `Current date: ${today}.`,
     `Caller role: ${params.user.role}. Authorized plants: ${params.user.plantIds.join(", ")}.`,
     params.machineContext
       ? `Active machine scope: ${params.machineContext.name} (id=${params.machineContext.id}, type=${params.machineContext.machineType}, plant=${params.machineContext.plantId}).`
       : "No single machine pre-selected.",
+    ...serviceBlock,
     params.plannedSpecialists?.length
       ? `Active specialist stages: ${params.plannedSpecialists.join(" -> ")} -> safety_verifier.`
       : "",
@@ -460,7 +493,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       return fn(input.db);
     });
 
-  const { machineContext, allowedTools } = await withDb(async (db) => {
+  const { machineContext, allowedTools, capabilities, serviceContext } = await withDb(async (db) => {
     let resolvedMachine:
       | { id: string; name: string; machineType: string; plantId: string }
       | undefined;
@@ -486,15 +519,91 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       }
     }
     const toolsList = await getAllowedToolsForUser(db, input.user, registry);
-    return { machineContext: resolvedMachine, allowedTools: toolsList };
+    let caps: AgentCapabilities | undefined;
+    let svcCtx: LLMServiceContext | undefined;
+    if (input.serviceId) {
+      const sandboxList: TenantSandboxServiceView[] = await getTenantSandboxServices(
+        db,
+        input.user.tenantId
+      );
+      caps = computeAgentCapabilities(sandboxList, input.serviceId);
+      const targetSvc =
+        input.serviceId === "overview"
+          ? undefined
+          : sandboxList.find((s) => s.id === input.serviceId);
+      svcCtx = {
+        scopeId: caps.scopeId,
+        agentName: caps.agentName,
+        isOverview: caps.isOverview,
+        activeSkills: caps.activeSkills.map((sk) => ({
+          id: sk.id,
+          name: sk.name,
+          serviceId: sk.serviceId
+        })),
+        enabledServices: sandboxList
+          .filter((s) => s.enabled)
+          .map((s) => ({ id: s.id, name: s.name })),
+        disabledServices: sandboxList
+          .filter((s) => !s.enabled)
+          .map((s) => ({ id: s.id, name: s.name })),
+        agentInstructions: targetSvc?.agentInstructions
+      };
+    }
+    const scopedTools = caps
+      ? toolsList.filter((t) => caps!.allowedToolNames.has(t.name))
+      : toolsList;
+    return {
+      machineContext: resolvedMachine,
+      allowedTools: scopedTools,
+      capabilities: caps,
+      serviceContext: svcCtx
+    };
   });
+
+  const activeAgentMeta = capabilities
+    ? {
+        scopeId: capabilities.scopeId,
+        agentName: capabilities.agentName,
+        isOverview: capabilities.isOverview,
+        activeSkills: capabilities.activeSkills.map((s) => s.id),
+        enabledServices: serviceContext?.enabledServices.map((s) => s.id) ?? [],
+        disabledServices: serviceContext?.disabledServices.map((s) => s.id) ?? []
+      }
+    : undefined;
+
+  if (capabilities && !capabilities.enabled) {
+    const blockedMsg = `${capabilities.agentName} is not active because service \`${capabilities.scopeId}\` has not been added to your workspace sandbox. Add \`${capabilities.scopeId}\` on your Sandbox Dashboard or switch to the Overview Agent.`;
+    return {
+      answer: blockedMsg,
+      toolCalls: [],
+      citations: [],
+      charts: [],
+      pendingActions: [],
+      agentStages: [],
+      safetyGate: {
+        status: "clear",
+        hazardsDetected: [],
+        citedCurrentSops: [],
+        unverifiedHold: false
+      },
+      activeAgent: activeAgentMeta,
+      usage: {
+        model: llm.modelName,
+        promptTokens: 0,
+        completionTokens: 0,
+        estimatedCostUsd: 0,
+        latencyMs: Math.max(1, Date.now() - started)
+      }
+    };
+  }
 
   const plannedSpecialists = planSpecialistStages(input.message, Boolean(machineContext));
   const systemPrompt = assembleSystemPrompt({
     user: input.user,
     allowedToolNames: allowedTools.map((t) => t.name),
     machineContext,
-    plannedSpecialists
+    plannedSpecialists,
+    serviceContext
   });
 
   const observations: ExecutedToolObservation[] = [];
@@ -526,6 +635,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
       attachments: input.attachments,
       user: input.user,
       machineContext,
+      serviceContext,
       allowedTools,
       stepIndex: step,
       observations,
@@ -556,7 +666,14 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
             requestId: `req-${crypto.randomUUID().slice(0, 8)}`,
             conversationId: input.conversationId
           },
-          { registry, consumeQuota: input.consumeQuota }
+          {
+            registry,
+            consumeQuota: input.consumeQuota,
+            allowedToolNamesOverride: capabilities?.allowedToolNames,
+            serviceScopeLabel: capabilities
+              ? `${capabilities.agentName} (${capabilities.scopeId})`
+              : undefined
+          }
         )
       );
 
@@ -706,6 +823,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult
     safetyGate,
     safetyWarning,
     supersededWarning,
+    activeAgent: activeAgentMeta,
     usage: {
       model: modelUsed,
       promptTokens: totalPromptTokens,

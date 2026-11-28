@@ -128,9 +128,9 @@ describe("v2 Engineering Upgrades — Database, Security, Live Adapters, RAG, St
   });
 
   it("applies migration v4 with worker_heartbeats (revoked from lutic_app) and vector(1536) document chunks", async () => {
-    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4]);
+    expect(MIGRATIONS.map((m) => m.version)).toEqual([1, 2, 3, 4, 5]);
     const applied = await getAppliedMigrations(conn);
-    expect(applied.map((m) => m.version)).toEqual([1, 2, 3, 4]);
+    expect(applied.map((m) => m.version)).toEqual([1, 2, 3, 4, 5]);
     expect(applied[3]?.name).toBe("0004_dense_embeddings_and_worker_heartbeats");
 
     const cols = await conn.db.execute<{ column_name: string }>(sql`

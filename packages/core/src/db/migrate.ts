@@ -726,7 +726,8 @@ const TENANT_RLS_TABLES = [
   "alert_rules",
   "alert_events",
   "ingestion_tokens",
-  "board_issues"
+  "board_issues",
+  "sandbox_services"
 ];
 
 const MIGRATION_0002_SQL = `
@@ -806,11 +807,31 @@ CREATE TABLE IF NOT EXISTS worker_heartbeats (
 );
 `;
 
+const MIGRATION_0005_SQL = `
+CREATE TABLE IF NOT EXISTS sandbox_services (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  service_id TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  pinned_to_dashboard BOOLEAN NOT NULL DEFAULT TRUE,
+  enabled_skills JSONB NOT NULL DEFAULT '[]'::jsonb,
+  agent_instructions TEXT NOT NULL DEFAULT '',
+  display_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS sandbox_services_tenant_service_idx
+  ON sandbox_services(tenant_id, service_id);
+CREATE INDEX IF NOT EXISTS sandbox_services_tenant_idx
+  ON sandbox_services(tenant_id);
+`;
+
 export const MIGRATIONS: ReadonlyArray<MigrationDefinition> = [
   { version: 1, name: "0001_baseline_schema", sql: SCHEMA_SQL },
   { version: 2, name: "0002_account_lifecycle_and_ingestion_tokens", sql: MIGRATION_0002_SQL },
   { version: 3, name: "0003_clerk_identity_and_board_issues", sql: MIGRATION_0003_SQL },
-  { version: 4, name: "0004_dense_embeddings_and_worker_heartbeats", sql: MIGRATION_0004_SQL }
+  { version: 4, name: "0004_dense_embeddings_and_worker_heartbeats", sql: MIGRATION_0004_SQL },
+  { version: 5, name: "0005_sandbox_services_and_agent_skills", sql: MIGRATION_0005_SQL }
 ];
 
 function migrationChecksum(sqlText: string): string {

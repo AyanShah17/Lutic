@@ -1155,7 +1155,30 @@ export const boardIssues = pgTable(
   ]
 );
 
-// 15. Dedicated Worker Heartbeat (global operational telemetry, not tenant-scoped)
+// 15. Per-Tenant Customizable Sandbox Services & Agent Skills
+export const sandboxServices = pgTable(
+  "sandbox_services",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    serviceId: text("service_id").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    pinnedToDashboard: boolean("pinned_to_dashboard").notNull().default(true),
+    enabledSkills: jsonb("enabled_skills").$type<string[]>().notNull().default([]),
+    agentInstructions: text("agent_instructions").notNull().default(""),
+    displayOrder: integer("display_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (t) => [
+    uniqueIndex("sandbox_services_tenant_service_idx").on(t.tenantId, t.serviceId),
+    index("sandbox_services_tenant_idx").on(t.tenantId)
+  ]
+);
+
+// 16. Dedicated Worker Heartbeat (global operational telemetry, not tenant-scoped)
 export const workerHeartbeats = pgTable("worker_heartbeats", {
   workerId: text("worker_id").primaryKey(),
   hostname: text("hostname").notNull().default(""),

@@ -11,7 +11,8 @@
     "./semantic": "./src/semantic/index.ts",
     "./metrics": "./src/semantic/registry.ts",
     "./dashboard": "./src/dashboard/schema.ts",
-    "./connector-blueprints": "./src/connector-blueprints.ts"
+    "./connector-blueprints": "./src/connector-blueprints.ts",
+    "./sandbox-services": "./src/sandbox-services.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

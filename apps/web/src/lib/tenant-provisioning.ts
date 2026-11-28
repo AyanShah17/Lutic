@@ -7,6 +7,7 @@ import {
   installCoreToolkits,
   plants,
   queues,
+  seedStarterSandboxServices,
   tenants,
   topics,
   userPlants,
@@ -166,6 +167,7 @@ export async function provisionTenantWorkspace(
     });
 
     await installCoreToolkits(tx, tenantId, `${tenantId}-`);
+    await seedStarterSandboxServices(tx, tenantId);
 
     await tx.insert(topics).values({
       id: `topic-${tenantId}-plant-alerts`,

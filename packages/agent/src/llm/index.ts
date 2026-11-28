@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, stepCountIs, streamText, tool, type ModelMessage, type LanguageModel, type ToolSet } from "ai";
-import type { SessionUser } from "@lutic/core";
+import type { AgentScopeId, SessionUser } from "@lutic/core";
 import type { ConnectorToolDefinition } from "@lutic/connectors";
 
 export class LLMTimeoutError extends Error {
@@ -43,6 +43,16 @@ export interface LLMGenerateStepAttachment {
   previewUrl?: string;
 }
 
+export interface LLMServiceContext {
+  scopeId: AgentScopeId;
+  agentName: string;
+  isOverview: boolean;
+  activeSkills: Array<{ id: string; name: string; serviceId: string }>;
+  enabledServices: Array<{ id: string; name: string }>;
+  disabledServices: Array<{ id: string; name: string }>;
+  agentInstructions?: string;
+}
+
 export interface LLMGenerateStepInput {
   systemPrompt: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
@@ -55,6 +65,7 @@ export interface LLMGenerateStepInput {
     machineType: string;
     plantId: string;
   };
+  serviceContext?: LLMServiceContext;
   allowedTools: ConnectorToolDefinition[];
   stepIndex: number;
   observations: ExecutedToolObservation[];
@@ -154,6 +165,69 @@ function isInjectionAttempt(text: string): boolean {
   );
 }
 
+function detectRequestedServiceDomains(prompt: string): string[] {
+  const domains: string[] = [];
+  if (/\bworkflows?\b|\bdag\b/i.test(prompt)) domains.push("workflows");
+  if (/\bmonitoring\b|\balert\s*(rules?|events?|feed)?\b|\balerts\b/i.test(prompt)) {
+    domains.push("monitoring");
+  }
+  if (/\b(publish|send)\b.*\b(notification|topic)\b|\bnotifications?\b|\btopics?\b/i.test(prompt)) {
+    domains.push("notifications");
+  }
+  if (/\bqueues?\b|\bdlq\b/i.test(prompt)) domains.push("queues");
+  if (
+    /\bdashboard\b|\boee\b|\bavailability\b|\bperformance\b|\bquality\b|\bdowntime\b|\bscrap\b|\bthroughput\b|\bmtbf\b|\bmttr\b|\benergy\b|\bkwh\b|\bpareto\b|\bcompare\b.*\bmetric/i.test(
+      prompt
+    )
+  ) {
+    domains.push("dashboards");
+  }
+  if (
+    /\b(create|draft|open|submit)\b.*\bwork\s*order\b|\bwork\s*orders?\b|\breserve\b.*\b(part|prt-)|\bparts?\b|\binventory\b/i.test(
+      prompt
+    )
+  ) {
+    domains.push("board");
+  }
+  if (
+    /\bmach-[a-z0-9-]+\b|\bline\s*[1-9]\b.*\b(filler|cnc|mold|press|robot|compressor)\b|\bmanual\b|\bsop\b|\bloto\b|\blockout\b|\btorque\b|\bvibration\b|\bsensor\b/i.test(
+      prompt
+    )
+  ) {
+    domains.push("machines");
+  }
+  if (/\bcode\s*mode\b|\bconnector\s*script\b/i.test(prompt)) domains.push("connectors");
+  return domains;
+}
+
+function buildOverviewSummaryMarkdown(ctx: LLMServiceContext): string {
+  const enabledList =
+    ctx.enabledServices.length > 0
+      ? ctx.enabledServices.map((s) => `- **${s.name}** (\`${s.id}\`)`).join("\n")
+      : "- No services currently enabled in your sandbox.";
+  const skillsBySvc = new Map<string, string[]>();
+  for (const sk of ctx.activeSkills) {
+    const arr = skillsBySvc.get(sk.serviceId) ?? [];
+    arr.push(sk.name);
+    skillsBySvc.set(sk.serviceId, arr);
+  }
+  const skillLines = Array.from(skillsBySvc.entries()).map(
+    ([svc, names]) => `- \`${svc}\`: ${names.join(", ")}`
+  );
+  const disabledLine =
+    ctx.disabledServices.length > 0
+      ? ctx.disabledServices.map((s) => `\`${s.id}\``).join(", ")
+      : "None (all platform services installed)";
+  return [
+    `### Overview Agent · Cross-Service Sandbox Context`,
+    `**Installed & Active Services (${ctx.enabledServices.length})**:\n${enabledList}`,
+    skillLines.length > 0
+      ? `**Active Skills by Service (${ctx.activeSkills.length})**:\n${skillLines.join("\n")}`
+      : "**Active Skills**: None enabled.",
+    `**Available to Add**: ${disabledLine}`
+  ].join("\n\n");
+}
+
 /**
  * Deterministic tool-planning mock LLM provider for offline demos, unit tests, and evals.
  * Every planned tool call executes through the real Policy Engine and MCP Servers.
@@ -189,9 +263,31 @@ export class MockLLMProvider implements LLMProvider {
     const hasAlertIntent = /\bmonitoring\b|\balert\s*(rules?|events?|feed)?\b|\balerts\b/i.test(prompt);
     const hasQueueTopicIntent = /\bqueues?\b|\btopics?\b|\bnotifications?\b/i.test(prompt);
     const hasCodeModeIntent = /\bcode\s*mode\b|\bconnector\s*script\b|\brun\s+script\b/i.test(prompt);
+    const asksOverviewSandbox =
+      /overview|sandbox|which services|installed services|all services|active skills|cross[- ]service/i.test(
+        prompt
+      );
 
     // Step 0: Plan real MCP tool calls
     if (input.stepIndex === 0) {
+      // Enforce strict service-agent boundary when scoped to a single service
+      if (input.serviceContext && !input.serviceContext.isOverview) {
+        const requestedDomains = detectRequestedServiceDomains(prompt);
+        const foreignDomains = requestedDomains.filter(
+          (d) => d !== input.serviceContext!.scopeId
+        );
+        if (foreignDomains.length > 0) {
+          const skillNames = input.serviceContext.activeSkills.map((s) => s.name).join(", ");
+          return {
+            toolCalls: [],
+            finalText: `**${input.serviceContext.agentName}** is strictly scoped to the \`${input.serviceContext.scopeId}\` service and cannot execute requests for ${foreignDomains.map((d) => `\`${d}\``).join(", ")}.\n\n- **Allowed skills here**: ${skillNames || "none"}\n- **Cross-service action**: Switch to **Overview Agent (Cross-Service)** or open the target service directly.`,
+            promptTokens: 190,
+            completionTokens: 52,
+            model: this.modelName
+          };
+        }
+      }
+
       // Pure prompt injection attempt from user input
       if (isInjectionAttempt(prompt) && !faultCode && !/c07|conveyor jam/i.test(prompt)) {
         return {
@@ -207,8 +303,37 @@ export class MockLLMProvider implements LLMProvider {
       const calls: PlannedToolCall[] = [];
       let callSeq = 1;
       const pushCall = (name: string, args: Record<string, unknown>) => {
+        if (input.serviceContext && !allowedSet.has(name)) {
+          return;
+        }
         calls.push({ id: `call-${callSeq++}`, name, args });
       };
+
+      // Overview Agent cross-service sandbox query
+      if (input.serviceContext?.isOverview && asksOverviewSandbox) {
+        if (allowedSet.has("query_metric")) {
+          pushCall("query_metric", { metric: "oee", groupBy: "line", range: "7d", filters: {} });
+        }
+        if (allowedSet.has("paas.list_workflows")) {
+          pushCall("paas.list_workflows", { limit: 10 });
+        }
+        if (allowedSet.has("paas.list_alerts")) {
+          pushCall("paas.list_alerts", { limit: 10 });
+        }
+        if (allowedSet.has("paas.inspect_queues")) {
+          pushCall("paas.inspect_queues", { limit: 10 });
+        }
+        if (calls.length > 0) {
+          return { toolCalls: calls, promptTokens: 250, completionTokens: 60, model: this.modelName };
+        }
+        return {
+          toolCalls: [],
+          finalText: buildOverviewSummaryMarkdown(input.serviceContext),
+          promptTokens: 210,
+          completionTokens: 85,
+          model: this.modelName
+        };
+      }
 
       // Explicit out-of-scope plant test: invoke tool with requested plant so Policy Engine logs denial!
       if (requestedPlant && !input.user.plantIds.includes(requestedPlant)) {
@@ -331,17 +456,30 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
               ? "plant"
               : "line");
 
-        // Always execute query_metric so Policy Engine enforces & audits role denial for engineers!
-        pushCall("query_metric", {
-          metric: metricId,
-          groupBy,
-          range,
-          filters: {
-            ...(requestedPlant ? { plantId: requestedPlant } : {}),
-            ...(lineId ? { lineId } : {}),
-            ...(targetMachineId ? { machineId: targetMachineId } : {})
-          }
-        });
+        // Always execute query_metric unless scoped to a service where compare_metrics / query_metric is toggled
+        if (/\bcompare\b/i.test(prompt) && (!input.serviceContext || allowedSet.has("compare_metrics"))) {
+          pushCall("compare_metrics", {
+            metricA: metricId,
+            metricB: metricId === "oee" ? "availability" : "oee",
+            groupBy,
+            range,
+            filters: {
+              ...(requestedPlant ? { plantId: requestedPlant } : {}),
+              ...(lineId ? { lineId } : {})
+            }
+          });
+        } else {
+          pushCall("query_metric", {
+            metric: metricId,
+            groupBy,
+            range,
+            filters: {
+              ...(requestedPlant ? { plantId: requestedPlant } : {}),
+              ...(lineId ? { lineId } : {}),
+              ...(targetMachineId ? { machineId: targetMachineId } : {})
+            }
+          });
+        }
         if (/why|reason/.test(lower) && metricId === "downtime_minutes") {
           pushCall("query_metric", {
             metric: "downtime_minutes",
@@ -562,6 +700,10 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
     }
 
     const sections: string[] = [];
+
+    if (input.serviceContext?.isOverview && asksOverviewSandbox) {
+      sections.push(buildOverviewSummaryMarkdown(input.serviceContext));
+    }
 
     // Attachments analysis (documents, images, text snippets)
     if (input.attachments && input.attachments.length > 0) {
@@ -839,9 +981,16 @@ return { machineId: input.machineId, status: status.status, alarmCount: Array.is
     }
 
     if (sections.length === 0) {
-      sections.push(
-        "The plant knowledge base and operational tools returned no matching records for that query. Try specifying a machine ID, fault code, or metric, or escalate to your supervisor."
-      );
+      if (input.serviceContext && !input.serviceContext.isOverview) {
+        const skillNames = input.serviceContext.activeSkills.map((s) => s.name).join(", ");
+        sections.push(
+          `**${input.serviceContext.agentName}** (\`${input.serviceContext.scopeId}\`) is ready with skills: ${skillNames || "none enabled"}. Ask a question specific to this service or switch to **Overview Agent (Cross-Service)**.`
+        );
+      } else {
+        sections.push(
+          "The plant knowledge base and operational tools returned no matching records for that query. Try specifying a machine ID, fault code, or metric, or escalate to your supervisor."
+        );
+      }
     }
 
     const finalText = sections.join("\n\n");

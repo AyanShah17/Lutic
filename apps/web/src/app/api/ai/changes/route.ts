@@ -10,14 +10,18 @@ import {
   boardIssues,
   buildWorkflowFromPrompt,
   can,
+  computeAgentCapabilities,
   DashboardSpecSchema,
   dashboards,
   dashboardVersions,
   desc,
   eq,
+  getTenantSandboxServices,
   inArray,
+  resolveServiceIdFromPathname,
   workflows,
   workflowVersions,
+  type AgentScopeId,
   type Permission
 } from "@lutic/core";
 import { requireWebLicense, withWebTenantDb } from "@/lib/db";
@@ -51,16 +55,30 @@ export interface AiChangeProposal {
   mutation: Record<string, unknown>;
 }
 
+const ServiceIdEnum = z.enum([
+  "overview",
+  "board",
+  "machines",
+  "monitoring",
+  "dashboards",
+  "workflows",
+  "connectors",
+  "notifications",
+  "queues"
+]);
+
 const ProposeSchema = z.object({
   mode: z.literal("propose"),
   prompt: z.string().trim().min(2).max(1500),
   scope: z.enum(["screen", "global"]).default("screen"),
   pathname: z.string().default("/"),
-  selectedEntityId: z.string().optional()
+  selectedEntityId: z.string().optional(),
+  serviceId: ServiceIdEnum.optional()
 });
 
 const SaveSchema = z.object({
   mode: z.literal("save"),
+  serviceId: ServiceIdEnum.optional(),
   proposal: z.object({
     id: z.string().min(1),
     scope: z.enum(["screen", "global"]),
@@ -165,17 +183,61 @@ export async function POST(req: Request) {
       const onWorkflows = body.scope === "screen" && path.startsWith("/workflows");
       const onMonitoring = body.scope === "screen" && path.startsWith("/monitoring");
       const onBoard = body.scope === "screen" && path.startsWith("/board");
+      const effectiveServiceId: AgentScopeId =
+        body.serviceId ??
+        (body.scope === "global" ? "overview" : resolveServiceIdFromPathname(path));
 
       return await withWebTenantDb(user.tenantId, async (db) => {
+        const sandboxServices = await getTenantSandboxServices(db, user.tenantId);
+        const caps = computeAgentCapabilities(sandboxServices, effectiveServiceId);
+        if (!caps.enabled) {
+          return problemResponse(
+            403,
+            "Service Not Enabled",
+            `${caps.agentName} cannot propose changes because service '${effectiveServiceId}' is not enabled in your sandbox.`
+          );
+        }
+
+        const guardProposal = (proposal: AiChangeProposal) => {
+          if (!caps.allowedChangeTypes.has(proposal.targetType)) {
+            return problemResponse(
+              403,
+              "Service Agent Isolation",
+              `${caps.agentName} can only modify ${Array.from(caps.allowedChangeTypes).join(", ") || "no workspace resources"} (attempted '${proposal.targetType}'). Switch to Overview Agent for cross-service edits.`
+            );
+          }
+          return NextResponse.json({ proposal });
+        };
+
+        if (!caps.isOverview) {
+          if (/\b(create|new|toggle|pause|enable|disable)\b.*\bworkflow\b|\bworkflow\b.*\b(when|trigger)\b/i.test(body.prompt) && !caps.allowedChangeTypes.has("workflow")) {
+            return problemResponse(
+              403,
+              "Service Agent Isolation",
+              `${caps.agentName} cannot modify workflows. Switch to Overview Agent or open AI Canvas.`
+            );
+          }
+          if (/\b(alert\s*rule|threshold)\b/i.test(body.prompt) && !caps.allowedChangeTypes.has("alert_rule")) {
+            return problemResponse(
+              403,
+              "Service Agent Isolation",
+              `${caps.agentName} cannot modify monitoring alert rules. Switch to Overview Agent or open Monitoring.`
+            );
+          }
+        }
+
         const machineIdsInPrompt = Array.from(body.prompt.matchAll(/\bmach-[a-z0-9-]+\b/gi)).map((m) =>
           m[0].toLowerCase()
         );
 
         // 1. Machine Topology Connection or Criticality Change
         if (
-          onMachines ||
-          machineIdsInPrompt.length >= 2 ||
-          (/connect|link|pipe|conveyor|interlock|criticality/.test(lower) && !onWorkflows)
+          (caps.isOverview ||
+            caps.allowedChangeTypes.has("machine_connection") ||
+            caps.allowedChangeTypes.has("machine_criticality")) &&
+          (onMachines ||
+            machineIdsInPrompt.length >= 2 ||
+            (/connect|link|pipe|conveyor|interlock|criticality/.test(lower) && !onWorkflows))
         ) {
           const scopeFilter =
             user.plantIds.length > 0
@@ -227,7 +289,7 @@ export async function POST(req: Request) {
                 ],
                 mutation: { criticality: nextCrit }
               };
-              return NextResponse.json({ proposal });
+              return guardProposal(proposal);
             }
 
             const secondMachine =
@@ -296,13 +358,16 @@ export async function POST(req: Request) {
                 ],
                 mutation: { newConnection: newConn }
               };
-              return NextResponse.json({ proposal });
+              return guardProposal(proposal);
             }
           }
         }
 
         // 2. Dashboard Spec Refinement
-        if (onDashboards || /dashboard|widget|oee|scrap|energy|30d/.test(lower)) {
+        if (
+          (caps.isOverview || caps.allowedChangeTypes.has("dashboard")) &&
+          (onDashboards || /dashboard|widget|oee|scrap|energy|30d/.test(lower))
+        ) {
           const dashRows = await db
             .select()
             .from(dashboards)
@@ -386,12 +451,15 @@ export async function POST(req: Request) {
               diffRows: diffs,
               mutation: { spec: nextSpec }
             };
-            return NextResponse.json({ proposal });
+            return guardProposal(proposal);
           }
         }
 
         // 3. Workflow Update or Creation
-        if (onWorkflows || /workflow|dag|automation/.test(lower)) {
+        if (
+          (caps.isOverview || caps.allowedChangeTypes.has("workflow")) &&
+          (onWorkflows || /workflow|dag|automation/.test(lower))
+        ) {
           const wfRows = await db
             .select()
             .from(workflows)
@@ -438,7 +506,7 @@ export async function POST(req: Request) {
               ],
               mutation: { enabled: nextEnabled }
             };
-            return NextResponse.json({ proposal });
+            return guardProposal(proposal);
           }
 
           const draft = buildWorkflowFromPrompt(body.prompt);
@@ -470,11 +538,14 @@ export async function POST(req: Request) {
             ],
             mutation: { createDraft: draft }
           };
-          return NextResponse.json({ proposal });
+          return guardProposal(proposal);
         }
 
         // 4. Monitoring Threshold Rule
-        if (onMonitoring || /threshold|alert rule|alarm rule/.test(lower)) {
+        if (
+          (caps.isOverview || caps.allowedChangeTypes.has("alert_rule")) &&
+          (onMonitoring || /threshold|alert rule|alarm rule/.test(lower))
+        ) {
           const ruleRows = await db
             .select()
             .from(alertRules)
@@ -516,7 +587,7 @@ export async function POST(req: Request) {
               ],
               mutation: { threshold: nextThreshold }
             };
-            return NextResponse.json({ proposal });
+            return guardProposal(proposal);
           }
         }
 
@@ -579,7 +650,7 @@ export async function POST(req: Request) {
             ],
             mutation: { status: nextStatus, priority: nextPriority }
           };
-          return NextResponse.json({ proposal });
+          return guardProposal(proposal);
         }
 
         const nextIdentifier = `LUT-${100 + existingIssues.length + 1}`;
@@ -634,7 +705,7 @@ export async function POST(req: Request) {
             }
           }
         };
-        return NextResponse.json({ proposal });
+        return guardProposal(proposal);
       });
     }
 
@@ -647,7 +718,18 @@ export async function POST(req: Request) {
       plantId: p.plantId
     });
 
+    const saveServiceId: AgentScopeId = body.serviceId ?? "overview";
+
     return await withWebTenantDb(user.tenantId, async (db) => {
+      const sandboxServices = await getTenantSandboxServices(db, user.tenantId);
+      const saveCaps = computeAgentCapabilities(sandboxServices, saveServiceId);
+      if (!saveCaps.enabled || !saveCaps.allowedChangeTypes.has(p.targetType)) {
+        return problemResponse(
+          403,
+          "Service Agent Isolation",
+          `${saveCaps.agentName} cannot save changes of type '${p.targetType}'.`
+        );
+      }
       if (p.targetType === "machine_criticality") {
         const nextCrit = String(p.mutation.criticality ?? "A") as "A" | "B" | "C";
         const [updated] = await db

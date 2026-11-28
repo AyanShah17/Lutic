@@ -119,7 +119,12 @@ export async function executeLuticConnectorCode(params: {
 
   const remoteConnBySlug = new Map<string, (typeof tenantConns)[number]>();
   const toolCatalog: Array<{ name: string; description?: string }> = allowedTools
-    .filter((t) => t.name !== "execute_connector_code")
+    .filter(
+      (t) =>
+        t.name !== "execute_connector_code" &&
+        (!params.options?.allowedToolNamesOverride ||
+          params.options.allowedToolNamesOverride.has(t.name))
+    )
     .map((t) => ({ name: t.name, description: t.description }));
 
   for (const c of tenantConns) {

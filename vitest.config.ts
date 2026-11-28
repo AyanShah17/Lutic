@@ -34,6 +34,7 @@ export default defineConfig({
       "@lutic/core/metrics": path.resolve(__dirname, "packages/core/src/semantic/registry.ts"),
       "@lutic/core/dashboard": path.resolve(__dirname, "packages/core/src/dashboard/schema.ts"),
       "@lutic/core/connector-blueprints": path.resolve(__dirname, "packages/core/src/connector-blueprints.ts"),
+      "@lutic/core/sandbox-services": path.resolve(__dirname, "packages/core/src/sandbox-services.ts"),
       "@lutic/core": path.resolve(__dirname, "packages/core/src/index.ts"),
       "@lutic/connectors": path.resolve(__dirname, "packages/connectors/src/index.ts"),
       "@lutic/agent": path.resolve(__dirname, "packages/agent/src/index.ts")

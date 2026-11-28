@@ -5,7 +5,17 @@ import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useClerk } from "@clerk/nextjs";
 import type { SessionUser } from "@lutic/core";
+import type { SandboxServiceId, TenantSandboxServiceView } from "@lutic/core/sandbox-services";
 import { translate, type Locale } from "@/lib/i18n";
+
+export interface OverviewAgentSummaryView {
+  scopeId: "overview";
+  agentId: string;
+  agentName: string;
+  activeServiceIds: SandboxServiceId[];
+  disabledServiceIds: SandboxServiceId[];
+  activeSkills: string[];
+}
 
 interface AppContextValue {
   demoEnabled: boolean;
@@ -17,6 +27,14 @@ interface AppContextValue {
   t: (key: string) => string;
   refreshSession: () => Promise<SessionUser | null>;
   signOutExternal: () => Promise<void>;
+  sandboxServices: TenantSandboxServiceView[];
+  overviewAgent: OverviewAgentSummaryView | null;
+  sandboxLoading: boolean;
+  refreshSandboxServices: () => Promise<void>;
+  setSandboxServicesState: (
+    services: TenantSandboxServiceView[],
+    overview?: OverviewAgentSummaryView | null
+  ) => void;
 }
 
 const AppContext = createContext<AppContextValue>({
@@ -28,7 +46,12 @@ const AppContext = createContext<AppContextValue>({
   setLocale: () => {},
   t: (k) => k,
   refreshSession: async () => null,
-  signOutExternal: async () => {}
+  signOutExternal: async () => {},
+  sandboxServices: [],
+  overviewAgent: null,
+  sandboxLoading: false,
+  refreshSandboxServices: async () => {},
+  setSandboxServicesState: () => {}
 });
 
 export function useAppContext() {
@@ -74,9 +97,39 @@ export function Providers({
   const [user, setUser] = useState<SessionUser | null>(initialUser);
   const [locale, setLocale] = useState<Locale>("en");
   const [signOutFn, setSignOutFn] = useState<() => Promise<void>>(() => async () => {});
+  const [sandboxServices, setSandboxServices] = useState<TenantSandboxServiceView[]>([]);
+  const [overviewAgent, setOverviewAgent] = useState<OverviewAgentSummaryView | null>(null);
+  const [sandboxLoading, setSandboxLoading] = useState(false);
 
   const registerSignOut = useCallback((fn: () => Promise<void>) => {
     setSignOutFn(() => fn);
+  }, []);
+
+  const setSandboxServicesState = useCallback(
+    (services: TenantSandboxServiceView[], overview?: OverviewAgentSummaryView | null) => {
+      setSandboxServices(services);
+      if (overview !== undefined) setOverviewAgent(overview);
+    },
+    []
+  );
+
+  const refreshSandboxServices = useCallback(async () => {
+    setSandboxLoading(true);
+    try {
+      const res = await fetch("/api/sandbox/services", { cache: "no-store" });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          services?: TenantSandboxServiceView[];
+          overviewAgent?: OverviewAgentSummaryView;
+        };
+        if (Array.isArray(data.services)) setSandboxServices(data.services);
+        if (data.overviewAgent) setOverviewAgent(data.overviewAgent);
+      }
+    } catch {
+      // ignore transient sandbox fetch failures
+    } finally {
+      setSandboxLoading(false);
+    }
   }, []);
 
   const refreshSession = useCallback(async (): Promise<SessionUser | null> => {
@@ -92,6 +145,15 @@ export function Providers({
   useEffect(() => {
     setUser(initialUser);
   }, [initialUser]);
+
+  useEffect(() => {
+    if (!user) {
+      setSandboxServices([]);
+      setOverviewAgent(null);
+      return;
+    }
+    void refreshSandboxServices();
+  }, [user, refreshSandboxServices]);
 
   return (
     <ThemeProvider
@@ -111,7 +173,12 @@ export function Providers({
             setLocale,
             t: (k) => translate(locale, k),
             refreshSession,
-            signOutExternal: signOutFn
+            signOutExternal: signOutFn,
+            sandboxServices,
+            overviewAgent,
+            sandboxLoading,
+            refreshSandboxServices,
+            setSandboxServicesState
           }}
         >
           {clerkEnabled && <ClerkSignOutBridge onReady={registerSignOut} />}

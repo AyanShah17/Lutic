@@ -72,7 +72,7 @@ describe.skipIf(!process.env.POSTGRES_TEST_URL)("PostgreSQL multi-connection iso
 
   it("tracks versioned migrations and blocks lutic_app from schema_migrations and cross-tenant ingestion_tokens", async () => {
     const applied = await getAppliedMigrations(first);
-    expect(applied.map((m) => m.version)).toEqual([1, 2, 3, 4]);
+    expect(applied.map((m) => m.version)).toEqual([1, 2, 3, 4, 5]);
 
     await expect(
       first.db.transaction(async (tx) => {

@@ -5,6 +5,13 @@ export { rotateStoredCredentials, type CredentialRotationSummary } from "./rotat
 export { seedDatabase, DEMO_PASSWORD } from "./seed";
 export { installCoreToolkits } from "./core-toolkits";
 export {
+  getOverviewAgentSummary,
+  getTenantSandboxServices,
+  seedStarterSandboxServices,
+  upsertTenantSandboxService,
+  type UpsertSandboxServiceInput
+} from "./sandbox-services";
+export {
   and,
   asc,
   desc,

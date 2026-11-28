@@ -38,6 +38,19 @@ const AttachmentSchema = z.object({
 const ChatRequestSchema = z.object({
   conversationId: z.string().optional(),
   machineId: z.string().optional(),
+  serviceId: z
+    .enum([
+      "overview",
+      "board",
+      "machines",
+      "monitoring",
+      "dashboards",
+      "workflows",
+      "connectors",
+      "notifications",
+      "queues"
+    ])
+    .optional(),
   message: z.string().min(1).max(8000),
   attachments: z.array(AttachmentSchema).max(10).optional(),
   stream: z.boolean().optional().default(false)
@@ -165,6 +178,7 @@ export async function POST(req: Request) {
               message: body.message,
               conversationId: convId,
               machineId: body.machineId,
+              serviceId: body.serviceId,
               attachments: body.attachments,
               history,
               abortSignal: req.signal,
@@ -211,6 +225,7 @@ export async function POST(req: Request) {
       message: body.message,
       conversationId: convId,
       machineId: body.machineId,
+      serviceId: body.serviceId,
       attachments: body.attachments,
       history,
       abortSignal: req.signal

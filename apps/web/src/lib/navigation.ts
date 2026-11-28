@@ -129,17 +129,27 @@ export function isNavItemVisible(user: SessionUser | null, id: string): boolean 
 
 export function getNavGroupsForUser(
   user: SessionUser | null,
-  t: (key: string) => string
+  t: (key: string) => string,
+  enabledServiceIds?: ReadonlySet<string> | string[]
 ): Array<{
   id: NavGroupConfig["id"];
   label: string;
   items: Array<NavItemConfig & { label: string }>;
 }> {
+  const serviceSet = enabledServiceIds
+    ? enabledServiceIds instanceof Set
+      ? enabledServiceIds
+      : new Set(enabledServiceIds)
+    : null;
   return NAV_GROUPS.map((group) => ({
     id: group.id,
     label: t(group.labelKey),
     items: group.items
-      .filter((item) => isNavItemVisible(user, item.id))
+      .filter(
+        (item) =>
+          isNavItemVisible(user, item.id) &&
+          (item.id === "overview" || !serviceSet || serviceSet.has(item.id))
+      )
       .map((item) => ({ ...item, label: t(item.labelKey) }))
   })).filter((g) => g.items.length > 0);
 }

@@ -20,6 +20,11 @@ import {
   Wrench,
   X
 } from "lucide-react";
+import {
+  computeAgentCapabilities,
+  resolveServiceIdFromPathname,
+  type AgentScopeId
+} from "@lutic/core/sandbox-services";
 import type { AiChangeProposal, ChangeDiffRow } from "@/app/api/ai/changes/route";
 import { LuticLogo } from "@/components/lutic-logo";
 import { useAppContext } from "@/components/providers";
@@ -284,10 +289,13 @@ const GLOBAL_PRESETS: Array<{ label: string; prompt: string }> = [
 export function FloatingAiAssistant() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, demoEnabled } = useAppContext();
+  const { user, demoEnabled, sandboxServices = [] } = useAppContext();
 
   const [open, setOpen] = useState(false);
-  const [scope, setScope] = useState<"screen" | "global">("screen");
+  const [scope, setScope] = useState<"screen" | "global">(
+    pathname === "/" ? "global" : "screen"
+  );
+  const [overrideServiceId, setOverrideServiceId] = useState<AgentScopeId | undefined>(undefined);
   const [drawerTab, setDrawerTab] = useState<"copilot" | "history">("copilot");
   const [selectedEntityId, setSelectedEntityId] = useState<string | undefined>(undefined);
   const [selectedEntityLabel, setSelectedEntityLabel] = useState<string | undefined>(undefined);
@@ -306,6 +314,18 @@ export function FloatingAiAssistant() {
 
   const screenCtx = useMemo(() => getScreenContext(pathname), [pathname]);
   const effectiveEntityId = selectedEntityId ?? screenCtx.entityId;
+  const activeServiceId: AgentScopeId = useMemo(() => {
+    if (scope === "global") return "overview";
+    if (overrideServiceId && overrideServiceId !== "overview") return overrideServiceId;
+    return resolveServiceIdFromPathname(pathname);
+  }, [scope, overrideServiceId, pathname]);
+  const agentCaps = useMemo(
+    () =>
+      sandboxServices.length > 0
+        ? computeAgentCapabilities(sandboxServices, activeServiceId)
+        : null,
+    [sandboxServices, activeServiceId]
+  );
 
   const loadSavedHistory = async () => {
     if (!user) return;
@@ -323,6 +343,8 @@ export function FloatingAiAssistant() {
   useEffect(() => {
     setSelectedEntityId(undefined);
     setSelectedEntityLabel(undefined);
+    setOverrideServiceId(undefined);
+    setScope(pathname === "/" ? "global" : "screen");
   }, [pathname]);
 
   useEffect(() => {
@@ -342,11 +364,17 @@ export function FloatingAiAssistant() {
     const onOpenEvent = (ev: Event) => {
       const detail = (ev as CustomEvent<{
         scope?: "screen" | "global";
+        serviceId?: AgentScopeId;
         entityId?: string;
         entityName?: string;
         prompt?: string;
       }>).detail;
-      if (detail?.scope) setScope(detail.scope);
+      if (detail?.serviceId) {
+        setOverrideServiceId(detail.serviceId);
+        setScope(detail.serviceId === "overview" ? "global" : "screen");
+      } else if (detail?.scope) {
+        setScope(detail.scope);
+      }
       if (detail?.entityId) setSelectedEntityId(detail.entityId);
       if (detail?.entityName) setSelectedEntityLabel(detail.entityName);
       if (detail?.prompt) setPrompt(detail.prompt);
@@ -395,6 +423,7 @@ export function FloatingAiAssistant() {
         body: JSON.stringify({
           conversationId: convId,
           machineId: machineIdForChat,
+          serviceId: activeServiceId,
           message: `${scopedPrefix}${msg}${uploadedFileNote ? `\n\nContext upload:\n${uploadedFileNote}` : ""}`,
           stream: true
         })
@@ -484,6 +513,7 @@ export function FloatingAiAssistant() {
           prompt: text,
           scope,
           pathname,
+          serviceId: activeServiceId,
           selectedEntityId: effectiveEntityId
         })
       });
@@ -517,7 +547,7 @@ export function FloatingAiAssistant() {
       const res = await fetch("/api/ai/changes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "save", proposal })
+        body: JSON.stringify({ mode: "save", serviceId: activeServiceId, proposal })
       });
       const data = (await res.json().catch(() => ({}))) as {
         saved?: SavedChangeItem;
@@ -585,9 +615,9 @@ export function FloatingAiAssistant() {
         )}
       >
         <LuticLogo className="h-4 w-4" />
-        <span>Lutic AI</span>
+        <span>{agentCaps?.agentName ?? "Lutic AI"}</span>
         <span className="hidden sm:inline text-[10px] opacity-75">
-          {screenCtx.label}
+          {scope === "global" ? "Cross-Service" : screenCtx.label}
         </span>
       </button>
 
@@ -603,20 +633,44 @@ export function FloatingAiAssistant() {
         <div className="border-b border-border/70 bg-card px-5 py-4 space-y-3 shrink-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Bot className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold tracking-tight">Lutic AI Copilot</h2>
+                <h2 className="text-sm font-semibold tracking-tight">
+                  {agentCaps?.agentName ?? "Lutic AI Copilot"}
+                </h2>
+                <Badge variant={activeServiceId === "overview" ? "secondary" : "outline"} className="text-[10px]">
+                  {activeServiceId === "overview" ? "Cross-Service" : `Isolated · ${activeServiceId}`}
+                </Badge>
                 <kbd className="rounded border border-border/80 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   Cmd+J
                 </kbd>
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Ask diagnostics, preview Before / After diffs, and save changes to{" "}
+                {activeServiceId === "overview"
+                  ? `Active across ${agentCaps?.activeServiceIds.length ?? 0} sandbox service(s).`
+                  : `Strictly scoped to ${selectedEntityLabel || activeServiceId} skills only.`}{" "}
                 <code className="font-mono text-foreground">
-                  {scope === "global" ? "Global Workspace" : pathname}
+                  {scope === "global" ? "Overview Agent" : pathname}
                 </code>
-                {selectedEntityLabel ? ` (${selectedEntityLabel})` : ""}.
+                .
               </p>
+              {agentCaps && agentCaps.activeSkills.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1.5">
+                  {agentCaps.activeSkills.slice(0, 6).map((sk) => (
+                    <span
+                      key={sk.id}
+                      className="rounded border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    >
+                      {sk.name}
+                    </span>
+                  ))}
+                  {agentCaps.activeSkills.length > 6 && (
+                    <span className="text-[10px] text-muted-foreground px-1">
+                      +{agentCaps.activeSkills.length - 6} more
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <Button
               variant="ghost"
@@ -647,7 +701,7 @@ export function FloatingAiAssistant() {
                 )}
               >
                 <Layers className="h-3 w-3 text-primary" />
-                <span>Current Screen</span>
+                <span>Service Agent</span>
               </button>
               <button
                 type="button"
@@ -661,7 +715,7 @@ export function FloatingAiAssistant() {
                 )}
               >
                 <Globe className="h-3 w-3 text-primary" />
-                <span>Global Changes</span>
+                <span>Overview Agent</span>
               </button>
             </div>
 

@@ -64,7 +64,16 @@ interface NavNotification {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, locale, setLocale, t, refreshSession, setUser, signOutExternal } = useAppContext();
+  const {
+    user,
+    locale,
+    setLocale,
+    t,
+    refreshSession,
+    setUser,
+    signOutExternal,
+    sandboxServices = []
+  } = useAppContext();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -112,7 +121,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [bellOpen]);
 
   const activeTheme = mounted ? (theme ?? "light") : "light";
-  const navGroups = getNavGroupsForUser(user, t);
+  const enabledServiceIds =
+    sandboxServices.length > 0
+      ? sandboxServices.filter((s) => s.enabled).map((s) => s.id)
+      : undefined;
+  const navGroups = getNavGroupsForUser(user, t, enabledServiceIds);
 
   const activeEntry = (() => {
     for (const group of navGroups) {
